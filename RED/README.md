@@ -51,8 +51,4 @@ Para mejorar la decisión en el cambio de modo de locomoción, se incorporaron d
 
 ---
 
-## 📌 Conclusión
-Este avance redefine los estímulos y optimiza la red neuronal al incorporar datos del IMU, mejorando la toma de decisiones del robot en terrenos desafiantes.
-
-Próximos pasos: Implementación y prueba en simulación realista. 🚀
 
