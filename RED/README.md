@@ -51,4 +51,9 @@ Para mejorar la decisión en el cambio de modo de locomoción, se incorporaron d
 
 ---
 
+## Respuesta de la RED a altas vibraciones:
+
+![Imagen de la respuesta](RespuestaRed.png)
+
+
 
