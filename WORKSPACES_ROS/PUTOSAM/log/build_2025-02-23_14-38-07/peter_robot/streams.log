@@ -1,0 +1,22 @@
+[0.709s] Invoking command in '/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/src/peter_robot': PYTHONPATH=/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../../build/peter_robot build --build-base /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build install --record /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/install.log --single-version-externally-managed install_data
+[0.965s] running egg_info
+[0.965s] writing ../../build/peter_robot/peter_robot.egg-info/PKG-INFO
+[0.965s] writing dependency_links to ../../build/peter_robot/peter_robot.egg-info/dependency_links.txt
+[0.966s] writing entry points to ../../build/peter_robot/peter_robot.egg-info/entry_points.txt
+[0.966s] writing requirements to ../../build/peter_robot/peter_robot.egg-info/requires.txt
+[0.966s] writing top-level names to ../../build/peter_robot/peter_robot.egg-info/top_level.txt
+[0.969s] reading manifest file '../../build/peter_robot/peter_robot.egg-info/SOURCES.txt'
+[0.970s] writing manifest file '../../build/peter_robot/peter_robot.egg-info/SOURCES.txt'
+[0.970s] running build
+[0.970s] running build_py
+[0.970s] running install
+[0.971s] running install_lib
+[0.972s] running install_data
+[0.972s] running install_egg_info
+[0.974s] removing '/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/peter_robot-0.0.0-py3.10.egg-info' (and everything under it)
+[0.974s] Copying ../../build/peter_robot/peter_robot.egg-info to /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/peter_robot-0.0.0-py3.10.egg-info
+[0.978s] running install_scripts
+[0.999s] Installing peter_controller script to /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/peter_robot
+[0.999s] Installing peter_teleop_keyboard script to /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/peter_robot
+[1.000s] writing list of installed files to '/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/install.log'
+[1.042s] Invoked command in '/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/src/peter_robot' returned '0': PYTHONPATH=/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated setup.py egg_info --egg-base ../../build/peter_robot build --build-base /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build install --record /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/install.log --single-version-externally-managed install_data

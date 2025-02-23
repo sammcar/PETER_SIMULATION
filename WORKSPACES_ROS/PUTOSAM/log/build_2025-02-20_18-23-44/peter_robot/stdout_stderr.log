@@ -1,0 +1,76 @@
+running egg_info
+creating ../../build/peter_robot/peter_robot.egg-info
+writing ../../build/peter_robot/peter_robot.egg-info/PKG-INFO
+writing dependency_links to ../../build/peter_robot/peter_robot.egg-info/dependency_links.txt
+writing entry points to ../../build/peter_robot/peter_robot.egg-info/entry_points.txt
+writing requirements to ../../build/peter_robot/peter_robot.egg-info/requires.txt
+writing top-level names to ../../build/peter_robot/peter_robot.egg-info/top_level.txt
+writing manifest file '../../build/peter_robot/peter_robot.egg-info/SOURCES.txt'
+reading manifest file '../../build/peter_robot/peter_robot.egg-info/SOURCES.txt'
+writing manifest file '../../build/peter_robot/peter_robot.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src
+copying src/peter_controller.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src
+copying src/peter_teleop_keyboard.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src
+copying src/peter_controller_OLD.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src
+copying src/__init__.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src
+running install
+running install_lib
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src
+copying /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src/peter_controller.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src
+copying /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src/peter_teleop_keyboard.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src
+copying /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src/peter_controller_OLD.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src
+copying /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/build/lib/src/__init__.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src
+byte-compiling /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src/peter_controller.py to peter_controller.cpython-310.pyc
+byte-compiling /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src/peter_teleop_keyboard.py to peter_teleop_keyboard.cpython-310.pyc
+byte-compiling /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src/peter_controller_OLD.py to peter_controller_OLD.cpython-310.pyc
+byte-compiling /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/src/__init__.py to __init__.cpython-310.pyc
+running install_data
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/ament_index
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/ament_index/resource_index
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/ament_index/resource_index/packages
+copying resource/peter_robot -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/ament_index/resource_index/packages
+copying package.xml -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/urdf
+copying urdf/peter.urdf -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/urdf
+copying urdf/peter.urdf.xacro -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/urdf
+copying urdf/peter_control_plugin.xacro -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/urdf
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/launch
+copying launch/gazebo.launch.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/launch
+copying launch/display.launch.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/launch
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/src
+copying src/peter_controller.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/src
+copying src/peter_teleop_keyboard.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/src
+copying src/peter_controller_OLD.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/src
+copying src/__init__.py -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/src
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/TibiaRU_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/FemurLD_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/RuedaLD_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/RuedaRU_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/CoxisLD_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/Cuerpo_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/FemurRD_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/RuedaRD_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/TibiaLU_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/TibiaRD_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/TibiaLD_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/CoxisRU_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/RuedaLU_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/CoxisRD_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/FemurLU_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/CoxisLU_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+copying meshes/FemurRU_link.STL -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/meshes
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/worlds
+copying worlds/empty.world -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/worlds
+creating /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/config
+copying config/peter_joint_controller.yaml -> /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/share/peter_robot/config
+running install_egg_info
+Copying ../../build/peter_robot/peter_robot.egg-info to /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/python3.10/site-packages/peter_robot-0.0.0-py3.10.egg-info
+running install_scripts
+Installing peter_controller script to /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/peter_robot
+Installing peter_teleop_keyboard script to /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/peter_robot/lib/peter_robot
+writing list of installed files to '/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/peter_robot/install.log'

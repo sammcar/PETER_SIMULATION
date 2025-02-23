@@ -1,0 +1,4 @@
+[console_scripts]
+peter_controller = src.peter_controller:main
+peter_teleop_keyboard = src.peter_teleop_keyboard:main
+

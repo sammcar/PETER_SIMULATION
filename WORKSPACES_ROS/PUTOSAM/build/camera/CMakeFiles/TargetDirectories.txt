@@ -1,0 +1,9 @@
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/uninstall.dir
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/camera_uninstall.dir
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/test.dir
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/edit_cache.dir
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/rebuild_cache.dir
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/list_install_components.dir
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/install.dir
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/install/local.dir
+/home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera/CMakeFiles/install/strip.dir
