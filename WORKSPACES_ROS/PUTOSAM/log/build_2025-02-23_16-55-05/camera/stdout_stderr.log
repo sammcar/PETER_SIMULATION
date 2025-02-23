@@ -1,0 +1,28 @@
+-- Found ament_cmake: 1.3.10 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found rclpy: 3.3.14 (/opt/ros/humble/share/rclpy/cmake)
+-- Found ament_lint_auto: 0.12.11 (/opt/ros/humble/share/ament_lint_auto/cmake)
+-- Added test 'flake8' to check Python code syntax and style conventions
+-- Added test 'lint_cmake' to check CMake code style
+-- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+-- Added test 'xmllint' to check XML markup files
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/build/camera
+-- Install configuration: ""
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/lib/camera/camera.py
+-- Installing: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/lib/camera/cameraAdjust.py
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/ament_index/resource_index/package_run_dependencies/camera
+-- Installing: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/ament_index/resource_index/parent_prefix_path/camera
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/environment/ament_prefix_path.sh
+-- Installing: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/environment/ament_prefix_path.dsv
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/environment/path.sh
+-- Installing: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/environment/path.dsv
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/local_setup.bash
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/local_setup.sh
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/local_setup.zsh
+-- Installing: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/local_setup.dsv
+-- Installing: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/package.dsv
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/ament_index/resource_index/packages/camera
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/cmake/cameraConfig.cmake
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/cmake/cameraConfig-version.cmake
+-- Up-to-date: /home/alejo/Paper/PETER_SIMULATION/WORKSPACES_ROS/PUTOSAM/install/camera/share/camera/package.xml

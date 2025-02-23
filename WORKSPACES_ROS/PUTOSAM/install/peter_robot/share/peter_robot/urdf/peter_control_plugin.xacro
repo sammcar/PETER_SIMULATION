@@ -1,0 +1,215 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <ros2_control name="GazeboSystem" type="System">
+        <hardware>
+            <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+        </hardware>
+
+        <joint name="CoxisRU_joint">
+            <command_interface name="position">
+                <param name="min">0.0</param>
+                <param name="max">1.57</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="FemurRU_joint">
+            <command_interface name="position">
+                <param name="min">-0.785</param>
+                <param name="max">0.785</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="TibiaRU_joint">
+            <command_interface name="position">
+                <param name="min">-1.57</param>
+                <param name="max">0.393</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="RuedaRU_joint">
+            <command_interface name="velocity">
+                <param name="min">-1.5</param>
+                <param name="max">1.5</param>
+            </command_interface>
+            <state_interface name="velocity">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="position"/>
+            <state_interface name="effort"/>
+        </joint>
+
+
+
+        <joint name="CoxisLU_joint">
+            <command_interface name="position">
+                <param name="min">-1.57</param>
+                <param name="max">0.0</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="FemurLU_joint">
+            <command_interface name="position">
+                <param name="min">-0.785</param>
+                <param name="max">0.785</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+        
+        <joint name="TibiaLU_joint">
+            <command_interface name="position">
+                <param name="min">-1.57</param>
+                <param name="max">0.393</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="RuedaLU_joint">
+            <command_interface name="velocity">
+                <param name="min">-1.5</param>
+                <param name="max">1.5</param>
+            </command_interface>
+            <state_interface name="velocity">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="position"/>
+            <state_interface name="effort"/>
+        </joint>
+
+
+
+        <joint name="CoxisRD_joint">
+            <command_interface name="position">
+                <param name="min">-1.57</param>
+                <param name="max">0.0</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="FemurRD_joint">
+            <command_interface name="position">
+                <param name="min">-0.785</param>
+                <param name="max">0.785</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="TibiaRD_joint">
+            <command_interface name="position">
+                <param name="min">-1.57</param>
+                <param name="max">0.393</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="RuedaRD_joint">
+            <command_interface name="velocity">
+                <param name="min">-1.5</param>
+                <param name="max">1.5</param>
+            </command_interface>
+            <state_interface name="velocity">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="position"/>
+            <state_interface name="effort"/>
+        </joint>
+
+
+        <joint name="CoxisLD_joint">
+            <command_interface name="position">
+                <param name="min">0.0</param>
+                <param name="max">1.57</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="FemurLD_joint">
+            <command_interface name="position">
+                <param name="min">-0.785</param>
+                <param name="max">0.785</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="TibiaLD_joint">
+            <command_interface name="position">
+                <param name="min">-1.57</param>
+                <param name="max">0.393</param>
+            </command_interface>
+            <state_interface name="position">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="velocity"/>
+            <state_interface name="effort"/>
+        </joint>
+
+        <joint name="RuedaLD_joint">
+            <command_interface name="velocity">
+                <param name="min">-1.5</param>
+                <param name="max">1.5</param>
+            </command_interface>
+            <state_interface name="velocity">
+                <param name="initial_value">0.0</param>
+            </state_interface>
+            <state_interface name="position"/>
+            <state_interface name="effort"/>
+        </joint>
+
+    </ros2_control>
+
+    <gazebo>
+        <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control">
+          <parameters>$(find peter_robot)/config/peter_joint_controller.yaml</parameters>
+        </plugin>
+    </gazebo>
+
+
+</robot> 
