@@ -32,6 +32,7 @@ setup(
         'console_scripts': [
             'peter_controller = src.peter_controller:main',
             'peter_teleop_keyboard = src.peter_teleop_keyboard:main',
+            'red_parcial_v2 = src.red_parcial_v2:main',
         ],
     },
 )
