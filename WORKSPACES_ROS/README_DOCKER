@@ -1,0 +1,11 @@
+1. Dentro del docker, en Docker_file descomprimir PETER_DOCKER.zip
+3. colcon build + source install/setup.bash
+Modelo antiguo:
+4. Para RVIZ: ros2 launch peter_robot display.launch.py
+5. Para Gazebo: ros2 launch peter_robot gazebo.launch.py
+
+Modelo nuevo:
+4. Para RVIZ: ros2 launch new_peter display.launch.py
+5. Para Gazebo: ros2 launch new_peter gazebo.launch.py
+
+Para mover ruedas omnidireccionales: ros2 run new_peter vel_test.py
