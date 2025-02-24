@@ -29,7 +29,7 @@ class CamaraNodo(Node):
 
     def publish_bounding(self, publisher, x, y, w, h, colorname):
         msg = Float32MultiArray()
-        x_mapped = float((x / 639) * 180) #Posicion de 0 a 180 para la red SI NECESITA VALOR ENTERO CAMBIAR
+        x_mapped = float(180 - (x / 639) * 180) #Posicion de 0 a 180 para la red SI NECESITA VALOR ENTERO CAMBIAR
         area = float(w*h)
         msg.data = [x_mapped, area]
         self.get_logger().info(f'Array {colorname}: {[x, y, w, h]}')
