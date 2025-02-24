@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from std_msgs.msg import Int32MultiArray
+from std_msgs.msg import Int32MultiArray, Float32MultiArray
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -21,15 +21,17 @@ class CamaraNodo(Node):
         )
 
         # Publicadores para cada color
-        self.publisher_red = self.create_publisher(Int32MultiArray, '/bounding_box/red', 10)
-        self.publisher_blue = self.create_publisher(Int32MultiArray, '/bounding_box/blue', 10)
-        self.publisher_green = self.create_publisher(Int32MultiArray, '/bounding_box/green', 10)
+        self.publisher_red = self.create_publisher(Float32MultiArray, '/bounding_box/red', 10)
+        self.publisher_blue = self.create_publisher(Float32MultiArray, '/bounding_box/blue', 10)
+        self.publisher_green = self.create_publisher(Float32MultiArray, '/bounding_box/green', 10)
 
         self.get_logger().info("Nodo de visualización de cámara iniciado.")
 
     def publish_bounding(self, publisher, x, y, w, h, colorname):
-        msg = Int32MultiArray()
-        msg.data = [x, y, w, h]
+        msg = Float32MultiArray()
+        x_mapped = float((x / 639) * 180) #Posicion de 0 a 180 para la red SI NECESITA VALOR ENTERO CAMBIAR
+        area = float(w*h)
+        msg.data = [x_mapped, area]
         self.get_logger().info(f'Array {colorname}: {[x, y, w, h]}')
         publisher.publish(msg)
 
