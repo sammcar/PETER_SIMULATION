@@ -22,22 +22,27 @@ Simulación de P.E.T.E.R para paper en el semillero de neurocontrol motor.
     ```bash
     cd PETER_SIMULATION
     ```
+    
 2. **Actualizar el contenido**: 
     ```bash
     git pull origin main
     ```
+    
 3. **Verificar los archivos que creaste/modificaste**:
     ```bash
     git status
     ```
+    
 4. **Añadir los archivos que creaste/modificaste**:
     ```bash
     git add .
     ```
+    
 5. **Hacer el commit**:
     ```bash
     git commit -m "<mensaje>" .
     ```
+    
 6. **Hacer el push**:
     ```bash
     git push origin main .
