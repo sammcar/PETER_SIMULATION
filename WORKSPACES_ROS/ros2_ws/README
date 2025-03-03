@@ -1,3 +1,7 @@
+Este workspace DEBE usarse dentro de un Docker o computador con Gazebo SIM Harmonic y ros2 jazzy instalados. Se recomienda seguir el tutorial del Docker con estos programas en:
+https://uao-my.sharepoint.com/:t:/g/personal/samuel_carlos_uao_edu_co/EfZxzVHfAapKuOYZyysIZqoBM2WVEo2POWaElfngAsKi3w?e=06BAjF 
+
+Dentro de ros2_ws:
 1. colcon build + source install/setup.bash
 2. Para RVIZ: ros2 launch peter_robot display.launch.py
 3. Para Gazebo: ros2 launch peter_robot gazebo.launch.py
