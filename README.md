@@ -10,7 +10,7 @@ Simulación de P.E.T.E.R para paper en el semillero de neurocontrol motor.
 
 ### VIDEO TUTORIAL
 
- <a href="https://youtu.be/OxkJlgVeY2w">
+ <a href="https://www.youtube.com/watch?v=xyDA1aFvYTs">
   <img src="Titulo.png" alt="Texto alternativo" width="700"/>
 </a>
 
