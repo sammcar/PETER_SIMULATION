@@ -1,0 +1,8 @@
+1. colcon build + source install/setup.bash
+2. Para RVIZ: ros2 launch peter_robot display.launch.py
+3. Para Gazebo: ros2 launch peter_robot gazebo.launch.py
+
+Para moverlo en gazebo teleoperado: En otra terminal source install/setup.bash + ros2 run peter_robot peter_teleop_keyboard
+Para moverlo en gazebo con la red: En otra terminal source install/setup.bash + ros2 run peter_robot red_neuro
+
+Para visualizar LIDAR, Superficies de contacto y otras herramientas, se recomienda ver el video "Resultados Red" dentro de la carpeta de Sam en Onedrive.
