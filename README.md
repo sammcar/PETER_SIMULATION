@@ -8,7 +8,8 @@ Simulación de P.E.T.E.R para paper en el semillero de neurocontrol motor.
 
 ## ¿Cómo usar el repositorio?
 
-###VIDEO TUTORIAL
+### VIDEO TUTORIAL
+
  <a href="https://youtu.be/OxkJlgVeY2w">
   <img src="Titulo.png" alt="Texto alternativo" width="700"/>
 </a>
