@@ -108,7 +108,7 @@ Nota: Los cambios se harán únicamente en tu rama, no en la rama principal del 
    git add .
    git commit -m "Descripción del cambio"
    ```
-3. **Subir los cambios a tu rama del repositorio**:
+**Subir los cambios a tu rama del repositorio**:
    ```bash
    git push origin <nombre-rama>
    ```
