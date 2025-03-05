@@ -72,6 +72,8 @@ Si enfrentas problemas de autenticación, puedes ejecutar los siguientes comando
 - Asegúrate de haber configurado tu clave SSH correctamente. Sigue la [documentación oficial de GitHub](https://docs.github.com/es/authentication/connecting-to-github-with-ssh/about-ssh) para más detalles.
 ---
 
+
+
 ## Uso de ramas (Branches) para trabajar en paralelo:
 
 Para trabajar de forma óptima y organizada en el Paper, se vuelve necesario el uso de las ramas:
