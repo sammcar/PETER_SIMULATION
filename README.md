@@ -80,10 +80,16 @@ Para trabajar de forma óptima y organizada en el Paper, se vuelve necesario el 
 
 ### 1. Creación de una nueva rama
 
-Debes crear una nueva rama para empezar con el uso del trabajo en paralelo. Para ello, debes usar el siguiente comando:
+Debes crear una nueva rama para empezar con el uso del trabajo en paralelo. Para ello, debes usar el siguiente comando (En este caso `nombre de la rama` será tu nombre):
 
 ```bash
 git branch <nombre de la rama>
+```
+
+Ejemplo:
+
+```bash
+git branch dieguito
 ```
 
 Ahora, para cambiar a tu rama de desarrollo deberás usar el siguiente comando(En este caso `nombre de la rama` será tu nombre):
