@@ -73,3 +73,40 @@ Si enfrentas problemas de autenticación, puedes ejecutar los siguientes comando
 ---
 
 ## Uso de ramas (Branches) para trabajar en paralelo:
+
+Para trabajar de forma óptima y organizada en el Paper, se vuelve necesario el uso de las ramas:
+
+### 1. Creación de una nueva rama
+
+Ya creé una rama con el nombre de cada integrante del grupo, aún así, si quieres crear una nueva debes usar el siguiente comando: **crea una rama basada en `develop`**:
+
+```bash
+git branch <nombre de la rama>
+```
+
+Ahora, para cambiar a tu rama de desarrollo deberás usar el siguiente comando(En este caso `nombre de la rama` será tu nombre):
+
+```bash
+git switch <nombre de la rama>
+```
+
+Ejemplo:
+
+```bash
+git switch dieguito
+```
+
+### 2. Hacer cambios y subirlos
+
+Una vez que hayas hecho un cambio en tu rama, lo siguiente será subir los cambios que hiciste (en tu rama) al repositorio:
+Nota: Los cambios se harán únicamente en tu rama, no en la rama principal del repositorio
+
+**Añadir los cambios y hacer un commit**:
+   ```bash
+   git add .
+   git commit -m "Descripción del cambio"
+   ```
+3. **Subir los cambios a tu rama del repositorio**:
+   ```bash
+   git push origin <nombre-rama>
+   ```
