@@ -80,7 +80,7 @@ Para trabajar de forma óptima y organizada en el Paper, se vuelve necesario el 
 
 ### 1. Creación de una nueva rama
 
-Ya creé una rama con el nombre de cada integrante del grupo, aún así, si quieres crear una nueva debes usar el siguiente comando: **crea una rama basada en `develop`**:
+Ya creé una rama con el nombre de cada integrante del grupo, aún así, si quieres crear una nueva debes usar el siguiente comando:
 
 ```bash
 git branch <nombre de la rama>
