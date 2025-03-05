@@ -47,12 +47,12 @@ Simulación de P.E.T.E.R para paper en el semillero de neurocontrol motor.
     
 5. **Hacer el commit**:
     ```bash
-    git commit -m "<mensaje>" .
+    git commit -m "<mensaje>"
     ```
     
 6. **Hacer el push**:
     ```bash
-    git push origin main .
+    git push origin main
     ```
 
 
@@ -71,3 +71,5 @@ Si enfrentas problemas de autenticación, puedes ejecutar los siguientes comando
    ```
 - Asegúrate de haber configurado tu clave SSH correctamente. Sigue la [documentación oficial de GitHub](https://docs.github.com/es/authentication/connecting-to-github-with-ssh/about-ssh) para más detalles.
 ---
+
+## Uso de ramas (Branches) para trabajar en paralelo:
