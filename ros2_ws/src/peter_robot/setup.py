@@ -4,7 +4,7 @@ from glob import glob
 from setuptools import setup
 from setuptools import find_packages
 import shutil
-
+#DIEGUITO ME CAGÓ EL DOCKER
 package_name = 'peter_robot'
 model_files = [f for f in glob('models/**/*', recursive=True) if os.path.isfile(f)]
 
