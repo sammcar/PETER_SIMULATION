@@ -1,0 +1,49 @@
+-------Tutorial ---------------
+
+-prerequisite: make sure you have the nvidia drivers and docker-nvidia-toolkit (more info in the docker manual)
+
+1) Put the content of the docker zip on your desktop 
+
+2) go inside:
+
+cd /Docker_harmonic/docker_simulator/DockerFiles
+
+run: docker build -t harmonic_gz .
+
+3) go to: 
+
+cd /Docker_harmonic
+
+run: docker compose up -d
+
+4) now check with: 
+
+docker ps -a
+
+you should see a container with the name: ros2_jammy_simulator
+
+5) run:
+
+docker start ros2_jammy_simulator & docker attach ros2_jammy_simulator 
+
+cd ros2_ws/
+
+colcon build
+
+source install
+
+ros2 launch peter_robot gazebo.launch.py 
+
+6) I don´t know if all of tha packages are install in the docker so maybe the launch fails, so make sure to read the error message to find what is missing 
+
+7) in another terminal run:
+
+docker exec -it ros2_jammy_simulator bash
+
+cd ros2_ws/
+
+source install
+
+ros2 run peter_robot peter_test_joints 
+
+---ENJOY--
