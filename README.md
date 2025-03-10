@@ -59,17 +59,17 @@ Simulación de P.E.T.E.R para paper en el semillero de neurocontrol motor.
 ### Solución para problemas de autenticación sin SSH
 
 Si enfrentas problemas de autenticación, puedes ejecutar los siguientes comandos para asegurarte de estar utilizando la autenticación SSH:
+1.  Asegúrate de haber configurado tu clave SSH correctamente. Sigue el siguiente [video tutorial](https://youtu.be/XvtizBx7AFA) para corregir este error. 
 
-1. Establecer la URL remota:
+2. Establecer la URL remota:
    ```bash
    git remote set-url git@github.com:sammcar/PETER_SIMULATION.git
    ```
 
-2. Agregar el origen remoto (si es necesario):
+3. Agregar el origen remoto (si es necesario):
    ```bash
    git remote add origin git@github.com:sammcar/PETER_SIMULATION.git
    ```
-- Asegúrate de haber configurado tu clave SSH correctamente. Sigue la [documentación oficial de GitHub](https://docs.github.com/es/authentication/connecting-to-github-with-ssh/about-ssh) para más detalles.
 ---
 
 
