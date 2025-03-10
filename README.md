@@ -62,12 +62,12 @@ Si enfrentas problemas de autenticación, puedes ejecutar los siguientes comando
 
 1. Establecer la URL remota:
    ```bash
-   git remote set-url origin git@github.com:DiegoACaro/Unity_ws.git
+   git remote set-url git@github.com:sammcar/PETER_SIMULATION.git
    ```
 
 2. Agregar el origen remoto (si es necesario):
    ```bash
-   git remote add origin git@github.com:DiegoACaro/Unity_ws.git
+   git remote add origin git@github.com:sammcar/PETER_SIMULATION.git
    ```
 - Asegúrate de haber configurado tu clave SSH correctamente. Sigue la [documentación oficial de GitHub](https://docs.github.com/es/authentication/connecting-to-github-with-ssh/about-ssh) para más detalles.
 ---
