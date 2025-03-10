@@ -1,5 +1,8 @@
 # PETER_SIMULATION
 Simulación de P.E.T.E.R para paper en el semillero de neurocontrol motor.
+
+Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directamente desde GitHub debido a especificaciones del `.gitignore`
+
 ## SHORTCUTS
 
 [Link compartido del documento](https://uao-my.sharepoint.com/:f:/g/personal/samuel_carlos_uao_edu_co/EsC_FuYnnO5Jhq126P5lIN4BZYnXlXEZ-dV7QUh0XY8A0w?e=DaVQGd) 
