@@ -169,16 +169,16 @@ def generate_launch_description():
         ]
     )
 
-    spawn_green_sphere = Node(
-        package='ros_gz_sim',
-        executable='create',
-        arguments=[
-            '-file', os.path.join(pkg_path, 'models', 'green.sdf'),
-            '-name', 'green',
-            '-x', '4.0', '-y', '0.0', '-z', '0.5'
-        ],
-        output='screen'
-    )
+    # spawn_green_sphere = Node(
+    #     package='ros_gz_sim',
+    #     executable='create',
+    #     arguments=[
+    #         '-file', os.path.join(pkg_path, 'models', 'green.sdf'),
+    #         '-name', 'green',
+    #         '-x', '4.0', '-y', '0.0', '-z', '0.5'
+    #     ],
+    #     output='screen'
+    # )
 
     spawn_blue_sphere = Node(
         package='ros_gz_sim',
@@ -218,7 +218,7 @@ def generate_launch_description():
         cabeza_controller,
         load_velocity_controller,
         peter_controller,
-        spawn_green_sphere,
+        #spawn_green_sphere,
         spawn_red_sphere,
         spawn_blue_sphere,
         camera_node
