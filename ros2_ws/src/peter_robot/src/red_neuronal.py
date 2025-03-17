@@ -72,10 +72,10 @@ class NetworkPublisher(Node):
         self.STN = np.zeros((3, 2)) # Subtalámico
         self.STR = np.zeros((6, 2)) # Estriado
         self.z = np.zeros((20, 2)) # Red Sam/Espitia
-        self.wta = np.zeros((4,2)) # Wta Lidar
+        self.lidar = np.zeros((5,2)) # Wta Lidar
         self.Response = np.zeros((16,2))
         self.Aux = np.zeros((16,2))
-        
+
 
         #------------------------- C O N S T A N T E S --------------------------------------#
 
@@ -106,6 +106,13 @@ class NetworkPublisher(Node):
         self.Usigma_az = 10.0 #Umbral de variación estándar de un IMU
         self.Upitch = 15 #Umbral pitch
         self.Uroll = 15 #Umbral roll
+
+        # 1) Pesos para Input -> Response (inverso)
+        self.W_input_to_response = np.fliplr(np.eye(16))
+        # 2) Inhibición lateral en Response
+        self.weights_r_r = -np.ones((16,16)) + np.eye(16)
+        # 3) Conexiones triangulares Response -> Aux
+        self.W_response_to_aux = np.triu(np.ones((16,16)))
 
     #------------------------- LIDAR --------------------------------------#
 
@@ -180,18 +187,27 @@ class NetworkPublisher(Node):
 
         #------------------------- D I N A M I C A --------------------------------------#
 
-        self.wta[0, 1] = self.wta[0, 0] + (self.dt / 10) * (-self.wta[0, 0] + (np.sum(self.activaciones_totales[0:4]) + np.sum(self.activaciones_totales[12:16]) - self.wta[1, 0]))
-        self.wta[1, 1] = self.wta[1, 0] + (self.dt / 10) * (-self.wta[1, 0] + (np.sum(self.activaciones_totales[4:12]) - self.wta[0, 0]))
-        self.wta[2, 1] = self.wta[2, 0] + (self.dt / 10) * (-self.wta[2, 0] + (np.sum(self.activaciones_totales[0:8]) - self.wta[3, 0]))
-        self.wta[3, 1] = self.wta[3, 0] + (self.dt / 10) * (-self.wta[3, 0] + (np.sum(self.activaciones_totales[8:16]) - self.wta[2, 0]))
+        self.lidar[0, 1] = self.lidar[0, 0] + (self.dt / 10) * (-self.lidar[0, 0] + (np.sum(self.activaciones_totales[0:4]) + np.sum(self.activaciones_totales[12:16]) - self.lidar[1, 0]))
+        self.lidar[1, 1] = self.lidar[1, 0] + (self.dt / 10) * (-self.lidar[1, 0] + (np.sum(self.activaciones_totales[4:12]) - self.lidar[0, 0]))
+        self.lidar[2, 1] = self.lidar[2, 0] + (self.dt / 10) * (-self.lidar[2, 0] + (np.sum(self.activaciones_totales[0:8]) - self.lidar[3, 0]))
+        self.lidar[3, 1] = self.lidar[3, 0] + (self.dt / 10) * (-self.lidar[3, 0] + (np.sum(self.activaciones_totales[8:16]) - self.lidar[2, 0]))
 
-        for i in range(16):
-            self.Aux[i, 1] = self.Aux[i, 0] + (self.dt/5) * (-self.Aux[i, 0] + max(0, ()))
+        
+        for r in range(16):
+
+            self.Response[r, 1] = self.Response[r, 0] + (self.dt/5) * (-self.Response[r, 0] + max(0, (self.W_input_to_response @ self.activaciones_totales)[r] + self.weights_r_r[r, :] @ self.Response[:, 0]))
+            self.Aux[r, 1] = self.Aux[r, 0] + (self.dt/5) * (-self.Aux[r, 0] + max(0, self.W_response_to_aux[r, :] @ self.Response[:, 1]))
+
+        self.lidar[4,1] = self.lidar[4, 0] + (self.dt / self.tau) * (-self.lidar[4, 0] + max(0, (np.sum(self.Aux[:,0]))))
 
 
         R = self.areaBoundingBoxR/500
-        G = self.areaBoundingBoxG/500
+        G = self.lidar[4,0]*5
         B = self.areaBoundingBoxB/500
+
+        print("R: ", str(R))
+        print("G: ", str(G))
+        print("B: ", str(B)) 
 
         self.STN[0, 1] = np.clip((self.STN[0, 0] + (1/self.TaoSTN)*(-self.STN[0, 0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0])),0, None)
         self.STN[1, 1] = np.clip((self.STN[1, 0] + (1/self.TaoSTN)*(-self.STN[1, 0] + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0])),0, None)
@@ -212,7 +228,7 @@ class NetworkPublisher(Node):
         if self.Gpe[0,1] > 0.5:
             ang_s = self.posR
         elif self.Gpe[1,1] > 0.5:
-            ang_s = self.posG
+            ang_s = 90*(self.lidar[0,0]>0.5) + 170*(self.lidar[2,0]>0.5) + 10*(self.lidar[3,0]>0.5)
         elif self.Gpe[2,1] > 0.5:
             ang_s = self.posB
         else:
@@ -246,10 +262,13 @@ class NetworkPublisher(Node):
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
 
         cmd_ang = (self.z[11,0]*(self.Gpe[1,0] < 0.5)) - (self.z[12,0]*(self.Gpe[1,0]<0.5))
-        cmd_lateral = (self.z[11,0]*(self.Gpe[1,0] > 0.5)) - (self.z[12,0]*(self.Gpe[1,0] > 0.5))
-        cmd_lineal = self.z[13,0] -self.j*self.z[4,0]*(self.z[5,0] < self.epsilem and self.z[6,0] < self.epsilem)
+        cmd_lateral = (-self.lidar[2,0]*1.5 + self.lidar[3,0]*1.5 + self.z[11,0]*(self.Gpe[1,0] > 0.5)) - (self.z[12,0]*(self.Gpe[1,0] > 0.5))
+        cmd_lineal = -self.lidar[0,0]*1.5 + self.lidar[1,0]*1.5 +  self.z[13,0] -self.j*self.z[4,0]*(self.z[5,0] < self.epsilem and self.z[6,0] < self.epsilem)
 
         for i in range(len(self.z)): self.z[i, 0] = self.z[i,1]
+        for i in range(len(self.lidar)): self.lidar[i, 0] = self.lidar[i,1]
+        for i in range(len(self.Response)): self.Response[i, 0] = self.Response[i,1]
+        for i in range(len(self.Aux)): self.Aux[i, 0] = self.Aux[i,1]
         for i in range(len(self.STN)): self.STN[i, 0] = self.STN[i,1]
         for i in range(len(self.Gpi)): self.Gpi[i, 0] = self.Gpi[i,1]
         for i in range(len(self.Gpe)): self.Gpe[i, 0] = self.Gpe[i,1]
@@ -338,9 +357,6 @@ class NetworkPublisher(Node):
         pass
 
     def bumpLD_callback(self,msg):
-        pass
-
-    def lidar_callback(self,msg):
         pass
     
     def imu_callback(self, msg):

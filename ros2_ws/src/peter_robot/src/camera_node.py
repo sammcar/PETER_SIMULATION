@@ -29,12 +29,14 @@ class CamaraNodo(Node):
         # Publicadores para cada color
         self.publisher_red = self.create_publisher(Float32MultiArray, '/bounding_box/red', 10)
         self.publisher_blue = self.create_publisher(Float32MultiArray, '/bounding_box/blue', 10)
-        self.publisher_green = self.create_publisher(Float32MultiArray, '/bounding_box/green', 10)
+        #self.publisher_green = self.create_publisher(Float32MultiArray, '/bounding_box/green', 10)
 
         # Variables para promediar bounding boxes
         self.boxes_a = np.zeros((8, 2))  # Matriz para suavizar valores de altura y ancho
         self.aux_m = 0  # Auxiliar para controlar el promedio
-        self.last_detection = {'red': False, 'blue': False, 'green': False}  # Estado previo de cada color
+        self.last_detection = {'red': False, 'blue': False, 
+                               #'green': False
+                               }  # Estado previo de cada color
 
         # Variables para la visualización en otro hilo
         self.latest_frame = None
@@ -129,13 +131,13 @@ class CamaraNodo(Node):
         color_filters = {
             'red': ((0, 100, 100), (10, 255, 255)),
             'blue': ((80, 130, 100), (135, 255, 255)),
-            'green': ((35, 80, 75), (75, 255, 255)),
+            #'green': ((35, 80, 75), (75, 255, 255)),
         }
 
         # Procesa y dibuja bounding boxes sobre la imagen frame
         self.filter_and_draw(frame, hsv, *color_filters['red'], (0, 0, 255), self.publisher_red, "red")
         self.filter_and_draw(frame, hsv, *color_filters['blue'], (255, 0, 0), self.publisher_blue, "blue")
-        self.filter_and_draw(frame, hsv, *color_filters['green'], (0, 255, 0), self.publisher_green, "green")
+        #self.filter_and_draw(frame, hsv, *color_filters['green'], (0, 255, 0), self.publisher_green, "green")
 
         # 🔥 COPIA AQUÍ, justo después de procesar y dibujar bounding boxes
         with self.frame_lock:
