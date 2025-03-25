@@ -9,7 +9,8 @@ from std_msgs.msg import Int32MultiArray, Float32MultiArray
 from sensor_msgs.msg import Imu, LaserScan
 from ros_gz_interfaces.msg import Contacts
 from collections import deque 
-        
+import re 
+
 class NetworkPublisher(Node):
 
     def __init__(self):
@@ -50,15 +51,15 @@ class NetworkPublisher(Node):
         self.last_cmd_ang = None
 
         # Suscriptores
-        self.create_subscription(Float32MultiArray, '/bounding_box/red', self.red_callback, 100)
-        self.create_subscription(Float32MultiArray, '/bounding_box/green', self.green_callback, 100)
-        self.create_subscription(Float32MultiArray, '/bounding_box/blue', self.blue_callback, 100)
+        # self.create_subscription(Float32MultiArray, '/bounding_box/red', self.red_callback, 100)
+        # self.create_subscription(Float32MultiArray, '/bounding_box/green', self.green_callback, 100)
+        # self.create_subscription(Float32MultiArray, '/bounding_box/blue', self.blue_callback, 100)
         self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
         self.create_subscription(LaserScan, '/scan', self.lidar_callback, 10)
-        self.create_subscription(Contacts, '/bumper/TibiaRU', self.bumpRU_callback, 10)
-        self.create_subscription(Contacts, '/bumper/TibiaRD', self.bumpRD_callback, 10)
-        self.create_subscription(Contacts, '/bumper/TibiaLU', self.bumpLU_callback, 10)
-        self.create_subscription(Contacts, '/bumper/TibiaLD', self.bumpLD_callback, 10)
+        # self.create_subscription(Contacts, '/bumper/TibiaRU', self.bumper_callback, 10)
+        # self.create_subscription(Contacts, '/bumper/TibiaRD', self.bumper_callback, 10)
+        # self.create_subscription(Contacts, '/bumper/TibiaLU', self.bumper_callback, 10)
+        # self.create_subscription(Contacts, '/bumper/TibiaLD', self.bumper_callback, 10)
         self.accel_z_history = deque(maxlen=50)
 
         # Constantes y variables de dinámica neuronal
@@ -282,21 +283,22 @@ class NetworkPublisher(Node):
         """Callback para el LiDAR: almacena el primer valor del array de rangos."""
         self.lidar_data = msg.ranges[0] if msg.ranges else None
 
-    def bumpRU_callback(self, msg):
-        """Callback para el bumper de la TibiaRU."""
-        self.bumpRU_data = len(msg.contacts) > 0
+    # def bumpRU_callback(self, msg):
+    #     """Callback para el bumper de la TibiaRU."""
+    #     self.bumpRU_data = len(msg.contacts) > 0
 
-    def bumpRD_callback(self, msg):
-        """Callback para el bumper de la TibiaRD."""
-        self.bumpRD_data = len(msg.contacts) > 0
+    # def bumpRD_callback(self, msg):
+    #     """Callback para el bumper de la TibiaRD."""
+    #     self.bumpRD_data = len(msg.contacts) > 0
 
-    def bumpLU_callback(self, msg):
-        """Callback para el bumper de la TibiaLU."""
-        self.bumpLU_data = len(msg.contacts) > 0
+    # def bumpLU_callback(self, msg):
+    #     """Callback para el bumper de la TibiaLU."""
+    #     self.bumpLU_data = len(msg.contacts) > 0
 
-    def bumpLD_callback(self, msg):
-        """Callback para el bumper de la TibiaLD."""
-        self.bumpLD_data = len(msg.contacts) > 0
+    # def bumpLD_callback(self, msg):
+    #     """Callback para el bumper de la TibiaLD."""
+    #     self.bumpLD_data = len(msg.contacts) > 0
+
 
     def publish_twist(self, linear_x=0.0, linear_y=0.0, angular_z=0.0):
         """Publica el mensaje Twist con los valores dados."""
@@ -312,6 +314,8 @@ class NetworkPublisher(Node):
         mode_msg.data = mode
         self.mode_pub.publish(mode_msg)
         self.current_mode = mode
+
+
 
 #------------------------- M A I N --------------------------------------#
 
