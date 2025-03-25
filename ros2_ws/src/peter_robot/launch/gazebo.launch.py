@@ -1,7 +1,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, LogInfo, OpaqueFunction, SetLaunchConfiguration, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, LogInfo, OpaqueFunction, SetLaunchConfiguration, TimerAction, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration, Command, TextSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -38,6 +38,19 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     package_name = 'peter_robot'
     pkg_share = FindPackageShare(package=package_name).find(package_name)
+
+    # 🔹 Definir model_path antes de usarlo (apunta a la carpeta instalada)
+    model_path = os.path.join(pkg_share, 'models')
+    default_gazebo_model_path = '/usr/share/gazebo/models'  # Path por defecto en Ubuntu
+    existing_model_path = os.environ.get('GAZEBO_MODEL_PATH', default_gazebo_model_path)
+    combined_model_path = f"{model_path}:{existing_model_path}"
+
+    print(f"📦 GAZEBO_MODEL_PATH seteado a: {combined_model_path}")
+
+    set_model_path_env = SetEnvironmentVariable(
+        name='GAZEBO_MODEL_PATH',
+        value=combined_model_path
+    )
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
@@ -97,10 +110,11 @@ def generate_launch_description():
         ]),
         launch_arguments={
             'gz_args': ['-r '] + [LaunchConfiguration('world_path')],
-            'use_sim_time': 'true',  # 🔹 Asegurar que Gazebo publique /clock
+            'use_sim_time': 'true',
             'on_exit_shutdown': 'true'
-        }.items()
+        }.items(),
     )
+
 
     spawn_entity = Node(
         package='ros_gz_sim',
@@ -108,7 +122,7 @@ def generate_launch_description():
         arguments=['-topic', 'robot_description',
                 '-entity', 'peter_urdf',
                 '-name', 'peter',
-                '-z', '0.8'],
+                '-z', '1.2'],
         output='screen'
     )
 
@@ -207,6 +221,7 @@ def generate_launch_description():
     return LaunchDescription([
         declare_use_sim_time_cmd,
         declare_world_cmd,
+        set_model_path_env,
         set_world_path_action,
         node_robot_state_publisher,
         gazebo,

@@ -80,6 +80,7 @@ class NetworkPublisher(Node):
         #------------------------- C O N S T A N T E S --------------------------------------#
 
         self.ang_p = 90 # Posicion Frente del Robot
+        self.ang_s = 90 # Posicion del estimulo
         self.epsilem = 0.1 # Tolerancia
         self.dt = 1 # Intervalo de Integracion
         self.cte = 1 # Constante de Avance
@@ -92,8 +93,8 @@ class NetworkPublisher(Node):
         self.w = 10 # Peso Sinaptico
         self.j = 2 # Peso Sinaptico
 
-        self.A = 1 # Parametro Saturacion Naka
-        self.Sigma = 0.5 # Parametro Inhibicion Naka
+        self.A = 5 # Parametro Saturacion Naka
+        self.Sigma = 0.3 # Parametro Inhibicion Naka
         self.SigmaIMU = 1.5 # Parametro Inhibicion Naka
 
         self.tau = 1 # Tao Neuronas Z
@@ -103,7 +104,7 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 10.0 #Umbral de variación estándar de un IMU
+        self.Usigma_az = 9.0 #Umbral de variación estándar de un IMU
         self.Upitch = 15 #Umbral pitch
         self.Uroll = 15 #Umbral roll
 
@@ -202,16 +203,17 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
-        G = self.lidar[4,0]*5
+        if self.lidar[4,0]*10 > self.epsilem: G = self.lidar[4,0]*10 
+        else: G = 0
         B = self.areaBoundingBoxB/500
 
         print("R: ", str(R))
         print("G: ", str(G))
         print("B: ", str(B)) 
 
-        self.STN[0, 1] = np.clip((self.STN[0, 0] + (1/self.TaoSTN)*(-self.STN[0, 0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0])),0, None)
-        self.STN[1, 1] = np.clip((self.STN[1, 0] + (1/self.TaoSTN)*(-self.STN[1, 0] + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0])),0, None)
-        self.STN[2, 1] = np.clip((self.STN[2, 0] + (1/self.TaoSTN)*(-self.STN[2, 0] + B - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0])),0, None)
+        self.STN[0, 1] = np.clip((self.STN[0, 0] + (1/self.TaoSTN)*(-self.STN[0, 0]*5 + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
+        self.STN[1, 1] = np.clip((self.STN[1, 0] + (1/self.TaoSTN)*(-self.STN[1, 0]*5 + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
+        self.STN[2, 1] = np.clip((self.STN[2, 0] + (1/self.TaoSTN)*(-self.STN[2, 0]*5 + B - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
         
         self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + self.STN[1,0] + self.STN[2,0] - self.Gpe[0,0] - self.STR[0,0])),0, None)
         self.Gpi[1, 1] = np.clip((self.Gpi[1, 0] + (1/self.TaoGpi)*(-self.Gpi[1, 0] + self.STN[0,0] + self.STN[2,0] - self.Gpe[1,0] - self.STR[1,0])),0, None)
@@ -221,30 +223,30 @@ class NetworkPublisher(Node):
         self.Gpe[1, 1] = np.clip((self.Gpe[1, 0] + (1/self.TaoGpe)*(-self.Gpe[1, 0] + self.STN[1,0])),0, None)
         self.Gpe[2, 1] = np.clip((self.Gpe[2, 0] + (1/self.TaoGpe)*(-self.Gpe[2, 0] + self.STN[2,0])),0, None)
         
-        self.STR[0, 1] = np.clip((self.STR[0, 0] + (1/self.TaoSTR)*(-self.STR[0, 0] + self.j*self.STN[0,0])),0, None)
+        self.STR[0, 1] = np.clip((self.STR[0, 0] + (1/self.TaoSTR)*(-self.STR[0, 0] + self.STN[0,0])),0, None)
         self.STR[1, 1] = np.clip((self.STR[1, 0] + (1/self.TaoSTR)*(-self.STR[1, 0] + self.STN[1,0])),0, None)
         self.STR[2, 1] = np.clip((self.STR[2, 0] + (1/self.TaoSTR)*(-self.STR[2, 0] + self.STN[2,0])),0, None)
 
-        if self.Gpe[0,1] > 0.5:
-            ang_s = self.posR
-        elif self.Gpe[1,1] > 0.5:
-            ang_s = 90*(self.lidar[0,0]>0.5) + 170*(self.lidar[2,0]>0.5) + 10*(self.lidar[3,0]>0.5)
-        elif self.Gpe[2,1] > 0.5:
-            ang_s = self.posB
+        if self.Gpe[0,1] > 1.5 and R > 0.5:
+            self.ang_s = self.posR
+        elif self.Gpe[1,1] > 1.5 and G > 0.5:
+            self.ang_s = 90*(self.lidar[0,0]>0.5) + 170*(self.lidar[2,0]>0.5) + 10*(self.lidar[3,0]>0.5)
+        elif self.Gpe[2,1] > 1.5 and B > 0.5:
+            self.ang_s = self.posB
         else:
-            ang_s = 90.0
+            self.ang_s = 90.0
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
-        self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
-        self.z[1, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (-self.z[1,0] + self.pitch - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch - self.Upitch )**2))
-        self.z[2, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (-self.z[2,0] + self.roll - self.Uroll ))**2) / (self.SigmaIMU**2 + (-self.z[2,0] + self.roll - self.Uroll )**2))
+        self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
+        self.z[1, 1] = self.z[1, 0] + (self.dt / self.tau) * (-self.z[1, 0] + (self.A * max(0, (self.pitch - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch - self.Upitch )**2))
+        self.z[2, 1] = self.z[2, 0] + (self.dt / self.tau) * (-self.z[2, 0] + (self.A * max(0, (self.roll - self.Uroll ))**2) / (self.SigmaIMU**2 + (-self.z[2,0] + self.roll - self.Uroll )**2))
 
         self.z[3, 1] = self.z[3, 0] + (self.dt / self.tau) * (-self.z[3, 0] + max(0, (self.Gpe[2,0] )))
         self.z[4, 1] = self.z[4, 0] + (self.dt / self.tau) * (-self.z[4, 0] + max(0, (self.Gpe[1, 0] + self.j * self.Gpe[0, 0])))
 
-        self.z[5, 1] = self.z[5, 0] + (self.dt / self.tau) * (-self.z[5, 0] + max(0, (ang_s - self.ang_p) - 20))
-        self.z[6, 1] = self.z[6, 0] + (self.dt / self.tau) * (-self.z[6, 0] + max(0, (self.ang_p - ang_s) - 20))
+        self.z[5, 1] = self.z[5, 0] + (self.dt / self.tau) * (-self.z[5, 0] + max(0, (self.ang_s - self.ang_p) - 20))
+        self.z[6, 1] = self.z[6, 0] + (self.dt / self.tau) * (-self.z[6, 0] + max(0, (self.ang_p - self.ang_s) - 20))
 
         self.z[7, 1] = self.z[7, 0] + (self.dt / self.tau) * (-self.z[7, 0] + max(0, (self.z[5, 0] + self.z[3, 0] - self.w*self.z[4, 0])))
         self.z[8, 1] = self.z[8, 0] + (self.dt / self.tau) * (-self.z[8, 0] + max(0, (self.z[5, 0] + self.z[4, 0] - self.w*self.z[3, 0])))
@@ -256,8 +258,8 @@ class NetworkPublisher(Node):
         self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -self.w*self.z[17,0] + self.cte)))
 
         self.z[14, 1] = self.z[14, 0] + (self.dt / self.tau) * (-self.z[14, 0] + (self.A * max(0, (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] )**2))
-        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-0.05*self.cte + self.z[3, 0]*2 + 20*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-0.05*self.cte + self.z[3, 0]*2 + 20*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0] - self.w*self.z[16, 0] )**2))
-        self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[4, 0] - self.j*self.Gpe[1,0] - self.w*self.z[14, 0] - self.w*self.z[15, 0] + self.cte ))**2) / (self.Sigma**2 + (self.z[4, 0] - self.j*self.Gpe[1,0] - self.w*self.z[14, 0] - self.w*self.z[15, 0] + self.cte )**2))
+        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0] -0.5*self.cte + self.z[3, 0]*self.w + 0.7*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]-0.5*self.cte + self.z[3, 0]*2 + 20*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
+        self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[4, 0] - self.w*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte ))**2) / (self.Sigma**2 + (self.z[4, 0] - self.w*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte )**2))
         
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
 
@@ -274,46 +276,70 @@ class NetworkPublisher(Node):
         for i in range(len(self.Gpe)): self.Gpe[i, 0] = self.Gpe[i,1]
         for i in range(len(self.STR)): self.STR[i, 0] = self.STR[i,1]
 
-        # print("1: ", str(self.z[0, 1]))
-        # print("2: ", str(self.z[0, 1]))
-        # print("3: ", str(self.z[0, 1])) 
-        # print("a: ", str(self.std_dev_accel_z))
-        # print("roll: ", str(self.roll))
-        # print("pitch: ", str(self.pitch))
+        print("GpeR: ", str(self.Gpe[0,1]))
+        print("GpeG: ", str(self.Gpe[1,1]))
+        print("GpeB: ", str(self.Gpe[2,1]))
+
+        print("ang_p: ", str(self.ang_p))
+        print("ang_s: ", str(self.ang_s))
+
+        print("5: ", str(self.z[5, 1]))
+        print("3: ", str(self.z[3, 1]))
+        print("4: ", str(self.z[4, 1]))
+        print("6: ", str(self.z[6, 1]))
+
+        print("7: ", str(self.z[7, 1]))
+        print("8: ", str(self.z[8, 1]))
+        print("9: ", str(self.z[9, 1]))
+        print("10: ", str(self.z[10, 1]))
+
+        print("11: ", str(self.z[11, 1]))
+        print("12: ", str(self.z[12, 1]))
+        print("13: ", str(self.z[13, 1]))
+
+        print("14: ", str(self.z[14, 1]))
+        print("16: ", str(self.z[16, 1]))  
+        print("15: ", str(self.z[15, 1]))  
+
+        print("0: ", str(self.z[0, 1]))
+        print("1: ", str(self.z[1, 1]))
+        print("2: ", str(self.z[2, 1])) 
+        print("a: ", str(self.std_dev_accel_z))
+        print("roll: ", str(self.roll))
+        print("pitch: ", str(self.pitch))
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
 
-        if (self.epsilem < cmd_lineal) and (cmd_ang != self.epsilem):
-            self.publish_twist(linear_x=self.speed)  # Adelante
-            print("Avanza")
-        elif (cmd_lineal < -self.epsilem) and (cmd_ang != self.epsilem):
-            self.publish_twist(linear_x=-self.speed) # Atrás
-            print("Retrocede")
-        elif self.z[17,1] > 0.5:
-            self.publish_twist() # Stop
-            print("Stop")
-        else:
-            pass
-        #-------------------------------------------------------------------
-        if self.epsilem < cmd_lateral:
-            self.publish_twist(linear_y=self.speed) # Izquierda
-            print("Desp. Izquierda")
-        elif cmd_lateral < -self.epsilem:
-            self.publish_twist(linear_y=-self.speed) # Derecha
-            print("Desp. Derecha")
-        else:
-            pass
-        #-------------------------------------------------------------------
-
-        if self.epsilem + 1.0 < cmd_ang:
+        if self.epsilem < cmd_ang:
             self.publish_twist(angular_z=self.turn)  # Gira izquierda
             print("Giro Izquierda")
-        elif cmd_ang < -self.epsilem -1.0:
+        elif cmd_ang < -self.epsilem:
             self.publish_twist(angular_z=-self.turn)  # Gira derecha
             print("Giro Derecha")
-        else:
-            pass
-        #-------------------------------------------------------------------
+        else:        
+            #-------------------------------------------------------------------
+
+            if self.epsilem < cmd_lineal:
+                self.publish_twist(linear_x=self.speed)  # Adelante
+                print("Avanza")
+            elif cmd_lineal < -self.epsilem:
+                self.publish_twist(linear_x=-self.speed) # Atrás
+                print("Retrocede")
+            elif self.z[17,1] > 0.5:
+                self.publish_twist() # Stop
+                print("Stop")
+            else:
+                pass
+            #-------------------------------------------------------------------
+            if self.epsilem < cmd_lateral:
+                self.publish_twist(linear_y=self.speed) # Izquierda
+                print("Desp. Izquierda")
+            elif cmd_lateral < -self.epsilem:
+                self.publish_twist(linear_y=-self.speed) # Derecha
+                print("Desp. Derecha")
+            else:
+                pass
+            #-------------------------------------------------------------------
 
         if self.z[15,1] > 0.5:
             self.publish_mode('C')

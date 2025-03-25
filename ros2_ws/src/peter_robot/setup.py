@@ -1,12 +1,18 @@
 from setuptools import find_packages, setup
 import os
 from glob import glob
-from setuptools import setup
-from setuptools import find_packages
 import shutil
-#DIEGUITO ME CAGÓ EL DOCKER
+
 package_name = 'peter_robot'
-model_files = [f for f in glob('models/**/*', recursive=True) if os.path.isfile(f)]
+
+def get_model_data_files():
+    paths = []
+    for dirpath, dirnames, filenames in os.walk('models'):
+        for file in filenames:
+            src_path = os.path.join(dirpath, file)
+            dst_path = os.path.join('share', package_name, dirpath, file)
+            paths.append((os.path.dirname(dst_path), [src_path]))
+    return paths
 
 setup(
     name=package_name,
@@ -16,15 +22,13 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name,'urdf'),glob('urdf/*')),
-        (os.path.join('share', package_name,'launch'),glob('launch/*.py')),
-        (os.path.join('share', package_name,'src'),glob('src/*.py')),
-        (os.path.join('share', package_name,'meshes'),glob('meshes/*')),
-        (os.path.join('share', package_name,'worlds'),glob('worlds/*')),
-        (os.path.join('share', package_name,'config'),glob('config/*')),
-        (os.path.join('share', package_name, 'models'), model_files),
-
-    ],
+        (os.path.join('share', package_name, 'urdf'), glob('urdf/*')),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
+        (os.path.join('share', package_name, 'src'), glob('src/*.py')),
+        (os.path.join('share', package_name, 'meshes'), glob('meshes/*')),
+        (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
+        (os.path.join('share', package_name, 'config'), glob('config/*')),
+    ] + get_model_data_files(),  # ✅ Aquí se agregan los modelos con estructura
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='sam',
