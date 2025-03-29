@@ -1,0 +1,8 @@
+# Blender 4.2.1 LTS MTL File: 'mapa_gazebo.blend'
+# www.blender.org
+
+newmtl my_texture
+Ka 1.000 1.000 1.000    # Color ambiente
+Kd 1.000 1.000 1.000    # Color difuso (el que recibe la textura)
+Ks 0.000 0.000 0.000    # Color especular
+map_Kd texture.png   # Textura difusa (ruta a tu archivo .png)
