@@ -19,14 +19,17 @@ Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directa
 
 
 ### Configuración Inicial
-1. **IMPORTANTE**: Hacer el tutorial de docker antes de usar el repositorio
+1. **DESCARGAR LOS REQUISITOS PARA EL TUTORIAL DE DOCKER**: 
+   [Click aquí para descargar Docker Harmonic](https://www.mediafire.com/file/ss6lf31t07wkcio/Docker_harmonic.zip/file)
+   
+3. **IMPORTANTE**: Hacer el tutorial de docker antes de usar el repositorio
   
-3. **Ir dentro del docker folder**:
+4. **Ir dentro del docker folder**:
     ```bash
     cd Docker_harmonic/docker_simulator/
     ```
     
-4. **Clonar el repositorio**: Este comando copiará los archivos del repositorio en el pc:
+5. **Clonar el repositorio**: Este comando copiará los archivos del repositorio en el pc:
     ```bash
     git clone git@github.com:sammcar/PETER_SIMULATION.git
     ```
