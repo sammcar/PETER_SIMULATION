@@ -7,6 +7,8 @@ import math
 import time
 from rclpy.executors import MultiThreadedExecutor
 import threading
+from ros_gz_interfaces.msg import Contacts
+import re
 
 # Robot parameters
 LENGTH_A = 45.0
@@ -72,7 +74,11 @@ class JointPositionPublisher(Node):
         # Suscriptores
         self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
         self.create_subscription(String, '/peter_mode', self.peter_mode_callback, 10)
-
+        self.create_subscription(Contacts, '/bumper/TibiaRU', self.bumper_callback, 10)
+        self.create_subscription(Contacts, '/bumper/TibiaRD', self.bumper_callback, 10)
+        self.create_subscription(Contacts, '/bumper/TibiaLU', self.bumper_callback, 10)
+        self.create_subscription(Contacts, '/bumper/TibiaLD', self.bumper_callback, 10)
+        
         # Inicialización de articulaciones y velocidades
         self.joint_positions = [0.0] * 12  # 12 articulaciones
         self.joint_velocities = [0.0] * 4  # 4 ruedas
@@ -92,9 +98,11 @@ class JointPositionPublisher(Node):
         # Timer
         self.timer = self.create_timer(0.05, self.timer_callback)
         self.ticker = self.create_timer(0.02, self.ticker_callback)
-
+        self.on_air = [False,False,False,False]
         self.machine = 0
         # Start the state machine execution
+        self.past = 'C'
+        self.iniciarCuadrupedo()
         self.run_state_machine()
 
     def run_state_machine(self):
@@ -286,8 +294,10 @@ class JointPositionPublisher(Node):
                 self.wait_all_reach()
                 self.set_site(1, DIAG, 2 * DIAG, Z_UP)  # Move leg 2 forward
                 self.wait_all_reach()
+                self.on_air[1] = True
                 self.set_site(1, DIAG, 2 * DIAG, Z_DEFAULT)  # Lower leg 2
                 self.wait_all_reach()
+                self.on_air[1] = False
 
                 move_speed = BODY_MOVE_SPEED  # Slow down for body movement
 
@@ -312,16 +322,21 @@ class JointPositionPublisher(Node):
                 self.wait_all_reach()
                 self.set_site(2, SIDE, 0, Z_UP)  # Move leg 1 back
                 self.wait_all_reach()
+                self.on_air[2] = True
                 self.set_site(2, SIDE, 0, Z_DEFAULT)  # Lower leg 1
                 self.wait_all_reach()
+                self.on_air[2] = False
+
             else:  # PASO CON LA DERECHA
                 # Alternate step: Lift and move legs 0 and 3 forward
                 self.set_site(0, SIDE, 0, Z_UP)  # Lift leg 3
                 self.wait_all_reach()
                 self.set_site(0, SIDE, 2 * DIAG, Z_UP)  # Move leg 3 forward
                 self.wait_all_reach()
+                self.on_air[0] = True
                 self.set_site(0, SIDE, 2 * DIAG, Z_DEFAULT)  # Lower leg 3
                 self.wait_all_reach()
+                self.on_air[0] = False
 
                 move_speed = BODY_MOVE_SPEED  # Slow down for body movement
 
@@ -346,8 +361,10 @@ class JointPositionPublisher(Node):
                 self.wait_all_reach()
                 self.set_site(3, SIDE, 0, Z_UP)  # Move leg 1 back
                 self.wait_all_reach()
+                self.on_air[3] = True
                 self.set_site(3, SIDE, 0, Z_DEFAULT)  # Lower leg 1
                 self.wait_all_reach()
+                self.on_air[3] = False
 
     def step_back(self,step):
         global move_speed
@@ -709,16 +726,22 @@ class JointPositionPublisher(Node):
             servo_service_en = True
             if self.linear_x > 0:
                 self.machine = 1
+                return
             elif self.linear_x < 0:
                 self.machine = 2
+                return
             elif self.linear_y > 0:
                 self.machine = 3
+                return
             elif self.linear_y < 0:
                 self.machine = 4
+                return
             elif self.angular_z > 0:
                 self.machine = 5
+                return
             elif self.angular_z < 0:
                 self.machine = 6
+                return
             else:
                 self.machine = 8
             
@@ -771,13 +794,15 @@ class JointPositionPublisher(Node):
 
     def update_target_positions(self):
         """Actualiza las posiciones objetivo de las articulaciones según el modo."""
-        
+        global servo_service_en
         if self.state == 'C':  # Modo cuadrúpedo
-
+            servo_service_en = True
+            if self.past != 'C':
             # /////////////////////////// MODIFICAR AQUI PARA LA CAMINATA EN MODO CUADRUPEDO ///////////////////////////////
-            self.iniciarCuadrupedo()
+                self.iniciarCuadrupedo()
             #///////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            
+            self.past = 'C'
+
         elif self.state == 'X':  # Modo omnidireccional
             self.target_positions = [
                 0.7, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
@@ -785,6 +810,8 @@ class JointPositionPublisher(Node):
                 -0.7, 0.8, 2.30,  # CoxisRD, FemurRD, TibiaRD
                 0.7, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
             ]
+            self.past = 'X'
+
         elif self.state == 'H':  # Modo móvil tipo H
             self.target_positions = [
                 0.0, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
@@ -792,6 +819,7 @@ class JointPositionPublisher(Node):
                 0.0, 0.9, 2.30,  # CoxisRD, FemurRD, TibiaRD
                 0.0, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
             ]
+            self.past = 'H'
 
     def setCenter(self):
         global site_now
@@ -858,6 +886,61 @@ class JointPositionPublisher(Node):
         # self.set_site(2, DIAG, DIAG, Z_DEFAULT)
         # #self.wait_all_reach()
 
+    def bumper_callback(self, msg):
+        global site_expect, site_now
+        """
+        Process all collisions detected by the bumper sensor.
+        Extracts and prints all force.z values from each contact and wrench.
+        """
+        total_collisions = len(msg.contacts)
+        if total_collisions == 0:
+            return  # No collisions detected
+
+        #self.get_logger().info(f"Detected {total_collisions} collisions.")
+
+        for contact in msg.contacts:
+            collision1_name = contact.collision1.name
+            collision2_name = contact.collision2.name
+            
+            leg_name = self.extract_leg_name(collision1_name)
+            
+            if leg_name == 'BumperRU':
+                leg_index = 0
+            elif leg_name == 'BumperLU':
+                leg_index = 1
+            elif leg_name == 'BumperRD':
+                leg_index = 2
+            elif leg_name == 'BumperLD':
+                leg_index = 3    
+            # Each contact can have multiple wrenches (force/torque readings)
+            for i, wrench in enumerate(contact.wrenches):
+                force1_z = wrench.body_1_wrench.force.z
+                force2_z = wrench.body_2_wrench.force.z
+
+                # Log collision details
+                # self.get_logger().info(f"Collision {i+1}: {collision1_name} <-> {collision2_name}")
+                # self.get_logger().info(f"  - Force Z (Body 1): {force1_z}")
+                # self.get_logger().info(f"  - Force Z (Body 2): {force2_z}")
+
+                # Detect ground support (force.z < 0)
+                
+                if force1_z < -3.0 and self.on_air[leg_index]:
+                    site_now[leg_index][0] = site_expect[leg_index][0]
+                    site_now[leg_index][1] = site_expect[leg_index][1]
+                    site_now[leg_index][2] = site_expect[leg_index][2]
+                    # self.get_logger().info(f"  ✅ Ground support detected from {collision1_name} with force.z = {force1_z}")
+                if force2_z < -3.0 and self.on_air[leg_index]:
+                    site_now[leg_index][0] = site_expect[leg_index][0]
+                    site_now[leg_index][1] = site_expect[leg_index][1]
+                    site_now[leg_index][2] = site_expect[leg_index][2]
+                    # self.get_logger().info(f"  ✅ Ground support detected from {collision2_name} with force.z = {force2_z}")
+
+    def extract_leg_name(self,collision_name):
+        """Extracts leg name from collision string (e.g., 'BumperRU' from 'peter::BumperRU_link::BumperRU_link_collision')"""
+        match = re.search(r"peter::(Bumper\w+)_link", collision_name)
+        if match:
+            return match.group(1)  # Extract the 'BumperRU' part
+        return None  # Return None if no match is found
 
 def main(args=None):
     rclpy.init(args=args)
