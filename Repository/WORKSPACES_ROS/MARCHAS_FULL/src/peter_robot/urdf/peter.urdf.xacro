@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro"  name="peter_robot">
+
+    <xacro:include filename="peter.urdf" /> 
+    <xacro:include filename="peter_control_plugin.xacro" /> 
+
+</robot>
