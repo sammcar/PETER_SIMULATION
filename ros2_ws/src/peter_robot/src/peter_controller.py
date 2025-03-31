@@ -10,6 +10,12 @@ from rclpy.executors import MultiThreadedExecutor
 import threading
 from ros_gz_interfaces.msg import Contacts
 import re
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
+import tf2_ros
+from tf2_ros import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped
+import math
 
 # Robot parameters
 LENGTH_A = 45.0
@@ -102,6 +108,16 @@ class JointPositionPublisher(Node):
         self.target_angle = None   # Ángulo objetivo cuando ω = 0, antes de ir en linea recta
         self.kp = 0.35  # Ganancia proporcional
         self.inicio = False
+
+        # Publisher de trayectoria
+        self.path_pub = self.create_publisher(Path, "/trajectory", 10)
+        self.path_msg = Path()
+        self.path_msg.header.frame_id = "odom"
+
+        # Buffer y listener para transformaciones TF
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self.tf_broadcaster = TransformBroadcaster(self)
 
         # Timer
         self.timer = self.create_timer(0.05, self.timer_callback)
@@ -684,12 +700,80 @@ class JointPositionPublisher(Node):
     def timer_callback(self):
         self.update_positions()
         self.update_velocities()
+        # Diccionario con los valores actuales de las articulaciones
+        joint_position_dict = {
+            'CoxisRU_joint': self.joint_positions[0],
+            'FemurRU_joint': self.joint_positions[1],
+            'TibiaRU_joint': self.joint_positions[2],
+            'CoxisLU_joint': self.joint_positions[3],
+            'FemurLU_joint': self.joint_positions[4],
+            'TibiaLU_joint': self.joint_positions[5],
+            'CoxisRD_joint': self.joint_positions[6],
+            'FemurRD_joint': self.joint_positions[7],
+            'TibiaRD_joint': self.joint_positions[8],
+            'CoxisLD_joint': self.joint_positions[9],
+            'FemurLD_joint': self.joint_positions[10],
+            'TibiaLD_joint': self.joint_positions[11],
+
+            # Bumpers con posición fija
+            'BumperRU_joint': 0.0,
+            'BumperLU_joint': 0.0,
+            'BumperRD_joint': 0.0,
+            'BumperLD_joint': 0.0,
+        }
+
+        # Orden estricto según configuración de gazebo_joint_controller
+        joint_order = [
+            'CoxisRU_joint', 'FemurRU_joint', 'TibiaRU_joint', 'BumperRU_joint',
+            'CoxisLU_joint', 'FemurLU_joint', 'TibiaLU_joint', 'BumperLU_joint',
+            'CoxisRD_joint', 'FemurRD_joint', 'TibiaRD_joint', 'BumperRD_joint',
+            'CoxisLD_joint', 'FemurLD_joint', 'TibiaLD_joint', 'BumperLD_joint'
+        ]
+
+        # Construcción del mensaje
         position_msg = Float64MultiArray()
-        position_msg.data = self.joint_positions
+        position_msg.data = [joint_position_dict[name] for name in joint_order]
         self.position_publisher_.publish(position_msg)
+
+        # Velocidades no necesitan cambio (solo 12 articulaciones móviles)
         velocity_msg = Float64MultiArray()
         velocity_msg.data = self.joint_velocities
         self.velocity_publisher_.publish(velocity_msg)
+
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = "odom"
+        t.child_frame_id = "base_link"
+
+        t.transform.translation.x = 0.0
+        t.transform.translation.y = 0.0
+        t.transform.translation.z = 0.0
+        t.transform.rotation.x = 0.0
+        t.transform.rotation.y = 0.0
+        t.transform.rotation.z = 0.0
+        t.transform.rotation.w = 1.0
+
+        self.tf_broadcaster.sendTransform(t)
+
+
+        # Publicar trayectoria
+        try:
+            now = rclpy.time.Time()
+            trans = self.tf_buffer.lookup_transform("odom", "base_link", now)
+
+            pose = PoseStamped()
+            pose.header.stamp = self.get_clock().now().to_msg()
+            pose.header.frame_id = "odom"
+            pose.pose.position.x = trans.transform.translation.x
+            pose.pose.position.y = trans.transform.translation.y
+            pose.pose.position.z = trans.transform.translation.z
+            pose.pose.orientation = trans.transform.rotation
+
+            self.path_msg.poses.append(pose)
+            self.path_msg.header.stamp = pose.header.stamp
+            self.path_pub.publish(self.path_msg)
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            pass  # Evita error si la transformación aún no está disponible
 
     def update_positions(self):
         """Actualiza las posiciones de las articulaciones hacia sus objetivos de forma incremental."""
