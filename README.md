@@ -24,27 +24,26 @@ Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directa
    
 2. **IMPORTANTE**: Hacer el tutorial de docker antes de usar el repositorio
 
-### TUTORIAL DE DOCKER:
+## TUTORIAL DE DOCKER:
 
-# Guia para usar Docker con GitHub
 
-## 0. Requisitos previos
+### 0. Requisitos previos
 Asegúrate de tener instalado Docker y, si los vas a usar, los drivers de NVIDIA.
 
-## 1. Descarga y descompresión
+### 1. Descarga y descompresión
 Descarga el archivo `[nombre]` y descomprímelo.
 
-## 2. Acceder a la carpeta Docker
+### 2. Acceder a la carpeta Docker
 Entra en la carpeta `Docker` y abre una terminal.
 
-## 3. Definir el nombre del contenedor
+### 3. Definir el nombre del contenedor
 Ejecuta el siguiente comando, reemplazando `nombre_del_contenedor` con el nombre que desees:
 
 ```bash
 export CONTAINER_NAME=nombre_del_contenedor
 ```
 
-## 4. Configuración de NVIDIA (Opcional)
+### 4. Configuración de NVIDIA (Opcional)
 Si vas a usar los drivers de NVIDIA, ejecuta:
 
 ```bash
