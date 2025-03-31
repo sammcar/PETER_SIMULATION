@@ -9,6 +9,8 @@ Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directa
 
 [Link de bitácoras semanales](https://uao-my.sharepoint.com/:f:/g/personal/samuel_carlos_uao_edu_co/Erp2ENIspZxNgMopqcnKfAUBfoev0AsDrE33obHUKmgpDg?e=dBNilw) 
 
+[Link del Latex](https://www.overleaf.com/project/67e093f33865a616a2b0bc91)
+
 ## ¿Cómo usar el repositorio?
 
 ### VIDEO TUTORIAL
