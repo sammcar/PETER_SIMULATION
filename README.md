@@ -14,7 +14,7 @@ Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directa
 ### VIDEO TUTORIAL
 
  <a href="https://www.youtube.com/watch?v=xyDA1aFvYTs">
-  <img src="Titulo.png" alt="Texto alternativo" width="700"/>
+  <img src="Repository/Titulo.png" alt="Texto alternativo" width="700"/>
 </a>
 
 
