@@ -27,16 +27,16 @@ Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directa
 ## TUTORIAL DE DOCKER:
 
 
-### 0. Requisitos previos
+0. **Requisitos previos**
 Asegúrate de tener instalado Docker y, si los vas a usar, los drivers de NVIDIA.
 
-### 1. Descarga y descompresión
-Descarga el archivo `[nombre]` y descomprímelo.
+1. **Descarga y descompresión**
+Descomprime el .zip `[Docker Harmonic]`
 
-### 2. Acceder a la carpeta Docker
+2. **Acceder a la carpeta Docker**
 Entra en la carpeta `Docker` y abre una terminal.
 
-### 3. Definir el nombre del contenedor
+3. **Definir el nombre del contenedor**
 Ejecuta el siguiente comando, reemplazando `nombre_del_contenedor` con el nombre que desees:
 
 ```bash
@@ -52,7 +52,10 @@ docker compose up -d
 
 Si **no** vas a usar los drivers de NVIDIA:
 1. Abre el archivo `compose.yaml`
-2. Elimina la línea correspondiente a NVIDIA
+2. Elimina la línea correspondiente a NVIDIA:
+
+![ScreenshotDocker](Repository/ScreenshotDocker.png)
+
 3. Guarda los cambios
 4. Ejecuta:
 
