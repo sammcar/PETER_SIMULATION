@@ -37,10 +37,10 @@ Descomprime el .zip `[Docker Harmonic]`
 Entra en la carpeta `Docker` y abre una terminal.
 
 3. **Definir el nombre del contenedor**
-Ejecuta el siguiente comando, reemplazando `nombre_del_contenedor` con el nombre que desees:
+Ejecuta el siguiente comando, reemplazando `docker_simulator` con el nombre que desees:
 
 ```bash
-export CONTAINER_NAME=nombre_del_contenedor
+export CONTAINER_NAME=docker_simulator
 ```
 
 ### 4. Configuración de NVIDIA (Opcional)
@@ -63,7 +63,7 @@ Si **no** vas a usar los drivers de NVIDIA:
 docker compose up -d
 ```
 
-## 5. Verificar la creación del contenedor
+5. **Verificar la creación del contenedor**
 Para asegurarte de que el contenedor se creó correctamente, ejecuta:
 
 ```bash
@@ -72,40 +72,30 @@ docker ps -a
 
 Verifica que el contenedor que creaste aparezca en la lista.
 
-## 6. Iniciar el contenedor
+6. **Iniciar el contenedor**
 Para iniciar el contenedor, ejecuta:
 
 ```bash
-docker start nombre_del_contenedor
+docker start docker_simulator
 ```
 
-## 7. Acceder al contenedor
+7. **Acceder al contenedor**
 Para entrar al contenedor, usa:
 
 ```bash
-docker attach nombre_del_contenedor
+docker attach docker_simulator
 ```
 
-## 8. Sincronización con la carpeta `docker_simulator`
-El contenedor está enlazado a la carpeta `docker_simulator`, por lo que todo lo que coloques dentro de ella estará disponible dentro del contenedor. Aquí pondremos el workspace.
+8. Continuar con el tutorial de GitHub
 
-Ejecuta:
-
-```bash
-git clone https://github.com/sammcar/PETER_SIMULATION.git
-```
-
-## 9. Continuar con el tutorial de GitHub
-Sigue las instrucciones del repositorio para probar el workspace en:
-
-[https://github.com/sammcar/PETER_SIMULATION](https://github.com/sammcar/PETER_SIMULATION)
+## TUTORIAL DE GITHUB:
   
-3. **Ir dentro del docker folder**:
+1. **Ir dentro del docker folder**:
     ```bash
     cd Docker_harmonic/docker_simulator/
     ```
     
-4. **Clonar el repositorio**: Este comando copiará los archivos del repositorio en el pc:
+2. **Clonar el repositorio**: Este comando copiará los archivos del repositorio en el pc:
     ```bash
     git clone git@github.com:sammcar/PETER_SIMULATION.git
     ```
