@@ -18,7 +18,7 @@ Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directa
 </a>
 
 
-### Configuración Inicial
+## Configuración Inicial
 1. **DESCARGAR LOS REQUISITOS PARA EL TUTORIAL DE DOCKER**: 
    [Click aquí para descargar Docker Harmonic](https://www.mediafire.com/file/ss6lf31t07wkcio/Docker_harmonic.zip/file)
    
