@@ -233,8 +233,8 @@ def generate_launch_description():
         cabeza_controller,
         load_velocity_controller,
         peter_controller,
-        #spawn_green_sphere,
-        spawn_red_sphere,
-        spawn_blue_sphere,
-        camera_node
+        # spawn_green_sphere,
+        # spawn_red_sphere,
+        # spawn_blue_sphere,
+        # camera_node
     ])

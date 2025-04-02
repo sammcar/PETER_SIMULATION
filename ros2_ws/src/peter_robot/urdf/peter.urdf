@@ -57,7 +57,8 @@
   </material>
 
   <!-- Base Link -->
-  <link name="base_link">
+  <link
+    name="base_link">
     <visual>
       <origin
         xyz="0 0 0"
@@ -66,7 +67,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/base_link.STL" />
       </geometry>
-      <material name="base_color"/>
+      <material
+        name="base_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -77,7 +80,7 @@
           filename="file://$(find peter_robot)/meshes/base_link.STL" />
       </geometry>
     </collision>
-  </link> 
+  </link>
 
   <!-- IMU -->
   <link name="imu_link">
@@ -158,7 +161,8 @@
   </joint>
 
   <!-- Rueda Loca -->
-  <link name="RuedaL_link">
+  <link
+    name="RuedaL_link">
     <inertial>
       <origin
         xyz="-2.60208521396521E-17 -9.9370392335256E-05 0"
@@ -167,10 +171,10 @@
         value="0.00478152125784282" />
       <inertia
         ixx="2.26061761156593E-07"
-        ixy="-3.24514646395537E-23"
+        ixy="-3.07622501222985E-23"
         ixz="-1.66132506534916E-09"
         iyy="2.88691178201328E-07"
-        iyz="2.65663240724322E-23"
+        iyz="2.6650338238612E-23"
         izz="2.51562599444592E-07" />
     </inertial>
     <visual>
@@ -181,7 +185,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/RuedaL_link.STL" />
       </geometry>
-      <material name="sensor_color"/>
+      <material
+        name="sensor_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -194,7 +200,8 @@
     </collision>
   </link>
 
-  <joint name="RuedaL_joint"
+  <joint
+    name="RuedaL_joint"
     type="fixed">
     <origin
       xyz="0.000748623602797038 -0.000383625542274181 -0.0396066754484228"
@@ -206,22 +213,23 @@
     <axis
       xyz="0 0 0" />
   </joint>
-  
+
   <!-- Articulacion RU -->
-  <link name="CoxisRU_link">
+  <link
+    name="CoxisRU_link">
     <inertial>
       <origin
-        xyz="0.0373077431929926 0.00344959291142 -0.0260561545125268"
+        xyz="0.0274868026818202 -0.0253300526086007 -0.0260559257034611"
         rpy="0 0 0" />
       <mass
-        value="0.0515847056526637" />
+        value="0.0515846904005967" />
       <inertia
-        ixx="1.79650415378127E-05"
-        ixy="2.19189489331081E-07"
-        ixz="-3.89806580766387E-07"
-        iyy="1.67946166656814E-05"
-        iyz="2.74340446871527E-08"
-        izz="8.76852838608537E-06" />
+        ixx="1.75377819158699E-05"
+        ixy="-6.04623186487405E-07"
+        ixz="-2.40731035227905E-07"
+        iyy="1.72218593142479E-05"
+        iyz="3.07808211096332E-07"
+        izz="8.768523256056E-06" />
     </inertial>
     <visual>
       <origin
@@ -231,7 +239,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/CoxisRU_link.STL" />
       </geometry>
-      <material name="coxis_color"/>
+      <material
+        name="coxis_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -243,12 +253,12 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="CoxisRU_joint"
+  <joint
+    name="CoxisRU_joint"
     type="revolute">
     <origin
-      xyz="0.096588 -0.060798 -0.0098"
-      rpy="3.1416 0 -1.5708" />
+      xyz="0.096588488778468 -0.0607983865504415 -0.00980000000000016"
+      rpy="3.14159265358979 0 -1.5707963267949" />
     <parent
       link="base_link" />
     <child
@@ -256,26 +266,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-2"
+      lower="-1.57"
       upper="1.57"
       effort="200"
       velocity="200" />
   </joint>
-  
-  <link name="FemurRU_link">
+  <link
+    name="FemurRU_link">
     <inertial>
       <origin
-        xyz="0.0280298419372188 0.0170017130022575 0.02801029353359"
+        xyz="0.0427703858362092 4.6838977956095E-05 -0.00524733175036607"
         rpy="0 0 0" />
       <mass
-        value="0.0322370098830192" />
+        value="0.0322370452082158" />
       <inertia
-        ixx="2.36008175448379E-05"
-        ixy="-4.09665216602853E-06"
-        ixz="6.42984550158153E-07"
-        iyy="2.84230373430453E-05"
-        iyz="-2.10801430812595E-07"
-        izz="1.11394349051176E-05" />
+        ixx="1.61925190691904E-05"
+        ixy="1.9835660397104E-14"
+        ixz="-5.08613118710115E-06"
+        iyy="3.07783671522518E-05"
+        iyz="-1.98360685702477E-14"
+        izz="1.61925190691892E-05" />
     </inertial>
     <visual>
       <origin
@@ -285,7 +295,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/FemurRU_link.STL" />
       </geometry>
-      <material name="femur_color"/>
+      <material
+        name="femur_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -297,39 +309,39 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="FemurRU_joint"
+  <joint
+    name="FemurRU_joint"
     type="revolute">
     <origin
-      xyz="0.045319 -0.0237 -0.015752"
-      rpy="-1.5708 0 0" />
+      xyz="0.0126930684475665 -0.0494626210692686 -0.0157517010851108"
+      rpy="-1.57079632679489 0 0" />
     <parent
       link="CoxisRU_link" />
     <child
       link="FemurRU_link" />
     <axis
-      xyz="0.051392 0 -0.99868" />
+      xyz="-0.707106781186547 0 -0.707106781186548" />
     <limit
-      lower="-2.0"
-      upper="2.8"
+      lower="-1.57"
+      upper="1.57"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="TibiaRU_link">
+  <link
+    name="TibiaRU_link">
     <inertial>
       <origin
-        xyz="0.031935634614015 -0.00117480253668045 0.0271788159536916"
+        xyz="0.0319359560192116 0.0193569401677476 0.0191143020997222"
         rpy="0 0 0" />
       <mass
-        value="0.0667714115678162" />
+        value="0.0667714120865957" />
       <inertia
-        ixx="8.95236989231644E-06"
-        ixy="2.06887932736198E-06"
-        ixz="-7.18730831835981E-07"
-        iyy="2.31375408714948E-05"
-        iyz="3.25313377933762E-07"
-        izz="2.07987476859839E-05" />
+        ixx="8.95900819681095E-06"
+        ixy="8.68709912812259E-07"
+        ixz="-2.03369931894634E-06"
+        iyy="2.21697249659004E-05"
+        iyz="-1.19329301943588E-06"
+        izz="2.17599256720113E-05" />
     </inertial>
     <visual>
       <origin
@@ -339,7 +351,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/TibiaRU_link.STL" />
       </geometry>
-      <material name="tibia_color"/>
+      <material
+        name="tibia_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -351,39 +365,39 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="TibiaRU_joint"
+  <joint
+    name="TibiaRU_joint"
     type="revolute">
     <origin
-      xyz="0.06042 0.034948 0.0031092"
-      rpy="0 0 -1.5708" />
+      xyz="0.0493513687238616 9.62765376531123E-05 -0.0493513687238616"
+      rpy="0 0 -1.57079632679489" />
     <parent
       link="FemurRU_link" />
     <child
       link="TibiaRU_link" />
     <axis
-      xyz="0 -0.051392 0.99868" />
+      xyz="0 0.707106781186552 0.707106781186543" />
     <limit
-      lower="-0.43"
-      upper="2.7"
+      lower="-0.76"
+      upper="2.38"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="RuedaRU_link">
+  <link
+    name="RuedaRU_link">
     <inertial>
       <origin
-        xyz="0.000199918139693445 -0.000341992268436508 0.00959253134125242"
+        xyz="-0.000131053007673243 -0.000388550813708755 0.00959194646036271"
         rpy="0 0 0" />
       <mass
-        value="0.0410439694665572" />
+        value="0.041043969465447" />
       <inertia
-        ixx="5.18020756884856E-06"
-        ixy="-3.6759683835391E-11"
-        ixz="-3.33131962692676E-10"
-        iyy="5.18026347204049E-06"
-        iyz="7.3064402727003E-09"
-        izz="9.73024429450851E-06" />
+        ixx="5.18019587347092E-06"
+        ixy="2.57023939182381E-11"
+        ixz="-3.07645793440467E-11"
+        iyy="5.18026341245618E-06"
+        iyz="-9.12119649543829E-11"
+        izz="9.73025604945823E-06" />
     </inertial>
     <visual>
       <origin
@@ -393,7 +407,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/RuedaRU_link.STL" />
       </geometry>
-      <material name="rueda_color"/>
+      <material
+        name="rueda_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -405,21 +421,21 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="RuedaRU_joint"
+  <joint
+    name="RuedaRU_joint"
     type="continuous">
     <origin
-      xyz="0.109539977240268 -0.0076711055817173 0.0283762200987518"
+      xyz="0.109529744274998 0.0158053456421239 0.0248291866544947"
       rpy="0 1.5707963267949 0" />
     <parent
       link="TibiaRU_link" />
     <child
       link="RuedaRU_link" />
     <axis
-      xyz="8.35837727566709E-05 -0.00162426112226136 -0.999998677393905" />
+      xyz="0 0 -1" />
   </joint>
 
-  <!-- Bumper Sensor RU -->
+    <!-- Bumper Sensor RU -->
   <link name="BumperRU_link">
     <inertial>
       <mass value="0.001"/>  <!-- Ajusta la masa según sea necesario -->
@@ -429,7 +445,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.01 0.02 0.02"/>  <!-- Tamaño del nuevo link -->
+        <box size="0.02 0.02 0.01"/>  <!-- Tamaño del nuevo link -->
       </geometry>
       <material name="sensor_color"/>
     </visual>
@@ -437,34 +453,35 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.01 0.02 0.02"/>  <!-- Coincide con el visual -->
+        <box size="0.02 0.02 0.01"/>  <!-- Coincide con el visual -->
       </geometry>
     </collision>
   </link>
 
   <joint name="BumperRU_joint" type="revolute">
-    <parent link="TibiaRU_link"/>
+    <parent link="RuedaRU_link"/>
     <child link="BumperRU_link"/>
-    <origin xyz="0.14 -0.0076711055817173 0.0283762200987518" rpy="0 0 0"/>
+    <origin xyz="0 0 0.03207" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>
 
   <!-- Articulacion RD -->
-  <link name="CoxisRD_link">
+  <link
+    name="CoxisRD_link">
     <inertial>
       <origin
-        xyz="0.0369651813320451 0.00583094163920361 -0.026056041542807"
+        xyz="0.0254334316004645 0.0274511486389335 -0.0260560368815679"
         rpy="0 0 0" />
       <mass
-        value="0.0515847017813385" />
+        value="0.0515846904005967" />
       <inertia
-        ixx="1.79305674043856E-05"
-        ixy="2.95303067672398E-07"
-        ixz="-3.90881428846353E-07"
-        iyy="1.68290863383272E-05"
-        iyz="1.29882473297429E-09"
-        izz="8.76852676058606E-06" />
+        ixx="1.72218580463494E-05"
+        ixy="6.04623188349504E-07"
+        ixz="-3.07889742191954E-07"
+        iyy="1.75377831874927E-05"
+        iyz="-2.40812566287735E-07"
+        izz="8.76852325233184E-06" />
     </inertial>
     <visual>
       <origin
@@ -474,7 +491,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/CoxisRD_link.STL" />
       </geometry>
-      <material name="coxis_color"/>
+      <material
+        name="coxis_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -486,12 +505,12 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="CoxisRD_joint"
+  <joint
+    name="CoxisRD_joint"
     type="revolute">
     <origin
-      xyz="-0.09323 -0.060798 -0.0098"
-      rpy="3.1416 0 -1.5708" />
+      xyz="-0.0932301097293624 -0.0607983865504415 -0.00980000000000016"
+      rpy="3.14159265358979 0 -1.5707963267949" />
     <parent
       link="base_link" />
     <child
@@ -499,26 +518,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-2"
+      lower="-1.57"
       upper="1.57"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="FemurRD_link">
+  <link
+    name="FemurRD_link">
     <inertial>
       <origin
-        xyz="0.0243105159422555 0.019893023342338 0.0296094490036057"
+        xyz="0.00531613049563212 -6.34908792207511E-15 0.0428391845814756"
         rpy="0 0 0" />
       <mass
-        value="0.0322370091635994" />
+        value="0.0322370452082158" />
       <inertia
-        ixx="2.43340126263056E-05"
-        ixy="-4.47276103623778E-06"
-        ixz="1.57243402408369E-06"
-        iyy="2.75360075262037E-05"
-        iyz="-5.31676553996605E-07"
-        izz="1.12932677467744E-05" />
+        ixx="1.6192519069189E-05"
+        ixy="1.9836064881765E-14"
+        ixz="5.08613118710121E-06"
+        iyy="3.07783671522519E-05"
+        iyz="1.98356572668682E-14"
+        izz="1.61925190691907E-05" />
     </inertial>
     <visual>
       <origin
@@ -528,7 +547,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/FemurRD_link.STL" />
       </geometry>
-      <material name="femur_color"/>
+      <material
+        name="femur_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -540,39 +561,39 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="FemurRD_joint"
+  <joint
+    name="FemurRD_joint"
     type="revolute">
     <origin
-      xyz="0.046773 -0.020724 -0.015752"
-      rpy="-1.5708 0 0" />
+      xyz="0.0495681853611769 0.0126572113832391 -0.0157518633540372"
+      rpy="-1.57079632679489 0 0" />
     <parent
       link="CoxisRD_link" />
     <child
       link="FemurRD_link" />
     <axis
-      xyz="0.11804 0 -0.99301" />
+      xyz="0.707106781186557 0 -0.707106781186538" />
     <limit
-      lower="-0.35"
-      upper="2.8"
+      lower="-1.57"
+      upper="1.57"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="TibiaRD_link">
+  <link
+    name="TibiaRD_link">
     <inertial>
       <origin
-        xyz="0.0318290954932926 -0.000613422978720496 0.0273218841045819"
+        xyz="0.0319359560192096 -0.0191143020997227 0.0193569401677477"
         rpy="0 0 0" />
       <mass
-        value="0.0667714118308176" />
+        value="0.0667714120865956" />
       <inertia
-        ixx="8.72891309208237E-06"
-        ixy="1.03660790964968E-06"
-        ixz="-7.19709509744778E-07"
-        iyy="2.33186432286234E-05"
-        iyz="4.4401514010959E-07"
-        izz="2.08411022697644E-05" />
+        ixx="8.95900819681099E-06"
+        ixy="2.03369931894647E-06"
+        ixz="8.68709912812344E-07"
+        iyy="2.17599256720112E-05"
+        iyz="1.19329301943586E-06"
+        izz="2.21697249659004E-05" />
     </inertial>
     <visual>
       <origin
@@ -582,7 +603,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/TibiaRD_link.STL" />
       </geometry>
-      <material name="tibia_color"/>
+      <material
+        name="tibia_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -594,39 +617,39 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="TibiaRD_joint"
+  <joint
+    name="TibiaRD_joint"
     type="revolute">
     <origin
-      xyz="0.056409 0.040891 0.0067056"
+      xyz="0.049493 0 0.049493"
       rpy="0 0 -1.5708" />
     <parent
       link="FemurRD_link" />
     <child
       link="TibiaRD_link" />
     <axis
-      xyz="0 -0.11804 0.99301" />
+      xyz="0 -0.70711 0.70711" />
     <limit
-      lower="-0.43"
-      upper="2.7"
+      lower="-0.76"
+      upper="2.38"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="RuedaRD_link">
+  <link
+    name="RuedaRD_link">
     <inertial>
       <origin
-        xyz="0.000137366855968102 0.00038691380318942 0.00959192439896971"
+        xyz="0.000388550813708921 -0.00013105300767316 0.00959194646036081"
         rpy="0 0 0" />
       <mass
-        value="0.0410439698241763" />
+        value="0.0410439694654469" />
       <inertia
-        ixx="5.180583164812E-06"
-        ixy="-3.15989384518624E-09"
-        ixz="-4.09423877593772E-08"
-        iyy="5.20653033968535E-06"
-        iyz="3.44804654363157E-07"
-        izz="9.70360182547316E-06" />
+        ixx="5.1802634124562E-06"
+        ixy="-2.57023938999114E-11"
+        ixz="9.12119649626002E-11"
+        iyy="5.18019587347088E-06"
+        iyz="-3.07645793582925E-11"
+        izz="9.73025604945821E-06" />
     </inertial>
     <visual>
       <origin
@@ -636,7 +659,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/RuedaRD_link.STL" />
       </geometry>
-      <material name="rueda_color"/>
+      <material
+        name="rueda_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -648,18 +673,18 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="RuedaRD_joint"
+  <joint
+    name="RuedaRD_joint"
     type="continuous">
     <origin
-      xyz="0.109696793417255 -0.00138265547481653 0.0287708901417234"
+      xyz="0.109529744274998 -0.0248291866544958 0.0158053456421234"
       rpy="0 1.5707963267949 0" />
     <parent
       link="TibiaRD_link" />
     <child
       link="RuedaRD_link" />
     <axis
-      xyz="0.00903692524308548 -0.0760217790170896 -0.997065205037879" />
+      xyz="0 0 -1" />
   </joint>
 
   <!-- Bumper Sensor RD -->
@@ -672,7 +697,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.01 0.02 0.02"/>  <!-- Tamaño del nuevo link -->
+        <box size="0.02 0.02 0.01"/>  <!-- Tamaño del nuevo link -->
       </geometry>
       <material name="sensor_color"/>
     </visual>
@@ -680,34 +705,35 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.01 0.02 0.02"/>  <!-- Coincide con el visual -->
+        <box size="0.02 0.02 0.01"/>  <!-- Coincide con el visual -->
       </geometry>
     </collision>
   </link>
 
   <joint name="BumperRD_joint" type="revolute">
-    <parent link="TibiaRD_link"/>
+    <parent link="RuedaRD_link"/>
     <child link="BumperRD_link"/>
-    <origin xyz= "0.14 -0.00138265547481653 0.0287708901417234" rpy="0 0 0"/>
+    <origin xyz= "0 0 0.03207" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>
 
   <!-- Articulacion LU -->
-  <link name="CoxisLU_link">
+  <link
+    name="CoxisLU_link">
     <inertial>
       <origin
-        xyz="0.0371090998945719 0.00406660736411779 -0.026056041382869"
+        xyz="0.0273534619284208 0.0254747642770079 -0.0260560409410945"
         rpy="0 0 0" />
       <mass
-        value="0.0515847042228037" />
+        value="0.0515847008737884" />
       <inertia
-        ixx="1.80043315016589E-05"
-        ixy="2.27849133405711E-08"
-        ixz="-3.76963325270919E-07"
-        iyy="1.67553243896817E-05"
-        iyz="-1.03391784551128E-07"
-        izz="8.7685284154472E-06" />
+        ixx="1.75378033236604E-05"
+        ixy="6.04620201049237E-07"
+        ixz="-2.40808419843913E-07"
+        iyy="1.72218513968338E-05"
+        iyz="-3.078997409612E-07"
+        izz="8.76852925706835E-06" />
     </inertial>
     <visual>
       <origin
@@ -717,7 +743,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/CoxisLU_link.STL" />
       </geometry>
-      <material name="coxis_color"/>
+      <material
+        name="coxis_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -729,12 +757,12 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="CoxisLU_joint"
+  <joint
+    name="CoxisLU_joint"
     type="revolute">
     <origin
-      xyz="0.096588 0.060798 -0.0098"
-      rpy="-3.1416 0 1.5708" />
+      xyz="0.0965884887784687 0.060798386550441 -0.00979999999999995"
+      rpy="-3.14159265358979 0 1.5707963267949" />
     <parent
       link="base_link" />
     <child
@@ -743,25 +771,25 @@
       xyz="0 0 -1" />
     <limit
       lower="-1.57"
-      upper="2"
+      upper="1.57"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="FemurLU_link">
+  <link
+    name="FemurLU_link">
     <inertial>
       <origin
-        xyz="0.0333715729504286 0.0164235694898136 -0.0219103354014472"
+        xyz="0.0428391845814535 1.70002900645727E-14 0.00531613049560975"
         rpy="0 0 0" />
       <mass
-        value="0.0322370074530517" />
+        value="0.0322370452082159" />
       <inertia
-        ixx="2.32264419710372E-05"
-        ixy="-3.9710068084551E-06"
-        ixz="1.78248483249396E-06"
-        iyy="2.85683505569246E-05"
-        iyz="-5.83986524251586E-07"
-        izz="1.13684911251401E-05" />
+        ixx="1.61925190691903E-05"
+        ixy="-1.983234495467E-14"
+        ixz="5.08613118710213E-06"
+        iyy="3.077836715225E-05"
+        iyz="-1.98330684644081E-14"
+        izz="1.61925190691913E-05" />
     </inertial>
     <visual>
       <origin
@@ -771,7 +799,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/FemurLU_link.STL" />
       </geometry>
-      <material name="femur_color"/>
+      <material
+        name="femur_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -783,39 +813,39 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="FemurLU_joint"
+  <joint
+    name="FemurLU_joint"
     type="revolute">
     <origin
-      xyz="0.039628 0.032261 -0.015752"
-      rpy="-1.5708 0 0" />
+      xyz="0.0125512915293921 0.0496036868635676 -0.0157518633540368"
+      rpy="-1.5707963267949 0 0" />
     <parent
       link="CoxisLU_link" />
     <child
       link="FemurLU_link" />
     <axis
-      xyz="-0.1455 0 0.98936" />
+      xyz="-0.707106781186545 0 0.70710678118655" />
     <limit
-      lower="-2.8"
-      upper="0.35"
+      lower="-1.57"
+      upper="1.57"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="TibiaLU_link">
+  <link
+    name="TibiaLU_link">
     <inertial>
       <origin
-        xyz="0.0318285849841624 0.00339153923520577 -0.0270076360976863"
+        xyz="0.0318333709154974 0.0193548449337303 -0.0191311326900838"
         rpy="0 0 0" />
       <mass
-        value="0.0667476310976818" />
+        value="0.066747630746101" />
       <inertia
-        ixx="9.09397961908622E-06"
-        ixy="2.33030237960494E-06"
-        ixz="1.07661256560995E-06"
-        iyy="2.3417647902328E-05"
-        iyz="1.1103216710962E-07"
-        izz="2.10737330891965E-05" />
+        ixx="8.98829368251505E-06"
+        ixy="9.89450755030482E-07"
+        ixz="2.02354751919822E-06"
+        iyy="2.2512850793934E-05"
+        iyz="1.20714490535372E-06"
+        izz="2.20842158995089E-05" />
     </inertial>
     <visual>
       <origin
@@ -825,7 +855,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/TibiaLU_link.STL" />
       </geometry>
-      <material name="tibia_color"/>
+      <material
+        name="tibia_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -837,39 +869,39 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="TibiaLU_joint"
+  <joint
+    name="TibiaLU_joint"
     type="revolute">
     <origin
-      xyz="0.060661 0.033759 0.0089212"
+      xyz="0.049493 0 0.049493"
       rpy="0 0 -1.5708" />
     <parent
       link="FemurLU_link" />
     <child
       link="TibiaLU_link" />
     <axis
-      xyz="0 0.1455 -0.98936" />
+      xyz="0 0.70711 -0.70711" />
     <limit
-      lower="-2.7"
-      upper="0.43"
+      lower="-2.38"
+      upper="0.76"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="RuedaLU_link">
+  <link
+    name="RuedaLU_link">
     <inertial>
       <origin
-        xyz="0.00026569425244416 -0.000555240217366831 0.0095810260446705"
+        xyz="0.000388550813709809 -0.000131053007687745 0.00959201746706932"
         rpy="0 0 0" />
       <mass
-        value="0.0410439695181042" />
+        value="0.0410439694650791" />
       <inertia
-        ixx="5.18026609332541E-06"
-        ixy="-3.87903181233704E-10"
-        ixz="1.52805950539571E-08"
-        iyy="5.18260531789493E-06"
-        iyz="-1.03614195931657E-07"
-        izz="9.72784392317155E-06" />
+        ixx="5.18026340751663E-06"
+        ixy="-2.57018167887053E-11"
+        ixz="9.12119649306578E-11"
+        iyy="5.18019587834666E-06"
+        iyz="-3.07645793546219E-11"
+        izz="9.73025604949043E-06" />
     </inertial>
     <visual>
       <origin
@@ -879,7 +911,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/RuedaLU_link.STL" />
       </geometry>
-      <material name="rueda_color"/>
+      <material
+        name="rueda_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -891,18 +925,18 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="RuedaLU_joint"
+  <joint
+    name="RuedaLU_joint"
     type="continuous">
     <origin
-      xyz="0.109353047449084 -0.00459051118128878 -0.0302190306176173"
-      rpy="0 1.5707963267949 0" />
+      xyz="0.10953 0.016128 -0.025208"
+      rpy="0 1.5708 0" />
     <parent
       link="TibiaLU_link" />
     <child
       link="RuedaLU_link" />
     <axis
-      xyz="-0.0033473808290709 0.0227609837826761 -0.999735331304656" />
+      xyz="0 0 -1" />
   </joint>
 
   <!-- Bumper Sensor LU -->
@@ -915,7 +949,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.01 0.02 0.02"/>  <!-- Tamaño del nuevo link -->
+        <box size="0.02 0.02 0.01"/>  <!-- Tamaño del nuevo link -->
       </geometry>
       <material name="sensor_color"/>
     </visual>
@@ -923,34 +957,35 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.01 0.02 0.02"/>  <!-- Coincide con el visual -->
+        <box size="0.02 0.02 0.01"/>  <!-- Coincide con el visual -->
       </geometry>
     </collision>
   </link>
 
   <joint name="BumperLU_joint" type="revolute">
-    <parent link="TibiaLU_link"/>
+    <parent link="RuedaLU_link"/>
     <child link="BumperLU_link"/>
-    <origin xyz= "0.14 -0.00459051118128878 -0.0302190306176173" rpy="0 0 0"/>
+    <origin xyz= "0 0 0.03207" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>
 
   <!-- Articulacion LD -->
-  <link name="CoxisLD_link">
+  <link
+    name="CoxisLD_link">
     <inertial>
       <origin
-        xyz="0.0370615210393103 -0.0052408639190108 -0.0260561571124523"
+        xyz="0.0254391147078342 -0.0274568453944841 -0.0260559294832483"
         rpy="0 0 0" />
       <mass
-        value="0.0515847132031574" />
+        value="0.0515847008737883" />
       <inertia
-        ixx="1.79397160808874E-05"
-        ixy="-2.77581758447214E-07"
-        ixz="-3.90701690343145E-07"
-        iyy="1.68199518967991E-05"
-        iyz="-7.56173523280061E-09"
-        izz="8.76853285208694E-06" />
+        ixx="1.72218526647141E-05"
+        ixy="-6.04620199168892E-07"
+        ixz="-3.07818209872126E-07"
+        iyy="1.75378020520194E-05"
+        iyz="2.40726888777337E-07"
+        izz="8.76852926082903E-06" />
     </inertial>
     <visual>
       <origin
@@ -960,7 +995,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/CoxisLD_link.STL" />
       </geometry>
-      <material name="coxis_color"/>
+      <material
+        name="coxis_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -972,8 +1009,8 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="CoxisLD_joint"
+  <joint
+    name="CoxisLD_joint"
     type="revolute">
     <origin
       xyz="-0.09323 0.060798 -0.0098"
@@ -985,26 +1022,26 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="-1.13"
-      upper="2"
+      lower="-1.57"
+      upper="1.57"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="FemurLD_link">
+  <link
+    name="FemurLD_link">
     <inertial>
       <origin
-        xyz="0.027774514363455 0.0148424282723142 -0.0295251014295534"
+        xyz="0.00531617732277645 -3.24549499681331E-07 -0.0428392314086188"
         rpy="0 0 0" />
       <mass
-        value="0.0322370081893243" />
+        value="0.0322370452082158" />
       <inertia
-        ixx="2.29585271907002E-05"
-        ixy="-3.70722182368232E-06"
-        ixz="-1.21736686442898E-06"
-        iyy="2.89733751972465E-05"
-        iyz="3.80755988407062E-07"
-        izz="1.12313831751207E-05" />
+        ixx="1.61925190691904E-05"
+        ixy="-1.98356748400012E-14"
+        ixz="-5.08613118710121E-06"
+        iyy="3.07783671522519E-05"
+        iyz="1.98360420605306E-14"
+        izz="1.61925190691893E-05" />
     </inertial>
     <visual>
       <origin
@@ -1014,7 +1051,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/FemurLD_link.STL" />
       </geometry>
-      <material name="femur_color"/>
+      <material
+        name="femur_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -1026,39 +1065,39 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="FemurLD_joint"
+  <joint
+    name="FemurLD_joint"
     type="revolute">
     <origin
-      xyz="0.046435 0.021468 -0.015752"
+      xyz="0.049567 -0.012656 -0.015752"
       rpy="-1.5708 0 0" />
     <parent
       link="CoxisLD_link" />
     <child
       link="FemurLD_link" />
     <axis
-      xyz="0.10217 0 0.99477" />
+      xyz="0.70711 0 0.70711" />
     <limit
-      lower="-2.8"
-      upper="0.35"
+      lower="-1.57"
+      upper="1.57"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="TibiaLD_link">
+  <link
+    name="TibiaLD_link">
     <inertial>
       <origin
-        xyz="0.0318214746065825 -0.00366034607728369 -0.0269809078569606"
+        xyz="0.0318336954649925 -0.019131085862914 -0.0193548917608989"
         rpy="0 0 0" />
       <mass
-        value="0.0667476309214474" />
+        value="0.0667476307461011" />
       <inertia
-        ixx="9.14334330424273E-06"
-        ixy="2.66148535396861E-06"
-        ixz="4.54250835843257E-07"
-        iyy="2.32786333846721E-05"
-        iyz="-4.62803502676568E-07"
-        izz="2.11633838325117E-05" />
+        ixx="8.98829368251505E-06"
+        ixy="2.02354751919823E-06"
+        ixz="-9.89450755030507E-07"
+        iyy="2.2084215899509E-05"
+        iyz="-1.20714490535371E-06"
+        izz="2.25128507939341E-05" />
     </inertial>
     <visual>
       <origin
@@ -1068,7 +1107,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/TibiaLD_link.STL" />
       </geometry>
-      <material name="tibia_color"/>
+      <material
+        name="tibia_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -1080,39 +1121,39 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="TibiaLD_joint"
+  <joint
+    name="TibiaLD_joint"
     type="revolute">
     <origin
-      xyz="0.062664 0.030509 -0.0064363"
+      xyz="0.049493 0 -0.049493"
       rpy="0 0 -1.5708" />
     <parent
       link="FemurLD_link" />
     <child
       link="TibiaLD_link" />
     <axis
-      xyz="0 -0.10217 -0.99477" />
+      xyz="0 -0.70711 -0.70711" />
     <limit
-      lower="-2.7"
-      upper="0.43"
+      lower="-2.38"
+      upper="0.76"
       effort="200"
       velocity="200" />
   </joint>
-
-  <link name="RuedaLD_link">
+  <link
+    name="RuedaLD_link">
     <inertial>
       <origin
-        xyz="0.000111508335068344 -0.000696404011482465 0.00957483850452766"
+        xyz="-0.000131053007687898 -0.000388550813709865 0.00959201746707292"
         rpy="0 0 0" />
       <mass
-        value="0.0410439695671941" />
+        value="0.041043969465079" />
       <inertia
-        ixx="5.18024833823711E-06"
-        ixy="4.67422857029879E-10"
-        ixz="-1.51847380388351E-08"
-        iyy="5.18509703141255E-06"
-        iyz="-1.48247481258464E-07"
-        izz="9.72536996425234E-06" />
+        ixx="5.18019587834664E-06"
+        ixy="2.57018167692184E-11"
+        ixz="-3.07645793605211E-11"
+        iyy="5.18026340751662E-06"
+        iyz="-9.12119649536465E-11"
+        izz="9.73025604949041E-06" />
     </inertial>
     <visual>
       <origin
@@ -1122,7 +1163,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/RuedaLD_link.STL" />
       </geometry>
-      <material name="rueda_color"/>
+      <material
+        name="rueda_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -1134,18 +1177,18 @@
       </geometry>
     </collision>
   </link>
-
-  <joint name="RuedaLD_joint"
+  <joint
+    name="RuedaLD_joint"
     type="continuous">
     <origin
-      xyz="0.10926 -0.012938 -0.028054"
-      rpy="0 1.5708 0" />
+      xyz="0.109530068824489 -0.0252082867118495 -0.0161284884758471"
+      rpy="0 1.5707963267949 0" />
     <parent
       link="TibiaLD_link" />
     <child
       link="RuedaLD_link" />
     <axis
-      xyz="0.0033463 0.03258 -0.99946" />
+      xyz="0 0 -1" />
   </joint>
 
   <!-- Bumper Sensor LD -->
@@ -1158,7 +1201,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.01 0.02 0.02"/>  <!-- Tamaño del nuevo link -->
+        <box size="0.02 0.02 0.01"/>  <!-- Tamaño del nuevo link -->
       </geometry>
       <material name="sensor_color"/>
     </visual>
@@ -1166,34 +1209,35 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.01 0.02 0.02"/>  <!-- Coincide con el visual -->
+        <box size="0.02 0.02 0.01"/>  <!-- Coincide con el visual -->
       </geometry>
     </collision>
   </link>
 
   <joint name="BumperLD_joint" type="revolute">
-    <parent link="TibiaLD_link"/>
+    <parent link="RuedaLD_link"/>
     <child link="BumperLD_link"/>
-    <origin xyz= "0.14 -0.012938 -0.028054" rpy="0 0 0"/>
+    <origin xyz= "0 0 0.03207" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="0" effort="0" velocity="0"/>
   </joint>
 
   <!-- HEAD -->
-  <link name="Head_z_link">
+  <link
+    name="Head_z_link">
     <inertial>
       <origin
-        xyz="0.00178460148633564 -0.00540790452305463 0.0079769328978645"
+        xyz="0.00116172788742119 -0.00555966962190932 0.00797693292542438"
         rpy="0 0 0" />
       <mass
-        value="0.0103184369301582" />
+        value="0.0103184370744868" />
       <inertia
-        ixx="6.03799008240543E-07"
-        ixy="-5.74646941196004E-08"
-        ixz="1.04136250166302E-09"
-        iyy="7.81694409278722E-07"
-        iyz="-1.30535317496501E-08"
-        izz="1.14580887317675E-06" />
+        ixx="5.93065414360317E-07"
+        ixy="-3.6867328759808E-08"
+        ixz="-4.45440875471918E-10"
+        iyy="7.92428007376184E-07"
+        iyz="-1.31379509022269E-08"
+        izz="1.14580887737191E-06" />
     </inertial>
     <visual>
       <origin
@@ -1203,7 +1247,9 @@
         <mesh
           filename="file://$(find peter_robot)/meshes/Head_z_link.STL" />
       </geometry>
-      <material name="headz_color"/>
+      <material
+        name="headz_color">
+      </material>
     </visual>
     <collision>
       <origin
@@ -1237,7 +1283,7 @@
   <link name="Head_y_link">
     <inertial>
       <origin
-        xyz="0.0285985652000156 -0.0157988805439243 0.0165845293359016"
+        xyz="0.0284221619805605 -0.0189346308341868 0.0132736474965603"
         rpy="0 0 0" />
       <mass
         value="0.0163382220637024" />
@@ -1273,14 +1319,14 @@
   <joint name="Head_y_joint"
     type="revolute">
     <origin
-      xyz="0.00481057280523833 0.013430874479555 0.00994999999999966"
+      xyz="0.00629999999999953 0.0128 0.00994999999999965"
       rpy="0 0 0" />
     <parent
       link="Head_z_link" />
     <child
       link="Head_y_link" />
     <axis
-      xyz="0.113197942878959 -0.993572456204363 0" />
+      xyz="0 -1 0" />
     <limit
       lower="-1.57"
       upper="1.57"

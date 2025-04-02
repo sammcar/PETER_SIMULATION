@@ -65,9 +65,10 @@ class JointPositionPublisher(Node):
                         [SIDE,0,Z_DEFAULT],
                         [DIAG,DIAG,Z_DEFAULT],
                         [SIDE,0,Z_DEFAULT]]
-        self.target_positions = [0.785,  0.53,   0.51,  -0.0,
-                                -0.53,  -0.51,  -0.785,  0.53,
-                                0.51,   -0.0,   -0.53,  -0.51]
+        self.target_positions = [0.0,   0.0, 0.0, 
+                                 0.785, 0.0, 0.0,
+                                 0.0,   0.0, 0.0,
+                                -0.785, 0.0, 0.0]
 
     def __init__(self):
         super().__init__('joint_position_publisher')
@@ -910,9 +911,10 @@ class JointPositionPublisher(Node):
             #self.get_logger().info(f"x:{site_now[i][0]}\ny:{site_now[i][1]}\nz:{site_now[i][2]}")
             alpha, beta, gamma = self.inverseKinematics(site_now[i][0], site_now[i][1], site_now[i][2])
             # Adjust angles for specific legs
-            beta = beta + 0.51
-            # gamma = gamma - 1.04
-            gamma = -gamma +2.1
+            alpha = alpha - 0.785
+            #beta = beta
+            gamma = -gamma + 1.57
+            #gamma = -gamma +2.1
             if i in (1, 3):  # Adjust alpha for legs 0 and 2
                 beta = - beta
                 gamma = - gamma
@@ -1084,16 +1086,16 @@ class JointPositionPublisher(Node):
 
                 # Detect ground support (force.z < 0)
                 
-                if force1_z < -3.0 and self.on_air[leg_index]:
-                    site_now[leg_index][0] = site_expect[leg_index][0]
-                    site_now[leg_index][1] = site_expect[leg_index][1]
-                    site_now[leg_index][2] = site_expect[leg_index][2]
-                    # self.get_logger().info(f"  ✅ Ground support detected from {collision1_name} with force.z = {force1_z}")
-                if force2_z < -3.0 and self.on_air[leg_index]:
-                    site_now[leg_index][0] = site_expect[leg_index][0]
-                    site_now[leg_index][1] = site_expect[leg_index][1]
-                    site_now[leg_index][2] = site_expect[leg_index][2]
-                    # self.get_logger().info(f"  ✅ Ground support detected from {collision2_name} with force.z = {force2_z}")
+                # if force1_z < -3.0 and self.on_air[leg_index]:
+                #     site_now[leg_index][0] = site_expect[leg_index][0]
+                #     site_now[leg_index][1] = site_expect[leg_index][1]
+                #     site_now[leg_index][2] = site_expect[leg_index][2]
+                #     # self.get_logger().info(f"  ✅ Ground support detected from {collision1_name} with force.z = {force1_z}")
+                # if force2_z < -3.0 and self.on_air[leg_index]:
+                #     site_now[leg_index][0] = site_expect[leg_index][0]
+                #     site_now[leg_index][1] = site_expect[leg_index][1]
+                #     site_now[leg_index][2] = site_expect[leg_index][2]
+                #     # self.get_logger().info(f"  ✅ Ground support detected from {collision2_name} with force.z = {force2_z}")
 
     def extract_leg_name(self,collision_name):
         """Extracts leg name from collision string (e.g., 'BumperRU' from 'peter::BumperRU_link::BumperRU_link_collision')"""
