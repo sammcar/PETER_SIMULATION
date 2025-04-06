@@ -846,10 +846,10 @@ class JointPositionPublisher(Node):
         if self.state == 'X':  # Modo omnidireccional
 
             self.target_velocities = [
-                self.linear_x + self.angular_z + self.linear_y,  # RU
-                -self.linear_x + self.angular_z + self.linear_y, # LU
-                self.linear_x + self.angular_z - self.linear_y,  # RD
-                -self.linear_x + self.angular_z - self.linear_y  # LD
+                1.15*self.linear_x + self.angular_z + self.linear_y,  # RU
+                -1.15*self.linear_x + self.angular_z + self.linear_y, # LU
+                1.15*self.linear_x + self.angular_z - self.linear_y,  # RD
+                -1.15*self.linear_x + self.angular_z - self.linear_y  # LD
             ]
         
         elif self.state == 'H':  # Modo móvil tipo H
@@ -947,7 +947,7 @@ class JointPositionPublisher(Node):
 
         elif self.state == 'X':  # Modo omnidireccional
 
-            if self.linear_x != 0.0:
+            if self.linear_x != 0.0 and self.linear_y == 0.0:
                 self.target_positions = [
                 0.0, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
                 0.0, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
@@ -955,7 +955,7 @@ class JointPositionPublisher(Node):
                 0.0, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
                 ]
 
-            elif self.linear_y != 0.0:
+            elif self.linear_y != 0.0 and self.linear_x == 0.0:
                 self.target_positions = [
                 1.57, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
                 -1.42, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
@@ -963,12 +963,14 @@ class JointPositionPublisher(Node):
                 1.46, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
             ]
             else:    
+
                 self.target_positions = [
-                    0.7, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
-                    -0.7, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
-                    -0.7, 0.8, 2.10,  # CoxisRD, FemurRD, TibiaRD
-                    0.7, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
+                    0.7, 0.8+0.1*(self.linear_x <0 and self.linear_y < 0), 2.30,  # CoxisRU, FemurRU, TibiaRU
+                    -0.7, -0.8*(self.linear_y >= 0.0)-0.9*(self.linear_y < 0.0)-0.1*(self.linear_x <0 and self.linear_y > 0), -2.30,  # CoxisLU, FemurLU, TibiaLU
+                    -0.7, 0.8*(self.linear_y >= 0.0)+0.9*(self.linear_y < 0.0)+0.1*(self.linear_x <0 and self.linear_y > 0), 2.10,  # CoxisRD, FemurRD, TibiaRD
+                    0.7, -0.9-0.1*(self.linear_x <0 and self.linear_y < 0), -2.30   # CoxisLD, FemurLD, TibiaLD
                 ]
+
 
             self.past = 'X'
 
