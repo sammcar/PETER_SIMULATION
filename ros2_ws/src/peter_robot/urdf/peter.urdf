@@ -445,7 +445,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.02 0.02 0.01"/>  <!-- Tamaño del nuevo link -->
+        <box size="0.005 0.005 0.0025"/>  <!-- Tamaño del nuevo link -->
       </geometry>
       <material name="sensor_color"/>
     </visual>
@@ -697,7 +697,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.02 0.02 0.01"/>  <!-- Tamaño del nuevo link -->
+        <box size="0.005 0.005 0.0025"/>  <!-- Tamaño del nuevo link -->
       </geometry>
       <material name="sensor_color"/>
     </visual>
@@ -949,7 +949,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.02 0.02 0.01"/>  <!-- Tamaño del nuevo link -->
+        <box size="0.005 0.005 0.0025"/>  <!-- Tamaño del nuevo link -->
       </geometry>
       <material name="sensor_color"/>
     </visual>
@@ -1201,7 +1201,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <box size="0.02 0.02 0.01"/>  <!-- Tamaño del nuevo link -->
+        <box size="0.005 0.005 0.0025"/>  <!-- Tamaño del nuevo link -->
       </geometry>
       <material name="sensor_color"/>
     </visual>

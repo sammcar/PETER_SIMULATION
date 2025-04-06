@@ -34,7 +34,7 @@ site_now = [[0.0 for _ in range(3)] for _ in range(4)]  # 4x3 array for current 
 site_expect = [[0.0 for _ in range(3)] for _ in range(4)]  # 4x3 array for expected positions
 temp_speed = [[0.0 for _ in range(3)] for _ in range(4)]  # 4x3 array for temporary speeds
 move_speed = 8.0
-speed_multiple = 1.0
+speed_multiple = 2.0
 SPOT_TURN_SPEED = 4.0
 LEG_MOVE_SPEED = 8.0
 BODY_MOVE_SPEED = 3.0
@@ -121,7 +121,7 @@ class JointPositionPublisher(Node):
         self.tf_broadcaster = TransformBroadcaster(self)
 
         # Timer
-        self.timer = self.create_timer(0.05, self.timer_callback)
+        self.timer = self.create_timer(0.01, self.timer_callback)
         self.ticker = self.create_timer(0.02, self.ticker_callback)
         self.on_air = [False,False,False,False]
         self.machine = 0
@@ -249,7 +249,7 @@ class JointPositionPublisher(Node):
             #self.get_logger().info(f"Checking leg {leg} position: {site_now[leg]}")
             #self.get_logger().info(f"Desired leg {leg} position: {site_expect[leg]}")
             #self.get_logger().info(f"SERVICE: {servo_service_en}")
-            rclpy.spin_once(self, timeout_sec=0.1)  # Allow callbacks to run
+            rclpy.spin_once(self, timeout_sec=0.005)  # Allow callbacks to run
             #time.sleep(0.3)  # Let ROS process callbacks without spin_once()
 
     def set_site(self, leg, x, y, z):

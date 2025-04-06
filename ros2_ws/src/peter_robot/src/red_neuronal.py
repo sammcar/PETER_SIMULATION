@@ -69,7 +69,7 @@ class NetworkPublisher(Node):
 
         self.Gpi = np.zeros((3, 2)) # Globo Pálido Interno
         self.Gpe = np.zeros((3, 2)) # Globo Pálido Externo
-        self.STN = np.zeros((3, 2)) # Subtalámico
+        self.StN = np.zeros((3, 2)) # Subtalámico
         self.STR = np.zeros((6, 2)) # Estriado
         self.z = np.zeros((20, 2)) # Red Sam/Espitia
         self.lidar = np.zeros((5,2)) # Wta Lidar
@@ -101,7 +101,7 @@ class NetworkPublisher(Node):
         self.tauMotor = 2 # Tao Neuronas Z
         self.TaoGpi = 1 # Tao Ganglios
         self.TaoGpe = 2 # Tao Ganglios
-        self.TaoSTN = 2 # Tao Ganglios
+        self.TaoStN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
         self.Usigma_az = 9.0 #Umbral de variación estándar de un IMU
@@ -121,6 +121,8 @@ class NetworkPublisher(Node):
         self.n_neuronas = 16  
         self.n_por_cuadrante = self.n_neuronas // 4
 
+        self.activaciones_x = np.zeros(self.n_neuronas)
+        self.activaciones_y = np.zeros(self.n_neuronas)
         self.activaciones_totales = np.zeros(self.n_neuronas)
 
         # Definir direcciones preferidas en 4 cuadrantes
@@ -149,7 +151,9 @@ class NetworkPublisher(Node):
         angle_increment = msg.angle_increment  
 
         detected = False
-        self.activaciones_totales = np.zeros(self.n_neuronas)  
+        self.activaciones_x = np.zeros(self.n_neuronas)  
+        self.activaciones_y = np.zeros(self.n_neuronas)  
+        self.activaciones_totales = np.zeros(self.n_neuronas)
 
         # Definir los límites de detección (en metros)
         r_min = 0.2  # Distancia mínima de detección (ejemplo: 20 cm)
@@ -165,9 +169,12 @@ class NetworkPublisher(Node):
             detected = True  
             vector_input = np.array([np.cos(angle), np.sin(angle)])
             
-            activaciones = np.array([self.gausiana(vector_input, self.Om[:, j]) for j in range(self.n_neuronas)]) * 130 / (1000 * r)
-            self.activaciones_totales = np.maximum(self.activaciones_totales, activaciones)  # Guardar las activaciones más altas
+            activaciones = np.array([self.gausiana(vector_input, self.Om[:, j]) for j in range(self.n_neuronas)])
 
+            self.activaciones_totales = np.maximum(self.activaciones_totales, activaciones) * 130 / (1000 * r)  # Guardar las activaciones más altas
+            self.activaciones_x = np.maximum(self.activaciones_x, activaciones) * 130 / (1000 * r*np.cos(angle))  # Guardar las activaciones más altas
+            self.activaciones_y = np.maximum(self.activaciones_y, activaciones) * 130 / (1000 * r*np.sin(angle))  # Guardar las activaciones más altas
+            
         # Mensaje opcional si no se detecta nada dentro del rango
         # if not detected:
         #     self.get_logger().info("No se detectó ningún obstáculo dentro del rango especificado.")
@@ -188,10 +195,11 @@ class NetworkPublisher(Node):
 
         #------------------------- D I N A M I C A --------------------------------------#
 
-        self.lidar[0, 1] = self.lidar[0, 0] + (self.dt / 10) * (-self.lidar[0, 0] + (np.sum(self.activaciones_totales[0:4]) + np.sum(self.activaciones_totales[12:16]) - self.lidar[1, 0]))
-        self.lidar[1, 1] = self.lidar[1, 0] + (self.dt / 10) * (-self.lidar[1, 0] + (np.sum(self.activaciones_totales[4:12]) - self.lidar[0, 0]))
-        self.lidar[2, 1] = self.lidar[2, 0] + (self.dt / 10) * (-self.lidar[2, 0] + (np.sum(self.activaciones_totales[0:8]) - self.lidar[3, 0]))
-        self.lidar[3, 1] = self.lidar[3, 0] + (self.dt / 10) * (-self.lidar[3, 0] + (np.sum(self.activaciones_totales[8:16]) - self.lidar[2, 0]))
+        self.lidar[0, 1] = self.lidar[0, 0] + (self.dt / 10) * (-self.lidar[0, 0] + (np.sum(self.activaciones_x[0:4]) + np.sum(self.activaciones_x[12:16]) - self.lidar[1, 0]))
+        self.lidar[1, 1] = self.lidar[1, 0] + (self.dt / 10) * (-self.lidar[1, 0] + (np.sum(self.activaciones_x[4:12]) - self.lidar[0, 0]))
+
+        self.lidar[2, 1] = self.lidar[2, 0] + (self.dt / 10) * (-self.lidar[2, 0] + (np.sum(self.activaciones_y[0:8]) - self.lidar[3, 0]))
+        self.lidar[3, 1] = self.lidar[3, 0] + (self.dt / 10) * (-self.lidar[3, 0] + (np.sum(self.activaciones_y[8:16]) - self.lidar[2, 0]))
 
         
         for r in range(16):
@@ -209,23 +217,23 @@ class NetworkPublisher(Node):
 
         print("R: ", str(R))
         print("G: ", str(G))
-        print("B: ", str(B)) 
+        print("B: ", str(B))
 
-        self.STN[0, 1] = np.clip((self.STN[0, 0] + (1/self.TaoSTN)*(-self.STN[0, 0]*5 + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
-        self.STN[1, 1] = np.clip((self.STN[1, 0] + (1/self.TaoSTN)*(-self.STN[1, 0]*5 + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
-        self.STN[2, 1] = np.clip((self.STN[2, 0] + (1/self.TaoSTN)*(-self.STN[2, 0]*5 + B - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
+        self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoStN)*(-self.StN[0, 0]*5 + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
+        self.StN[1, 1] = np.clip((self.StN[1, 0] + (1/self.TaoStN)*(-self.StN[1, 0]*5 + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
+        self.StN[2, 1] = np.clip((self.StN[2, 0] + (1/self.TaoStN)*(-self.StN[2, 0]*5 + B - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
         
-        self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + self.STN[1,0] + self.STN[2,0] - self.Gpe[0,0] - self.STR[0,0])),0, None)
-        self.Gpi[1, 1] = np.clip((self.Gpi[1, 0] + (1/self.TaoGpi)*(-self.Gpi[1, 0] + self.STN[0,0] + self.STN[2,0] - self.Gpe[1,0] - self.STR[1,0])),0, None)
-        self.Gpi[2, 1] = np.clip((self.Gpi[2, 0] + (1/self.TaoGpi)*(-self.Gpi[2, 0] + self.STN[0,0] + self.STN[1,0] - self.Gpe[2,0] - self.STR[2,0])),0, None)
+        self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + self.StN[1,0] + self.StN[2,0] - self.Gpe[0,0] - self.Str[0,0])),0, None)
+        self.Gpi[1, 1] = np.clip((self.Gpi[1, 0] + (1/self.TaoGpi)*(-self.Gpi[1, 0] + self.StN[0,0] + self.StN[2,0] - self.Gpe[1,0] - self.Str[1,0])),0, None)
+        self.Gpi[2, 1] = np.clip((self.Gpi[2, 0] + (1/self.TaoGpi)*(-self.Gpi[2, 0] + self.StN[0,0] + self.StN[1,0] - self.Gpe[2,0] - self.Str[2,0])),0, None)
         
-        self.Gpe[0, 1] = np.clip((self.Gpe[0, 0] + (1/self.TaoGpe)*(-self.Gpe[0, 0] + self.STN[0,0])),0, None)
-        self.Gpe[1, 1] = np.clip((self.Gpe[1, 0] + (1/self.TaoGpe)*(-self.Gpe[1, 0] + self.STN[1,0])),0, None)
-        self.Gpe[2, 1] = np.clip((self.Gpe[2, 0] + (1/self.TaoGpe)*(-self.Gpe[2, 0] + self.STN[2,0])),0, None)
+        self.Gpe[0, 1] = np.clip((self.Gpe[0, 0] + (1/self.TaoGpe)*(-self.Gpe[0, 0] + self.StN[0,0])),0, None)
+        self.Gpe[1, 1] = np.clip((self.Gpe[1, 0] + (1/self.TaoGpe)*(-self.Gpe[1, 0] + self.StN[1,0])),0, None)
+        self.Gpe[2, 1] = np.clip((self.Gpe[2, 0] + (1/self.TaoGpe)*(-self.Gpe[2, 0] + self.StN[2,0])),0, None)
         
-        self.STR[0, 1] = np.clip((self.STR[0, 0] + (1/self.TaoSTR)*(-self.STR[0, 0] + self.STN[0,0])),0, None)
-        self.STR[1, 1] = np.clip((self.STR[1, 0] + (1/self.TaoSTR)*(-self.STR[1, 0] + self.STN[1,0])),0, None)
-        self.STR[2, 1] = np.clip((self.STR[2, 0] + (1/self.TaoSTR)*(-self.STR[2, 0] + self.STN[2,0])),0, None)
+        self.Str[0, 1] = np.clip((self.Str[0, 0] + (1/self.TaoSTR)*(-self.Str[0, 0] + self.StN[0,0])),0, None)
+        self.Str[1, 1] = np.clip((self.Str[1, 0] + (1/self.TaoSTR)*(-self.Str[1, 0] + self.StN[1,0])),0, None)
+        self.Str[2, 1] = np.clip((self.Str[2, 0] + (1/self.TaoSTR)*(-self.Str[2, 0] + self.StN[2,0])),0, None)
 
         if self.Gpe[0,1] > 1.5 and R > 0.5:
             self.ang_s = self.posR
@@ -271,10 +279,10 @@ class NetworkPublisher(Node):
         for i in range(len(self.lidar)): self.lidar[i, 0] = self.lidar[i,1]
         for i in range(len(self.Response)): self.Response[i, 0] = self.Response[i,1]
         for i in range(len(self.Aux)): self.Aux[i, 0] = self.Aux[i,1]
-        for i in range(len(self.STN)): self.STN[i, 0] = self.STN[i,1]
+        for i in range(len(self.StN)): self.StN[i, 0] = self.StN[i,1]
         for i in range(len(self.Gpi)): self.Gpi[i, 0] = self.Gpi[i,1]
         for i in range(len(self.Gpe)): self.Gpe[i, 0] = self.Gpe[i,1]
-        for i in range(len(self.STR)): self.STR[i, 0] = self.STR[i,1]
+        for i in range(len(self.STR)): self.Str[i, 0] = self.Str[i,1]
 
         print("GpeR: ", str(self.Gpe[0,1]))
         print("GpeG: ", str(self.Gpe[1,1]))
@@ -407,26 +415,6 @@ class NetworkPublisher(Node):
 
         # Mostrar información
         # self.get_logger().info(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {self.accel_z:.2f} m/s², STD Z: {std_dev_accel_z:.4f}")
-
-    def lidar_callback(self, msg):
-        """Callback para el LiDAR: almacena el primer valor del array de rangos."""
-        self.lidar_data = msg.ranges[0] if msg.ranges else None
-
-    # def bumpRU_callback(self, msg):
-    #     """Callback para el bumper de la TibiaRU."""
-    #     self.bumpRU_data = len(msg.contacts) > 0
-
-    # def bumpRD_callback(self, msg):
-    #     """Callback para el bumper de la TibiaRD."""
-    #     self.bumpRD_data = len(msg.contacts) > 0
-
-    # def bumpLU_callback(self, msg):
-    #     """Callback para el bumper de la TibiaLU."""
-    #     self.bumpLU_data = len(msg.contacts) > 0
-
-    # def bumpLD_callback(self, msg):
-    #     """Callback para el bumper de la TibiaLD."""
-    #     self.bumpLD_data = len(msg.contacts) > 0
 
 
     def publish_twist(self, linear_x=0.0, linear_y=0.0, angular_z=0.0):
