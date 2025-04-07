@@ -19,6 +19,7 @@ class NetworkPublisher(Node):
         # Publicadores
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.mode_pub = self.create_publisher(String, '/peter_mode', 10)
+        self.ringlidar = self.create_publisher(Float32MultiArray, '/activaciones_neuronales', 10)
 
         # Velocidades predeterminadas
         self.speed = 5.0  # Velocidad lineal
@@ -70,7 +71,7 @@ class NetworkPublisher(Node):
         self.Gpi = np.zeros((3, 2)) # Globo Pálido Interno
         self.Gpe = np.zeros((3, 2)) # Globo Pálido Externo
         self.StN = np.zeros((3, 2)) # Subtalámico
-        self.STR = np.zeros((6, 2)) # Estriado
+        self.Str = np.zeros((6, 2)) # Estriado
         self.z = np.zeros((20, 2)) # Red Sam/Espitia
         self.lidar = np.zeros((5,2)) # Wta Lidar
         self.Response = np.zeros((16,2))
@@ -171,9 +172,9 @@ class NetworkPublisher(Node):
             
             activaciones = np.array([self.gausiana(vector_input, self.Om[:, j]) for j in range(self.n_neuronas)])
 
-            self.activaciones_totales = np.maximum(self.activaciones_totales, activaciones) * 130 / (1000 * r)  # Guardar las activaciones más altas
-            self.activaciones_x = np.maximum(self.activaciones_x, activaciones) * 130 / (1000 * r*np.cos(angle))  # Guardar las activaciones más altas
-            self.activaciones_y = np.maximum(self.activaciones_y, activaciones) * 130 / (1000 * r*np.sin(angle))  # Guardar las activaciones más altas
+            self.activaciones_totales = np.maximum(self.activaciones_totales, activaciones) #* 130 / (1000 * r)  # Guardar las activaciones más altas
+            self.activaciones_x = np.maximum(self.activaciones_totales, activaciones) * 130 / (1000 * r*np.cos(angle))  # Guardar las activaciones más altas
+            self.activaciones_y = np.maximum(self.activaciones_totales, activaciones) * 130 / (1000 * r*np.sin(angle))  # Guardar las activaciones más altas
             
         # Mensaje opcional si no se detecta nada dentro del rango
         # if not detected:
@@ -195,12 +196,15 @@ class NetworkPublisher(Node):
 
         #------------------------- D I N A M I C A --------------------------------------#
 
-        self.lidar[0, 1] = self.lidar[0, 0] + (self.dt / 10) * (-self.lidar[0, 0] + (np.sum(self.activaciones_x[0:4]) + np.sum(self.activaciones_x[12:16]) - self.lidar[1, 0]))
-        self.lidar[1, 1] = self.lidar[1, 0] + (self.dt / 10) * (-self.lidar[1, 0] + (np.sum(self.activaciones_x[4:12]) - self.lidar[0, 0]))
+        self.lidar[0, 1] = np.clip((self.lidar[0, 0] + (self.dt / 10) * (-self.lidar[0, 0] + (np.sum(self.activaciones_x[0:4]) + np.sum(self.activaciones_x[12:16]) - self.lidar[1, 0]))),0,1)
+        self.lidar[1, 1] = np.clip((self.lidar[1, 0] + (self.dt / 10) * (-self.lidar[1, 0] + (-np.sum(self.activaciones_x[4:12]) - self.lidar[0, 0]))),0,1)
 
-        self.lidar[2, 1] = self.lidar[2, 0] + (self.dt / 10) * (-self.lidar[2, 0] + (np.sum(self.activaciones_y[0:8]) - self.lidar[3, 0]))
-        self.lidar[3, 1] = self.lidar[3, 0] + (self.dt / 10) * (-self.lidar[3, 0] + (np.sum(self.activaciones_y[8:16]) - self.lidar[2, 0]))
-
+        self.lidar[2, 1] = np.clip((self.lidar[2, 0] + (self.dt / 10) * (-self.lidar[2, 0] + (np.sum(self.activaciones_y[0:8]) - self.lidar[3, 0]))),0,1)
+        self.lidar[3, 1] = np.clip((self.lidar[3, 0] + (self.dt / 10) * (-self.lidar[3, 0] + (-np.sum(self.activaciones_y[8:16]) - self.lidar[2, 0]))),0,1)
+        
+        msg_activaciones = Float32MultiArray()
+        msg_activaciones.data = self.lidar[:4,1].tolist()
+        self.ringlidar.publish(msg_activaciones)
         
         for r in range(16):
 
@@ -282,7 +286,7 @@ class NetworkPublisher(Node):
         for i in range(len(self.StN)): self.StN[i, 0] = self.StN[i,1]
         for i in range(len(self.Gpi)): self.Gpi[i, 0] = self.Gpi[i,1]
         for i in range(len(self.Gpe)): self.Gpe[i, 0] = self.Gpe[i,1]
-        for i in range(len(self.STR)): self.Str[i, 0] = self.Str[i,1]
+        for i in range(len(self.Str)): self.Str[i, 0] = self.Str[i,1]
 
         print("GpeR: ", str(self.Gpe[0,1]))
         print("GpeG: ", str(self.Gpe[1,1]))
@@ -423,13 +427,13 @@ class NetworkPublisher(Node):
         twist.linear.x = linear_x
         twist.linear.y = linear_y
         twist.angular.z = angular_z
-        self.cmd_vel_pub.publish(twist)
+        #self.cmd_vel_pub.publish(twist)
 
     def publish_mode(self, mode):
         """Publica el modo actual."""
         mode_msg = String()
         mode_msg.data = mode
-        self.mode_pub.publish(mode_msg)
+        #self.mode_pub.publish(mode_msg)
         self.current_mode = mode
 
 
