@@ -1,0 +1,40 @@
+<sdf version="1.6">
+  <world name="default">
+
+  
+    <light name="sun" type="directional">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0.5 0.5 0</pose> <!-- Ajusta la posición y orientación de la luz -->
+      <diffuse>0.8 0.8 0.8 1</diffuse> <!-- Luz suave -->
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 -0.5 -1</direction> <!-- Dirección de la luz -->
+    </light>
+
+
+    <model name="my_terrain">
+      <static>true</static>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>file://meshes/mapa_gazebo.obj</uri>
+            </mesh>
+          </geometry>
+            <material>
+            <script>
+              <uri>file://materials/scripts/</uri> <!-- Ruta a la carpeta donde está el archivo .material -->
+              <name>my_texture</name> <!-- Nombre del material dentro del archivo .material -->
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>
+
