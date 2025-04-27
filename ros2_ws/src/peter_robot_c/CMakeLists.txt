@@ -5,6 +5,11 @@ project(peter_robot_c)
 find_package(ament_cmake REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+
 
 # Para que reconozca los scripts como ejecutables
 install(PROGRAMS
@@ -36,5 +41,20 @@ install(FILES
 
 # Para registrar los ejecutables (como entry_points en setup.py)
 # ament_python_install_package(${PROJECT_NAME})
+
+# Ejecutable C++
+add_executable(red_cpp src/red_cpp.cpp)
+ament_target_dependencies(red_cpp
+  rclcpp
+  geometry_msgs
+  std_msgs
+  sensor_msgs
+)
+
+
+install(TARGETS
+  red_cpp
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ament_package()
