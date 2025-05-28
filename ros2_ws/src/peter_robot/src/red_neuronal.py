@@ -23,18 +23,6 @@ class NetworkPublisher(Node):
         self.GPEg = self.create_publisher(Float64, '/Gpe_Obstaculo', 10)
         self.GPEb = self.create_publisher(Float64, '/Gpe_Apetente', 10)
 
-        # Velocidades predeterminadas
-        self.speed = 5.0  # Velocidad lineal
-        self.turn = 5.0   # Velocidad angular
-
-        # Limite para velocidad lineal
-        self.max_speed = 6.5
-        self.min_speed = 0.1
-
-        # Limite para velocidad angular
-        self.max_turn = 6.5
-        self.min_turn = 0.1
-
         # Modo Inicial
         self.current_mode = 'C'
 
@@ -300,10 +288,20 @@ class NetworkPublisher(Node):
         print("a: ", str(self.std_dev_accel_z))
         print("roll: ", str(self.roll))
         print("pitch: ", str(self.pitch))
+        print("B: ", str(B))
+        print("cmd_ang: ", str(cmd_ang))
+        print("cmd_lineal: ", str(cmd_lineal))
+        print("cmd_lateral: ", str(cmd_lateral))
+
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
 
         self.publicarGPE(self.Gpe[0,1],self.Gpe[1,1],self.Gpe[2,1])
+
+        target_value = R if self.Gpe[0,1] > 0.5 else (B if self.Gpe[2,1] > 0.5 else None)
+
+        if target_value is not None:
+            self.turn = 0.1 if target_value < 30 else (7 if target_value > 130 else 0.069 * target_value - 1.97)
 
         if self.epsilem < cmd_ang:
             self.publish_twist(angular_z=self.turn)  # Gira izquierda
@@ -314,11 +312,18 @@ class NetworkPublisher(Node):
         else:        
             #-------------------------------------------------------------------
 
+            if cmd_lineal < 30:
+                self.speedX = 0.1
+            elif cmd_lineal > 130:
+                self.speedX = 7
+            else:
+                self.speedX = 0.069*cmd_lineal-1.97
+
             if self.epsilem < cmd_lineal:
-                self.publish_twist(linear_x=self.speed)  # Adelante
+                self.publish_twist(linear_x=self.speedX)  # Adelante
                 print("Avanza")
             elif cmd_lineal < -self.epsilem:
-                self.publish_twist(linear_x=-self.speed) # Atrás
+                self.publish_twist(linear_x=-self.speedX) # Atrás
                 print("Retrocede")
             elif self.z[17,1] > 0.5:
                 self.publish_twist() # Stop
@@ -326,11 +331,19 @@ class NetworkPublisher(Node):
             else:
                 pass
             #-------------------------------------------------------------------
+
+            if cmd_lateral < 30:
+                self.speedY = 0.1
+            elif cmd_lateral > 130:
+                self.speedY = 7
+            else:
+                self.speedY = 0.069*cmd_lateral-1.97
+
             if self.epsilem < cmd_lateral:
-                self.publish_twist(linear_y=self.speed) # Izquierda
+                self.publish_twist(linear_y=self.speedY) # Izquierda
                 print("Desp. Izquierda")
             elif cmd_lateral < -self.epsilem:
-                self.publish_twist(linear_y=-self.speed) # Derecha
+                self.publish_twist(linear_y=-self.speedY) # Derecha
                 print("Desp. Derecha")
             else:
                 pass
@@ -410,9 +423,9 @@ class NetworkPublisher(Node):
     def publish_twist(self, linear_x=0.0, linear_y=0.0, angular_z=0.0):
         """Publica el mensaje Twist con los valores dados."""
         twist = Twist()
-        twist.linear.x = linear_x
-        twist.linear.y = linear_y
-        twist.angular.z = angular_z
+        twist.linear.x = float(linear_x)
+        twist.linear.y = float(linear_y)
+        twist.angular.z = float(angular_z)
         self.cmd_vel_pub.publish(twist)
 
     def publish_mode(self, mode):
