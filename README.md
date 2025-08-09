@@ -257,7 +257,7 @@ source install/setup.bash && ros2 run peter_robot peter_teleop_keyboard
 ### **Control con la red neuronal**
 En otra terminal:
 ```bash
-source install/setup.bash && ros2 run peter_robot red_neuro
+source install/setup.bash && ros2 run peter_robot red_neuronal
 ```
 
 ---
