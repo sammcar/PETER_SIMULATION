@@ -26,15 +26,19 @@ gazebo_joint_controller:
       - CoxisRU_joint
       - FemurRU_joint
       - TibiaRU_joint
+      - BumperRU_joint
       - CoxisLU_joint
       - FemurLU_joint
       - TibiaLU_joint
+      - BumperLU_joint
       - CoxisRD_joint
       - FemurRD_joint
       - TibiaRD_joint
+      - BumperRD_joint
       - CoxisLD_joint
       - FemurLD_joint
       - TibiaLD_joint
+      - BumperLD_joint
     interface_name: position
     command_interfaces:
       - position

@@ -79,12 +79,12 @@ class CamaraNodo(Node):
         return np.uint8(labels > 0) * 255
 
     def filter_and_draw(self, frame, hsv, lower_color, upper_color, color_bgr, publisher, colorname):
-        print(f"\nProcesando color: {colorname}")
+        #print(f"\nProcesando color: {colorname}")
         mask = cv2.inRange(hsv, lower_color, upper_color)
 
         # Debug: Ver cuántos pixeles blancos hay en la máscara inicial
         initial_white_pixels = cv2.countNonZero(mask)
-        print(f"Pixeles detectados (máscara inicial): {initial_white_pixels}")
+        #print(f"Pixeles detectados (máscara inicial): {initial_white_pixels}")
 
         kernel = np.ones((3, 3), np.uint8)
         mask = cv2.erode(mask, kernel, iterations=1)
@@ -94,31 +94,31 @@ class CamaraNodo(Node):
 
         # Debug: Pixeles tras filtrado morfológico
         final_white_pixels = cv2.countNonZero(mask)
-        print(f"Pixeles detectados (tras filtrado morfológico): {final_white_pixels}")
+        #print(f"Pixeles detectados (tras filtrado morfológico): {final_white_pixels}")
 
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         filtered_contours = [c for c in contours if 30 < cv2.boundingRect(c)[3] < 500]
-        print(f"Número de contornos filtrados por altura: {len(filtered_contours)}")
+        #print(f"Número de contornos filtrados por altura: {len(filtered_contours)}")
 
         if filtered_contours:
             max_contour = max(filtered_contours, key=cv2.contourArea)
             area = cv2.contourArea(max_contour)
-            print(f"Área del contorno más grande: {area}")
+            #print(f"Área del contorno más grande: {area}")
 
             if AREA_MIN <= area <= AREA_MAX:
                 x, y, w, h = cv2.boundingRect(max_contour)
-                print(f"Bounding box: x={x}, y={y}, w={w}, h={h}")
+                #print(f"Bounding box: x={x}, y={y}, w={w}, h={h}")
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color_bgr, 2)
 
                 self.publish_bounding(publisher, x, w, h, detected=True)
                 self.last_detection[colorname] = True
             else:
-                print(f"Área ({area}) fuera de rango permitido ({AREA_MIN}-{AREA_MAX}).")
+                #print(f"Área ({area}) fuera de rango permitido ({AREA_MIN}-{AREA_MAX}).")
                 self.publish_bounding(publisher, 0, 0, 0, detected=False)
                 self.last_detection[colorname] = False
         else:
-            print("No se encontraron contornos válidos.")
+            #print("No se encontraron contornos válidos.")
             self.publish_bounding(publisher, 0, 0, 0, detected=False)
             self.last_detection[colorname] = False
 

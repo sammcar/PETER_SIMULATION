@@ -3,12 +3,19 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, String
 from geometry_msgs.msg import Twist
+from sensor_msgs.msg import Imu
 import math
 import time
 from rclpy.executors import MultiThreadedExecutor
 import threading
 from ros_gz_interfaces.msg import Contacts
 import re
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
+import tf2_ros
+from tf2_ros import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped
+import math
 
 # Robot parameters
 LENGTH_A = 45.0
@@ -78,6 +85,7 @@ class JointPositionPublisher(Node):
         self.create_subscription(Contacts, '/bumper/TibiaRD', self.bumper_callback, 10)
         self.create_subscription(Contacts, '/bumper/TibiaLU', self.bumper_callback, 10)
         self.create_subscription(Contacts, '/bumper/TibiaLD', self.bumper_callback, 10)
+        self.subscription_imu = self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
         
         # Inicialización de articulaciones y velocidades
         self.joint_positions = [0.0] * 12  # 12 articulaciones
@@ -94,6 +102,22 @@ class JointPositionPublisher(Node):
         self.target_velocities = [0.0] * 4
         self.leg_ok = False
         self.leg = 0
+
+        # Control dirección Omnidireccional
+        self.current_angle = 0.0  # Último ángulo roll del IMU 
+        self.target_angle = None   # Ángulo objetivo cuando ω = 0, antes de ir en linea recta
+        self.kp = 0.35  # Ganancia proporcional
+        self.inicio = False
+
+        # Publisher de trayectoria
+        self.path_pub = self.create_publisher(Path, "/trajectory", 10)
+        self.path_msg = Path()
+        self.path_msg.header.frame_id = "odom"
+
+        # Buffer y listener para transformaciones TF
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self.tf_broadcaster = TransformBroadcaster(self)
 
         # Timer
         self.timer = self.create_timer(0.05, self.timer_callback)
@@ -676,12 +700,80 @@ class JointPositionPublisher(Node):
     def timer_callback(self):
         self.update_positions()
         self.update_velocities()
+        # Diccionario con los valores actuales de las articulaciones
+        joint_position_dict = {
+            'CoxisRU_joint': self.joint_positions[0],
+            'FemurRU_joint': self.joint_positions[1],
+            'TibiaRU_joint': self.joint_positions[2],
+            'CoxisLU_joint': self.joint_positions[3],
+            'FemurLU_joint': self.joint_positions[4],
+            'TibiaLU_joint': self.joint_positions[5],
+            'CoxisRD_joint': self.joint_positions[6],
+            'FemurRD_joint': self.joint_positions[7],
+            'TibiaRD_joint': self.joint_positions[8],
+            'CoxisLD_joint': self.joint_positions[9],
+            'FemurLD_joint': self.joint_positions[10],
+            'TibiaLD_joint': self.joint_positions[11],
+
+            # Bumpers con posición fija
+            'BumperRU_joint': 0.0,
+            'BumperLU_joint': 0.0,
+            'BumperRD_joint': 0.0,
+            'BumperLD_joint': 0.0,
+        }
+
+        # Orden estricto según configuración de gazebo_joint_controller
+        joint_order = [
+            'CoxisRU_joint', 'FemurRU_joint', 'TibiaRU_joint', 'BumperRU_joint',
+            'CoxisLU_joint', 'FemurLU_joint', 'TibiaLU_joint', 'BumperLU_joint',
+            'CoxisRD_joint', 'FemurRD_joint', 'TibiaRD_joint', 'BumperRD_joint',
+            'CoxisLD_joint', 'FemurLD_joint', 'TibiaLD_joint', 'BumperLD_joint'
+        ]
+
+        # Construcción del mensaje
         position_msg = Float64MultiArray()
-        position_msg.data = self.joint_positions
+        position_msg.data = [joint_position_dict[name] for name in joint_order]
         self.position_publisher_.publish(position_msg)
+
+        # Velocidades no necesitan cambio (solo 12 articulaciones móviles)
         velocity_msg = Float64MultiArray()
         velocity_msg.data = self.joint_velocities
         self.velocity_publisher_.publish(velocity_msg)
+
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = "odom"
+        t.child_frame_id = "base_link"
+
+        t.transform.translation.x = 0.0
+        t.transform.translation.y = 0.0
+        t.transform.translation.z = 0.0
+        t.transform.rotation.x = 0.0
+        t.transform.rotation.y = 0.0
+        t.transform.rotation.z = 0.0
+        t.transform.rotation.w = 1.0
+
+        self.tf_broadcaster.sendTransform(t)
+
+
+        # Publicar trayectoria
+        try:
+            now = rclpy.time.Time()
+            trans = self.tf_buffer.lookup_transform("odom", "base_link", now)
+
+            pose = PoseStamped()
+            pose.header.stamp = self.get_clock().now().to_msg()
+            pose.header.frame_id = "odom"
+            pose.pose.position.x = trans.transform.translation.x
+            pose.pose.position.y = trans.transform.translation.y
+            pose.pose.position.z = trans.transform.translation.z
+            pose.pose.orientation = trans.transform.rotation
+
+            self.path_msg.poses.append(pose)
+            self.path_msg.header.stamp = pose.header.stamp
+            self.path_pub.publish(self.path_msg)
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            pass  # Evita error si la transformación aún no está disponible
 
     def update_positions(self):
         """Actualiza las posiciones de las articulaciones hacia sus objetivos de forma incremental."""
@@ -699,6 +791,50 @@ class JointPositionPublisher(Node):
             elif self.joint_velocities[i] > self.target_velocities[i]:
                 self.joint_velocities[i] = max(self.joint_velocities[i] - self.increment_velocity, self.target_velocities[i])
 
+    def imu_callback(self, msg):
+        qx = msg.orientation.x
+        qy = msg.orientation.y
+        qz = msg.orientation.z
+        qw = msg.orientation.w
+
+        sin_yaw = 2.0 * (qw * qz + qx * qy)
+        cos_yaw = 1.0 - 2.0 * (qy * qy + qz * qz)
+        yaw = math.atan2(sin_yaw, cos_yaw)
+
+        if self.inicio == False:
+            self.target_angle = yaw
+            self.inicio = True
+
+        self.current_angle = yaw  # Almacena el ángulo yaw del IMU
+
+        # Si ω se vuelve cero, fijar el target_angle con el último roll del IMU
+        if self.angular_z != 0.0:
+            self.target_angle = self.current_angle
+
+        if self.state == 'X':  # Modo omnidireccional
+            #ALGORITMO DE CONTROL PROPORCIONAL NO LINEAL (ACOTADO)
+            #Si se está moviendo sin rotación, aplicar corrección proporcional de ángulo
+            if self.angular_z == 0 and self.target_angle is not None:
+                error_angle = math.degrees(self.target_angle - self.current_angle)
+                # Si el error es mayor a 20°, aplicar corrección fuerte
+                if abs(error_angle) > 20:
+                    correction = 1.0 if error_angle > 0 else -1.0 
+                else:
+                    correction = self.kp * error_angle
+
+                #self.get_logger().info(f"correction: {correction}")  # Mostrar en grados
+
+                self.target_velocities = [
+                    self.linear_x + self.angular_z + self.linear_y + correction,  # RU
+                    -self.linear_x + self.angular_z + self.linear_y + correction, # LU
+                    self.linear_x + self.angular_z - self.linear_y + correction,  # RD
+                    -self.linear_x + self.angular_z - self.linear_y + correction  # LD
+                ]
+
+        # self.get_logger().info(f"Yaw actual: {yaw}°")  # Mostrar en grados
+        # self.get_logger().info(f"current: {self.current_angle}")  # Mostrar en grados
+        # self.get_logger().info(f"target: {self.target_angle}")  # Mostrar en grados
+
     def cmd_vel_callback(self, msg):
         global servo_service_en
         """Callback para actualizar los comandos de velocidad."""
@@ -708,19 +844,23 @@ class JointPositionPublisher(Node):
         servo_service_en = False
 
         if self.state == 'X':  # Modo omnidireccional
+
             self.target_velocities = [
                 self.linear_x + self.angular_z + self.linear_y,  # RU
-                -1.1*self.linear_x + self.angular_z + 1.1*self.linear_y,  # LU
-                1.1*self.linear_x + self.angular_z - 1.1*self.linear_y,  # RD
-                -self.linear_x + self.angular_z - self.linear_y   # LD
+                -self.linear_x + self.angular_z + self.linear_y, # LU
+                self.linear_x + self.angular_z - self.linear_y,  # RD
+                -self.linear_x + self.angular_z - self.linear_y  # LD
             ]
+        
         elif self.state == 'H':  # Modo móvil tipo H
+
             self.target_velocities = [
-                self.linear_x + self.angular_z,  # RU
-                -self.linear_x + self.angular_z,  # LU
-                self.linear_x + self.angular_z,  # RD
-                -self.linear_x + self.angular_z   # LD
+                self.linear_x + self.angular_z,  # RU (Rueda Derecha Delantera)
+                -self.linear_x + self.angular_z, # LU (Rueda Izquierda Delantera)
+                self.linear_x + self.angular_z,  # RD (Rueda Derecha Trasera)
+                -self.linear_x + self.angular_z  # LD (Rueda Izquierda Trasera)
             ]
+
         else:  # Modo C (reposo en las ruedas)
             self.target_velocities = [0.0] * 4
             servo_service_en = True
@@ -744,6 +884,8 @@ class JointPositionPublisher(Node):
                 return
             else:
                 self.machine = 8
+
+        self.update_target_positions()
             
     def ticker_callback(self):
         """
@@ -804,12 +946,30 @@ class JointPositionPublisher(Node):
             self.past = 'C'
 
         elif self.state == 'X':  # Modo omnidireccional
-            self.target_positions = [
-                0.7, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
-                -0.7, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
-                -0.7, 0.8, 2.30,  # CoxisRD, FemurRD, TibiaRD
-                0.7, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
+
+            if self.linear_x != 0.0:
+                self.target_positions = [
+                0.0, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
+                0.0, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
+                0.0, 0.9, 2.30,  # CoxisRD, FemurRD, TibiaRD
+                0.0, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
+                ]
+
+            elif self.linear_y != 0.0:
+                self.target_positions = [
+                1.57, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
+                -1.42, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
+                -1.42, 0.9, 2.30,  # CoxisRD, FemurRD, TibiaRD
+                1.46, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
             ]
+            else:    
+                self.target_positions = [
+                    0.7, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
+                    -0.7, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
+                    -0.7, 0.8, 2.10,  # CoxisRD, FemurRD, TibiaRD
+                    0.7, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
+                ]
+
             self.past = 'X'
 
         elif self.state == 'H':  # Modo móvil tipo H

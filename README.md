@@ -9,27 +9,95 @@ Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directa
 
 [Link de bitácoras semanales](https://uao-my.sharepoint.com/:f:/g/personal/samuel_carlos_uao_edu_co/Erp2ENIspZxNgMopqcnKfAUBfoev0AsDrE33obHUKmgpDg?e=dBNilw) 
 
+[Link del Latex](https://www.overleaf.com/project/67e093f33865a616a2b0bc91)
+
 ## ¿Cómo usar el repositorio?
 
 ### VIDEO TUTORIAL
 
  <a href="https://www.youtube.com/watch?v=xyDA1aFvYTs">
-  <img src="Titulo.png" alt="Texto alternativo" width="700"/>
+  <img src="Repository/Titulo.png" alt="Texto alternativo" width="700"/>
 </a>
 
 
-### Configuración Inicial
+## Configuración Inicial
 1. **DESCARGAR LOS REQUISITOS PARA EL TUTORIAL DE DOCKER**: 
    [Click aquí para descargar Docker Harmonic](https://www.mediafire.com/file/ss6lf31t07wkcio/Docker_harmonic.zip/file)
    
-3. **IMPORTANTE**: Hacer el tutorial de docker antes de usar el repositorio
+2. **IMPORTANTE**: Hacer el tutorial de docker antes de usar el repositorio
+
+## TUTORIAL DE DOCKER:
+
+
+0. **Requisitos previos**
+Asegúrate de tener instalado Docker y, si los vas a usar, los drivers de NVIDIA.
+
+1. **Descarga y descompresión**
+Descomprime el .zip `[Docker Harmonic]`
+
+2. **Acceder a la carpeta Docker**
+Entra en la carpeta `Docker` y abre una terminal.
+
+3. **Definir el nombre del contenedor**
+Ejecuta el siguiente comando, reemplazando `docker_simulator` con el nombre que desees:
+
+```bash
+export CONTAINER_NAME=docker_simulator
+```
+
+### 4. Configuración de NVIDIA (Opcional)
+Si vas a usar los drivers de NVIDIA, ejecuta:
+
+```bash
+docker compose up -d
+```
+
+Si **no** vas a usar los drivers de NVIDIA:
+1. Abre el archivo `compose.yaml`
+2. Elimina la línea correspondiente a NVIDIA:
+
+![ScreenshotDocker](Repository/ScreenshotDocker.png)
+
+3. Guarda los cambios
+4. Ejecuta:
+
+```bash
+docker compose up -d
+```
+
+5. **Verificar la creación del contenedor**
+Para asegurarte de que el contenedor se creó correctamente, ejecuta:
+
+```bash
+docker ps -a
+```
+
+Verifica que el contenedor que creaste aparezca en la lista.
+
+6. **Iniciar el contenedor**
+Para iniciar el contenedor, ejecuta:
+
+```bash
+docker start docker_simulator
+```
+
+7. **Acceder al contenedor**
+Para entrar al contenedor, usa:
+
+```bash
+docker attach docker_simulator
+```
+
+8. Continuar con el tutorial de GitHub
+
+## TUTORIAL DE GITHUB:
   
-4. **Ir dentro del docker folder**:
+1. **Ir dentro del docker folder**:
     ```bash
     cd Docker_harmonic/docker_simulator/
     ```
     
-5. **Clonar el repositorio**: Este comando copiará los archivos del repositorio en el pc:
+2. **Clonar el repositorio**: Este comando copiará los archivos del repositorio en el pc:
     ```bash
     git clone git@github.com:sammcar/PETER_SIMULATION.git
     ```
@@ -130,3 +198,82 @@ Nota: Los cambios se harán únicamente en tu rama, no en la rama principal del 
    ```bash
    git push origin <nombre-rama>
    ```
+
+
+
+
+---
+---
+
+
+
+# **Comandos de ROS**
+
+## **1. Compilar y configurar el entorno**
+```bash
+colcon build && source install/setup.bash
+```
+
+---
+
+## **2. Lanzar visualización en RViz**
+```bash
+ros2 launch peter_robot display.launch.py
+```
+
+---
+
+## **3. Lanzar simulación en Gazebo**
+```bash
+ros2 launch peter_robot gazebo.launch.py
+```
+
+---
+
+## **4. Lanzar Gazebo con un mundo específico**
+```bash
+ros2 launch peter_robot gazebo.launch.py world_name:=(nombre_del_mundo_sin_extension)
+```
+
+### **Mundos disponibles**
+- `depot` → entorno industrial  
+- `terrain` → mapa de Dieguito  
+- `empty` → entorno clásico  
+- `contextos` → mapa con estímulos fieles a la simulación  
+- `fabrica` → mapa con iluminación industrial diferente  
+
+> **Nota:** Si no se especifica un mundo, se cargará `empty` por defecto.
+
+---
+
+## **5. Control del robot**
+
+### **Teleoperado**
+En otra terminal:
+```bash
+source install/setup.bash && ros2 run peter_robot peter_teleop_keyboard
+```
+
+### **Control con la red neuronal**
+En otra terminal:
+```bash
+source install/setup.bash && ros2 run peter_robot red_neuronal
+```
+
+---
+
+## **6. Visualización de gráficas**
+Puedes correrlo en otra terminal mientras la simulación está activa:
+```bash
+source install/setup.bash && ros2 launch peter_robot graficas_launch.py
+```
+
+---
+
+## **7. Herramientas de visualización en Gazebo**
+Para ver **LIDAR**, **superficies de contacto** y otras herramientas dentro de Gazebo, se recomienda revisar el video **"Resultados Red"** ubicado en:  
+```
+Samuel/Entregas Pasadas
+```
+en **OneDrive**.
+
