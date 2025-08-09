@@ -20,6 +20,7 @@ class NetworkPublisher(Node):
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.mode_pub = self.create_publisher(String, '/peter_mode', 10)
 
+
         # Velocidades predeterminadas
         self.speed = 5.0  # Velocidad lineal
         self.turn = 5.0   # Velocidad angular
@@ -79,6 +80,19 @@ class NetworkPublisher(Node):
 
         #------------------------- C O N S T A N T E S --------------------------------------#
 
+        #DEBUGGING
+
+        self.MOVEMENT = False
+
+
+        #--------------IMU --------------
+        #
+        self.filtered_accel_z = 0
+        self.accel_z_buffer = deque(maxlen=10)
+        self.high_passed_accel_z = []
+        self.alpha_dev = 0.9
+        self.filtered_accel_z = 0
+
         self.ang_p = 90 # Posicion Frente del Robot
         self.ang_s = 90 # Posicion del estimulo
         self.epsilem = 0.1 # Tolerancia
@@ -89,6 +103,7 @@ class NetworkPublisher(Node):
         self.roll=0
         self.pitch=0
         self.std_dev_accel_z = 0
+    
 
         self.w = 10 # Peso Sinaptico
         self.j = 2 # Peso Sinaptico
@@ -175,6 +190,18 @@ class NetworkPublisher(Node):
 
 
     def run_network(self):
+
+        std_dev = np.std(self.high_passed_accel_z)
+        
+        self.get_logger().info(f"Desviación estándar Z: {std_dev:.4f}")
+        
+        # Detectar terreno rocoso
+        if std_dev > 3.5:  # Umbral ajustable
+            self.get_logger().info("Terreno rocoso detectado 🚧")
+        else:
+            self.get_logger().info("Terreno liso 🛣️")
+
+        
         #------------------------E S T I M U L O -------------------------------------#
 
         # Comportamiento esperado: Huye del depredador (Red) en movil H. Caza a la presa (Blue) en cuadrupedo.
@@ -309,49 +336,52 @@ class NetworkPublisher(Node):
         print("pitch: ", str(self.pitch))
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
+        
+        if self.MOVEMENT:
+            if self.epsilem < cmd_ang:
+                self.publish_twist(angular_z=self.turn)  # Gira izquierda
+                print("Giro Izquierda")
+            elif cmd_ang < -self.epsilem:
+                self.publish_twist(angular_z=-self.turn)  # Gira derecha
+                print("Giro Derecha")
+            else:        
+                #-------------------------------------------------------------------
 
-        if self.epsilem < cmd_ang:
-            self.publish_twist(angular_z=self.turn)  # Gira izquierda
-            print("Giro Izquierda")
-        elif cmd_ang < -self.epsilem:
-            self.publish_twist(angular_z=-self.turn)  # Gira derecha
-            print("Giro Derecha")
-        else:        
-            #-------------------------------------------------------------------
+                if self.epsilem < cmd_lineal:
+                    self.publish_twist(linear_x=self.speed)  # Adelante
+                    print("Avanza")
+                elif cmd_lineal < -self.epsilem:
+                    self.publish_twist(linear_x=-self.speed) # Atrás
+                    print("Retrocede")
+                elif self.z[17,1] > 0.5:
+                    self.publish_twist() # Stop
+                    print("Stop")
+                else:
+                    pass
+                #-------------------------------------------------------------------
+                if self.epsilem < cmd_lateral:
+                    self.publish_twist(linear_y=self.speed) # Izquierda
+                    print("Desp. Izquierda")
+                elif cmd_lateral < -self.epsilem:
+                    self.publish_twist(linear_y=-self.speed) # Derecha
+                    print("Desp. Derecha")
+                else:
+                    pass
+                #-------------------------------------------------------------------
 
-            if self.epsilem < cmd_lineal:
-                self.publish_twist(linear_x=self.speed)  # Adelante
-                print("Avanza")
-            elif cmd_lineal < -self.epsilem:
-                self.publish_twist(linear_x=-self.speed) # Atrás
-                print("Retrocede")
-            elif self.z[17,1] > 0.5:
-                self.publish_twist() # Stop
-                print("Stop")
+
+
+            if self.z[15,1] > 0.5:
+                self.publish_mode('C')
+                print("Cuadrupedo")
+            elif self.z[16,1] > 0.5:
+                self.publish_mode('H')
+                print("Móvil H")
+            elif self.z[14,1] > 0.5:
+                self.publish_mode('X')
+                print("Móvil X")
             else:
                 pass
-            #-------------------------------------------------------------------
-            if self.epsilem < cmd_lateral:
-                self.publish_twist(linear_y=self.speed) # Izquierda
-                print("Desp. Izquierda")
-            elif cmd_lateral < -self.epsilem:
-                self.publish_twist(linear_y=-self.speed) # Derecha
-                print("Desp. Derecha")
-            else:
-                pass
-            #-------------------------------------------------------------------
-
-        if self.z[15,1] > 0.5:
-            self.publish_mode('C')
-            print("Cuadrupedo")
-        elif self.z[16,1] > 0.5:
-            self.publish_mode('H')
-            print("Móvil H")
-        elif self.z[14,1] > 0.5:
-            self.publish_mode('X')
-            print("Móvil X")
-        else:
-            pass
 
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
         # Callbacks de cada estímulo
@@ -396,12 +426,14 @@ class NetworkPublisher(Node):
         self.roll = 180 - abs(np.degrees((np.arctan2(2 * (qw * qx + qy * qz), 1 - 2 * (qx**2 + qy**2)))))
         self.pitch = abs(np.degrees((np.arcsin(2 * (qw * qy - qz * qx)))) )
 
-        # Extraer aceleración en Z
-        self.accel_z_history.append(msg.linear_acceleration.z)
+        
+        z = msg.linear_acceleration.z
+        self.filtered_accel_z = self.alpha_dev * self.filtered_accel_z + (1 - self.alpha_dev) * z
+        high_pass = z - self.filtered_accel_z
+        self.high_passed_accel_z.append(high_pass)
 
-        # Calcular desviación estándar de la aceleración en Z
-        if len(self.accel_z_history) > 1:
-            self.std_dev_accel_z = np.std(self.accel_z_history)
+        if len(self.accel_z_buffer) > 1:
+            self.std_dev_accel_z = np.std(self.accel_z_buffer)
         else:
             self.std_dev_accel_z = 0.0
 
@@ -443,6 +475,11 @@ class NetworkPublisher(Node):
         mode_msg.data = mode
         self.mode_pub.publish(mode_msg)
         self.current_mode = mode
+
+    
+
+
+
 
 
 
