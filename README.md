@@ -199,6 +199,14 @@ Nota: Los cambios se harán únicamente en tu rama, no en la rama principal del 
    git push origin <nombre-rama>
    ```
 
+
+
+
+---
+---
+
+
+
 # **Comandos de ROS**
 
 ## **1. Compilar y configurar el entorno**
