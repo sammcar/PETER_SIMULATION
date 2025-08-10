@@ -8,6 +8,7 @@ import numpy as np
 from std_msgs.msg import Int32MultiArray, Float32MultiArray
 from sensor_msgs.msg import Imu, LaserScan
 from ros_gz_interfaces.msg import Contacts
+import time
 from collections import deque 
 import re 
 
@@ -82,7 +83,7 @@ class NetworkPublisher(Node):
 
         #DEBUGGING
 
-        self.MOVEMENT = False
+        self.MOVEMENT = True
 
 
         #--------------IMU --------------
@@ -92,6 +93,12 @@ class NetworkPublisher(Node):
         self.high_passed_accel_z = []
         self.alpha_dev = 0.9
         self.filtered_accel_z = 0
+
+        self.ignore_imu = False
+        self.ignore_start_time = None
+        self.ignore_duration = 3.0  # segundos a ignorar
+
+
 
         self.ang_p = 90 # Posicion Frente del Robot
         self.ang_s = 90 # Posicion del estimulo
@@ -474,6 +481,10 @@ class NetworkPublisher(Node):
         mode_msg = String()
         mode_msg.data = mode
         self.mode_pub.publish(mode_msg)
+        if self.current_mode != mode:
+            self.ignore_imu = True
+            self.ignore_start_time = time.time()
+    
         self.current_mode = mode
 
     
