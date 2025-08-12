@@ -63,7 +63,7 @@ class NetworkPublisher(Node):
         self.initctes()
 
         # Timer para llamar la función de control cada segundo
-        self.timer = self.create_timer(1.0, self.run_network)
+        self.timer = self.create_timer(0.2, self.run_network)
 
     def initctes(self):
 
@@ -126,7 +126,7 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 9.0 #Umbral de variación estándar de un IMU
+        self.Usigma_az = 3.5 #Umbral de variación estándar de un IMU
         self.Upitch = 15 #Umbral pitch
         self.Uroll = 15 #Umbral roll
 
@@ -198,12 +198,12 @@ class NetworkPublisher(Node):
 
     def run_network(self):
 
-        std_dev = np.std(self.high_passed_accel_z)
+        self.std_dev_accel_z = np.std(self.high_passed_accel_z)
         
-        self.get_logger().info(f"Desviación estándar Z: {std_dev:.4f}")
+        
         
         # Detectar terreno rocoso
-        if std_dev > 3.5:  # Umbral ajustable
+        if self.std_dev_accel_z > 3.53:  # Umbral ajustable
             self.get_logger().info("Terreno rocoso detectado 🚧")
         else:
             self.get_logger().info("Terreno liso 🛣️")
@@ -272,7 +272,7 @@ class NetworkPublisher(Node):
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
-        self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
+        self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (5*self.std_dev_accel_z - 5*self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
         self.z[1, 1] = self.z[1, 0] + (self.dt / self.tau) * (-self.z[1, 0] + (self.A * max(0, (self.pitch - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch - self.Upitch )**2))
         self.z[2, 1] = self.z[2, 0] + (self.dt / self.tau) * (-self.z[2, 0] + (self.A * max(0, (self.roll - self.Uroll ))**2) / (self.SigmaIMU**2 + (-self.z[2,0] + self.roll - self.Uroll )**2))
 
@@ -292,7 +292,7 @@ class NetworkPublisher(Node):
         self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -self.w*self.z[17,0] + self.cte)))
 
         self.z[14, 1] = self.z[14, 0] + (self.dt / self.tau) * (-self.z[14, 0] + (self.A * max(0, (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] )**2))
-        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0] -0.5*self.cte + self.z[3, 0]*self.w + 0.7*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]-0.5*self.cte + self.z[3, 0]*2 + 20*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
+        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0] -0.5*self.cte + self.z[3, 0]*self.w + 15*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]-0.5*self.cte + self.z[3, 0]*2 + 20*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
         self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[4, 0] - self.w*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte ))**2) / (self.Sigma**2 + (self.z[4, 0] - self.w*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte )**2))
         
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
@@ -310,37 +310,37 @@ class NetworkPublisher(Node):
         for i in range(len(self.Gpe)): self.Gpe[i, 0] = self.Gpe[i,1]
         for i in range(len(self.STR)): self.STR[i, 0] = self.STR[i,1]
 
-        print("GpeR: ", str(self.Gpe[0,1]))
-        print("GpeG: ", str(self.Gpe[1,1]))
-        print("GpeB: ", str(self.Gpe[2,1]))
 
-        print("ang_p: ", str(self.ang_p))
-        print("ang_s: ", str(self.ang_s))
+        # ------------------- PRINTS -------------------------
 
-        print("5: ", str(self.z[5, 1]))
-        print("3: ", str(self.z[3, 1]))
-        print("4: ", str(self.z[4, 1]))
-        print("6: ", str(self.z[6, 1]))
 
-        print("7: ", str(self.z[7, 1]))
-        print("8: ", str(self.z[8, 1]))
-        print("9: ", str(self.z[9, 1]))
-        print("10: ", str(self.z[10, 1]))
-
-        print("11: ", str(self.z[11, 1]))
-        print("12: ", str(self.z[12, 1]))
-        print("13: ", str(self.z[13, 1]))
-
-        print("14: ", str(self.z[14, 1]))
-        print("16: ", str(self.z[16, 1]))  
-        print("15: ", str(self.z[15, 1]))  
-
-        print("0: ", str(self.z[0, 1]))
-        print("1: ", str(self.z[1, 1]))
-        print("2: ", str(self.z[2, 1])) 
-        print("a: ", str(self.std_dev_accel_z))
-        print("roll: ", str(self.roll))
-        print("pitch: ", str(self.pitch))
+        self.get_logger().info(
+                        f"GpeR: {self.Gpe[0,1]}\n"
+                        f"GpeG: {self.Gpe[1,1]}\n"
+                        f"GpeB: {self.Gpe[2,1]}\n"
+                        f"ang_p: {self.ang_p}\n"
+                        f"ang_s: {self.ang_s}\n"
+                        f"3: {self.z[3,1]}\n"
+                        f"4: {self.z[4,1]}\n"
+                        f"5: {self.z[5,1]}\n"
+                        f"6: {self.z[6,1]}\n"
+                        f"7: {self.z[7,1]}\n"
+                        f"8: {self.z[8,1]}\n"
+                        f"9: {self.z[9,1]}\n"
+                        f"10: {self.z[10,1]}\n"
+                        f"11: {self.z[11,1]}\n"
+                        f"12: {self.z[12,1]}\n"
+                        f"13: {self.z[13,1]}\n"
+                        f"14: {self.z[14,1]}\n"
+                        f"15: {self.z[15,1]}\n"
+                        f"16: {self.z[16,1]}\n"
+                        f"0: {self.z[0,1]}\n"
+                        f"1: {self.z[1,1]}\n"
+                        f"2: {self.z[2,1]}\n"
+                        f"roll: {self.roll}\n"
+                        f"pitch: {self.pitch}\n"
+                        f"VIBRACION: {self.std_dev_accel_z}"
+                        )
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
         
