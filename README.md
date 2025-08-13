@@ -251,13 +251,13 @@ ros2 launch peter_robot gazebo.launch.py world_name:=(nombre_del_mundo_sin_exten
 ### **Teleoperado**
 En otra terminal:
 ```bash
-source install/setup.bash && ros2 run peter_robot peter_teleop_keyboard
+ros2 run peter_robot peter_teleop_keyboard
 ```
 
 ### **Control con la red neuronal**
 En otra terminal:
 ```bash
-source install/setup.bash && ros2 run peter_robot red_neuronal
+ros2 run peter_robot red_neuronal
 ```
 
 ---
@@ -265,7 +265,7 @@ source install/setup.bash && ros2 run peter_robot red_neuronal
 ## **6. Visualización de gráficas**
 Puedes correrlo en otra terminal mientras la simulación está activa:
 ```bash
-source install/setup.bash && ros2 launch peter_robot graficas_launch.py
+ros2 launch peter_robot graficas_launch.py
 ```
 
 ---
