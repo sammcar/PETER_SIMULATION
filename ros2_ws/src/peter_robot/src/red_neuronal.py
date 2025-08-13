@@ -46,7 +46,7 @@ class NetworkPublisher(Node):
         self.initctes()
 
         # Timer para llamar la función de control cada segundo
-        self.timer = self.create_timer(1.0, self.run_network)
+        self.timer = self.create_timer(0.2, self.run_network)
 
     def initctes(self):
 
@@ -67,8 +67,8 @@ class NetworkPublisher(Node):
         self.ang_s = 90 # Posicion del estimulo
         self.epsilem = 0.01 # Tolerancia
         self.dt = 1 # Intervalo de Integracion
-        self.cte = 1 # Constante de Avance
-        self.Area = 100000 # Area Limite
+        self.cte = 3 # Constante de Avance
+        self.Area = 14 # Area Limite Tuneada segun iluminacion
         
         self.roll = 0.0
         self.pitch = 0.0
@@ -156,6 +156,31 @@ class NetworkPublisher(Node):
         # if not detected:
         #     self.get_logger().info("No se detectó ningún obstáculo dentro del rango especificado.")
 
+    def map_with_limits(self, value, in_min, in_max, out_min, out_max):
+        """Mapea un valor de un rango de entrada a uno de salida, con límites aplicados."""
+        if value <= in_min:
+            return out_min
+        elif value >= in_max:
+            return out_max
+        else:
+            # Interpolación lineal
+            m = (out_max - out_min) / (in_max - in_min)
+            b = out_min - m * in_min
+            return m * value + b
+        
+    def limit(self, value, max):
+        """Limita un valor."""
+
+        if value > max: 
+            value = max
+        elif value <-max:
+            value = -max
+        else:
+            pass
+
+        return value
+
+
     def run_network(self):
         #------------------------E S T I M U L O -------------------------------------#
 
@@ -170,21 +195,21 @@ class NetworkPublisher(Node):
 
         #------------------------- D I N A M I C A --------------------------------------#
 
-        self.lidar[0, 1] = self.lidar[0, 0] + (self.dt / 10) * (-self.lidar[0, 0] + (np.sum(self.activaciones_totales[0:4]) + np.sum(self.activaciones_totales[12:15]) - self.lidar[1, 0]))
-        self.lidar[1, 1] = self.lidar[1, 0] + (self.dt / 10) * (-self.lidar[1, 0] + (np.sum(self.activaciones_totales[4:12]) - self.lidar[0, 0]))
-        self.lidar[2, 1] = self.lidar[2, 0] + (self.dt / 10) * (-self.lidar[2, 0] + (np.sum(self.activaciones_totales[0:8]) - self.lidar[3, 0]))
-        self.lidar[3, 1] = self.lidar[3, 0] + (self.dt / 10) * (-self.lidar[3, 0] + (np.sum(self.activaciones_totales[8:15]) - self.lidar[2, 0]))
+        self.lidar[0, 1] = self.lidar[0, 0] + (self.dt / 10) * (-self.lidar[0, 0] + (np.sum(self.activaciones_totales[0:4]) + np.sum(self.activaciones_totales[12:16]) - self.lidar[1, 0])) # Frente
+        self.lidar[1, 1] = self.lidar[1, 0] + (self.dt / 10) * (-self.lidar[1, 0] + (np.sum(self.activaciones_totales[4:12]) - self.lidar[0, 0])) # Atras
+        self.lidar[2, 1] = self.lidar[2, 0] + (self.dt / 10) * (-self.lidar[2, 0] + (np.sum(self.activaciones_totales[0:8]) - self.lidar[3, 0])) # Izquierda
+        self.lidar[3, 1] = self.lidar[3, 0] + (self.dt / 10) * (-self.lidar[3, 0] + (np.sum(self.activaciones_totales[8:16]) - self.lidar[2, 0])) # Derecha
 
         for r in range(16):
 
             self.Response[r, 1] = self.Response[r, 0] + (self.dt/5) * (-self.Response[r, 0] + max(0, (self.W_input_to_response @ self.activaciones_totales)[r] + self.weights_r_r[r, :] @ self.Response[:, 0]))
             self.Aux[r, 1] = self.Aux[r, 0] + (self.dt/5) * (-self.Aux[r, 0] + max(0, self.W_response_to_aux[r, :] @ self.Response[:, 1]))
 
-        self.lidar[4,1] = self.lidar[4, 0] + (self.dt / self.tau) * (-self.lidar[4, 0] + max(0, (np.sum(self.Aux[:,0]))))
+        self.lidar[4,1] = self.lidar[4, 0] + (self.dt / self.tau) * (-self.lidar[4, 0]*1.1 + max(0, (np.sum(self.Aux[:,0]))))
 
 
         R = self.areaBoundingBoxR/500
-        if self.lidar[4,0]*10 > self.epsilem: G = self.lidar[4,0]*10 
+        if self.lidar[4,0]*5 > 0.2: G = self.lidar[4,0]*5
         else: G = 0
         B = self.areaBoundingBoxB/500
 
@@ -192,9 +217,9 @@ class NetworkPublisher(Node):
         print("G: ", str(G))
         print("B: ", str(B)) 
 
-        self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoSTN)*(-self.StN[0, 0]*5 + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
-        self.StN[1, 1] = np.clip((self.StN[1, 0] + (1/self.TaoSTN)*(-self.StN[1, 0]*5 + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
-        self.StN[2, 1] = np.clip((self.StN[2, 0] + (1/self.TaoSTN)*(-self.StN[2, 0]*5 + B - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
+        self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoSTN)*(-self.StN[0, 0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
+        self.StN[1, 1] = np.clip((self.StN[1, 0] + (1/self.TaoSTN)*(-self.StN[1, 0] + G*5 - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
+        self.StN[2, 1] = np.clip((self.StN[2, 0] + (1/self.TaoSTN)*(-self.StN[2, 0] + B - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
         
         self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + self.StN[1,0] + self.StN[2,0] - self.Gpe[0,0] - self.StR[0,0])),0, None)
         self.Gpi[1, 1] = np.clip((self.Gpi[1, 0] + (1/self.TaoGpi)*(-self.Gpi[1, 0] + self.StN[0,0] + self.StN[2,0] - self.Gpe[1,0] - self.StR[1,0])),0, None)
@@ -210,24 +235,24 @@ class NetworkPublisher(Node):
 
         if self.Gpe[0,1] > 1.5 and R > 0.5:
             self.ang_s = self.posR
-        elif self.Gpe[1,1] > 1.5 and G > 0.5:
-            self.ang_s = 90*(self.lidar[0,0]>0.5) + 170*(self.lidar[2,0]>0.5) + 10*(self.lidar[3,0]>0.5)
+        # elif self.Gpe[1,1] > 0.5 and G > 0.5:
+        #     self.ang_s = 180*(self.lidar[2,1] > 0.1) + 90*(self.lidar[0,1] > 0.1) + self.ang_s*(self.lidar[4,1]<0.1)
         elif self.Gpe[2,1] > 1.5 and B > 0.5:
             self.ang_s = self.posB
         else:
-            self.ang_s = 90.0
+            self.ang_s = 90*(self.lidar[4,1]<0.3)
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
-        self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
-        self.z[1, 1] = self.z[1, 0] + (self.dt / self.tau) * (-self.z[1, 0] + (self.A * max(0, (self.pitch - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch - self.Upitch )**2))
-        self.z[2, 1] = self.z[2, 0] + (self.dt / self.tau) * (-self.z[2, 0] + (self.A * max(0, (self.roll - self.Uroll ))**2) / (self.SigmaIMU**2 + (-self.z[2,0] + self.roll - self.Uroll )**2))
+        #self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
+        #self.z[1, 1] = self.z[1, 0] + (self.dt / self.tau) * (-self.z[1, 0] + (self.A * max(0, (self.pitch - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch - self.Upitch )**2))
+        #self.z[2, 1] = self.z[2, 0] + (self.dt / self.tau) * (-self.z[2, 0] + (self.A * max(0, (self.roll - self.Uroll ))**2) / (self.SigmaIMU**2 + (-self.z[2,0] + self.roll - self.Uroll )**2))
 
         self.z[3, 1] = self.z[3, 0] + (self.dt / self.tau) * (-self.z[3, 0] + max(0, (self.Gpe[2,0] )))
         self.z[4, 1] = self.z[4, 0] + (self.dt / self.tau) * (-self.z[4, 0] + max(0, (self.Gpe[1, 0] + self.j * self.Gpe[0, 0])))
 
-        self.z[5, 1] = self.z[5, 0] + (self.dt / self.tau) * (-self.z[5, 0] + max(0, (self.ang_s - self.ang_p) - 20))
-        self.z[6, 1] = self.z[6, 0] + (self.dt / self.tau) * (-self.z[6, 0] + max(0, (self.ang_p - self.ang_s) - 20))
+        self.z[5, 1] = self.z[5, 0] + (self.dt / self.tau) * (-self.z[5, 0] + max(0, self.lidar[2,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_s - self.ang_p) - 20)))
+        self.z[6, 1] = self.z[6, 0] + (self.dt / self.tau) * (-self.z[6, 0] + max(0, self.lidar[3,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_p - self.ang_s) - 20)))
 
         self.z[7, 1] = self.z[7, 0] + (self.dt / self.tau) * (-self.z[7, 0] + max(0, (self.z[5, 0] + self.z[3, 0] - self.w*self.z[4, 0])))
         self.z[8, 1] = self.z[8, 0] + (self.dt / self.tau) * (-self.z[8, 0] + max(0, (self.z[5, 0] + self.z[4, 0] - self.w*self.z[3, 0])))
@@ -236,17 +261,17 @@ class NetworkPublisher(Node):
 
         self.z[11, 1] = self.z[11, 0] + (self.dt / self.tau) * (-self.z[11, 0] + max(0, (self.z[7, 0] + self.z[9, 0])))
         self.z[12, 1] = self.z[12, 0] + (self.dt / self.tau) * (-self.z[12, 0] + max(0, (self.z[10, 0] + self.z[8, 0])))
-        self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -self.w*self.z[17,0] + self.cte)))
+        self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -self.w*self.z[17,0] + self.cte + self.Gpe[2,0])))
 
         self.z[14, 1] = self.z[14, 0] + (self.dt / self.tau) * (-self.z[14, 0] + (self.A * max(0, (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] )**2))
-        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0] -self.cte + self.z[3, 0]*self.w + 0.7*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]-0.5*self.cte + self.z[3, 0]*2 + 20*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
-        self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[4, 0] - self.w*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte ))**2) / (self.Sigma**2 + (self.z[4, 0] - self.w*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte )**2))
+        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 0.7*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 0.7*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
+        self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte ))**2) / (self.Sigma**2 + (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte )**2))
         
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
 
-        cmd_ang = (self.z[11,0]*(self.Gpe[1,0] < 0.5)) - (self.z[12,0]*(self.Gpe[1,0]<0.5))
-        cmd_lateral = (-self.lidar[2,0]*1.5 + self.lidar[3,0]*1.5 + self.z[11,0]*(self.Gpe[1,0] > 0.5)) - (self.z[12,0]*(self.Gpe[1,0] > 0.5))
-        cmd_lineal = -self.lidar[0,0]*1.5 + self.lidar[1,0]*1.5 +  self.z[13,0] -self.j*self.z[4,0]*(self.z[5,0] < self.epsilem and self.z[6,0] < self.epsilem)
+        cmd_ang = (self.z[11,0]*(self.lidar[4,0] < 0.3)) - (self.z[12,0]*(self.lidar[4,0]<0.3))
+        cmd_lateral = (self.lidar[2,0]*1.5 + self.lidar[3,0]*1.5 + self.z[11,0]*(self.Gpe[1,0] > 0.5)) - (self.z[12,0]*(self.Gpe[1,0] > 0.5))
+        cmd_lineal = self.lidar[0,0]*1.5 - self.lidar[1,0]*1.5 + self.z[13,0] -self.j*self.z[4,0]*(self.z[5,0] < self.epsilem and self.z[6,0] < self.epsilem)
 
         for i in range(len(self.z)): self.z[i, 0] = self.z[i,1]*(self.z[i,1]>self.epsilem)
         for i in range(len(self.lidar)): self.lidar[i, 0] = self.lidar[i,1]*(self.lidar[i,1]>self.epsilem)
@@ -281,6 +306,7 @@ class NetworkPublisher(Node):
         print("14: ", str(self.z[14, 1]))
         print("16: ", str(self.z[16, 1]))  
         print("15: ", str(self.z[15, 1]))  
+        print("17: ", str(self.z[17, 1]))
 
         print("0: ", str(self.z[0, 1]))
         print("1: ", str(self.z[1, 1]))
@@ -289,77 +315,64 @@ class NetworkPublisher(Node):
         print("roll: ", str(self.roll))
         print("pitch: ", str(self.pitch))
         print("B: ", str(B))
+
+        cmd_ang = self.limit(cmd_ang, 5)
+        cmd_lineal = self.limit(cmd_lineal, 5)
+        cmd_lateral = self.limit(cmd_lateral, 5)
+
         print("cmd_ang: ", str(cmd_ang))
         print("cmd_lineal: ", str(cmd_lineal))
         print("cmd_lateral: ", str(cmd_lateral))
 
+        print("lidar frente: ", str(self.lidar[0,0]))
+        print("lidar atras: ", str(self.lidar[1,0]))
+        print("lidar izquierda: ", str(self.lidar[2,0]))
+        print("lidar derecha:", str(self.lidar[3,0]))
+        print("lidar 4:", str(self.lidar[4,0]))
 
-        #------------------------- P U B L I C A C I O N --------------------------------------#
 
-        self.publicarGPE(self.Gpe[0,1],self.Gpe[1,1],self.Gpe[2,1])
+       # -------------------- PUBLICACIÓN (una sola vez por ciclo) --------------------
+        self.publicarGPE(self.Gpe[0,1], self.Gpe[1,1], self.Gpe[2,1])
 
-        target_value = R if self.Gpe[0,1] > 0.5 else (B if self.Gpe[2,1] > 0.5 else None)
+        # 1) calcular magnitudes filtradas por umbral
+        ang = cmd_ang     if abs(cmd_ang)     > self.epsilem else 0.0
+        lat = cmd_lateral if abs(cmd_lateral) > self.epsilem else 0.0
+        lin = cmd_lineal  if abs(cmd_lineal)  > self.epsilem else 0.0
 
-        if target_value is not None:
-            self.turn = 0.1 if target_value < 30 else (7 if target_value > 130 else 0.069 * target_value - 1.97)
+        # 2) resolver prioridad y construir UN solo Twist
+        tw_ang, tw_lat, tw_lin = 0.0, 0.0, 0.0
 
-        if self.epsilem < cmd_ang:
-            self.publish_twist(angular_z=self.turn)  # Gira izquierda
-            print("Giro Izquierda")
-        elif cmd_ang < -self.epsilem:
-            self.publish_twist(angular_z=-self.turn)  # Gira derecha
-            print("Giro Derecha")
-        else:        
-            #-------------------------------------------------------------------
-
-            if cmd_lineal < 30:
-                self.speedX = 0.1
-            elif cmd_lineal > 130:
-                self.speedX = 7
-            else:
-                self.speedX = 0.069*cmd_lineal-1.97
-
-            if self.epsilem < cmd_lineal:
-                self.publish_twist(linear_x=self.speedX)  # Adelante
-                print("Avanza")
-            elif cmd_lineal < -self.epsilem:
-                self.publish_twist(linear_x=-self.speedX) # Atrás
-                print("Retrocede")
-            elif self.z[17,1] > 0.5:
-                self.publish_twist() # Stop
-                print("Stop")
-            else:
-                pass
-            #-------------------------------------------------------------------
-
-            if cmd_lateral < 30:
-                self.speedY = 0.1
-            elif cmd_lateral > 130:
-                self.speedY = 7
-            else:
-                self.speedY = 0.069*cmd_lateral-1.97
-
-            if self.epsilem < cmd_lateral:
-                self.publish_twist(linear_y=self.speedY) # Izquierda
-                print("Desp. Izquierda")
-            elif cmd_lateral < -self.epsilem:
-                self.publish_twist(linear_y=-self.speedY) # Derecha
-                print("Desp. Derecha")
-            else:
-                pass
-            #-------------------------------------------------------------------
-
-        if self.z[15,1] > 0.5:
-            self.publish_mode('C')
-            print("Cuadrupedo")
-        elif self.z[16,1] > 0.5:
-            self.publish_mode('H')
-            print("Móvil H")
-        elif self.z[14,1] > 0.5:
-            self.publish_mode('X')
-            print("Móvil X")
+        if self.z[17,1] > 0.5:
+            # STOP: todo a cero
+            print("Stop")
+        elif ang != 0.0:
+            # prioridad 1: giro
+            tw_ang = ang
+            print("Giro Izquierda" if ang > 0 else "Giro Derecha")
+        elif lat != 0.0:
+            # prioridad 2: desplazamiento lateral
+            tw_lat = lat
+            print("Desp. Izquierda" if lat > 0 else "Desp. Derecha")
+        elif lin != 0.0:
+            # prioridad 3: avance/retroceso
+            tw_lin = lin
+            print("Avanza" if lin > 0 else "Retrocede")
         else:
+            # sin comando significativo → queda todo en 0
             pass
+
+        # 3) publicar una sola vez
+        self.publish_twist(linear_x=tw_lin, linear_y=tw_lat, angular_z=tw_ang)
+        # ------------------------------------------------------------------------------
+
+        # modos
+        if self.z[15,1] > 0.5:
+            self.publish_mode('C'); print("Cuadrupedo")
+        elif self.z[16,1] > 0.5:
+            self.publish_mode('H'); print("Móvil H")
+        elif self.z[14,1] > 0.5:
+            self.publish_mode('X'); print("Móvil X")
+
 
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
 
@@ -420,13 +433,19 @@ class NetworkPublisher(Node):
         # Mostrar información
         # self.get_logger().info(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {self.accel_z:.2f} m/s², STD Z: {std_dev_accel_z:.4f}")
 
-    def publish_twist(self, linear_x=0.0, linear_y=0.0, angular_z=0.0):
-        """Publica el mensaje Twist con los valores dados."""
-        twist = Twist()
-        twist.linear.x = float(linear_x)
-        twist.linear.y = float(linear_y)
-        twist.angular.z = float(angular_z)
-        self.cmd_vel_pub.publish(twist)
+    def publish_twist(self, linear_x=None, linear_y=None, angular_z=None):
+        if not hasattr(self, "_twist"):
+            self._twist = Twist()  # estado persistente
+
+        if linear_x is not None:
+            self._twist.linear.x = float(linear_x)
+        if linear_y is not None:
+            self._twist.linear.y = float(linear_y)
+        if angular_z is not None:
+            self._twist.angular.z = float(angular_z)
+
+        self.cmd_vel_pub.publish(self._twist)
+
 
     def publish_mode(self, mode):
         """Publica el modo actual."""

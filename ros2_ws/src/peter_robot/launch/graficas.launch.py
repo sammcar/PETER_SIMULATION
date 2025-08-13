@@ -23,6 +23,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        rviz_cmd,
-        plotjuggler_cmd
+        #rviz_cmd,
+        plotjuggler_cmd,
     ])

@@ -232,7 +232,7 @@ def generate_launch_description():
         load_forward_command_controller,
         cabeza_controller,
         load_velocity_controller,
-        #peter_controller,
+        peter_controller,
         #spawn_green_sphere,
         spawn_red_sphere,
         spawn_blue_sphere,
