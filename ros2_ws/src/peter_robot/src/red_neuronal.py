@@ -85,19 +85,19 @@ class NetworkPublisher(Node):
 
         self.MOVEMENT = True
 
-
         #--------------IMU --------------
-        #
-        self.filtered_accel_z = 0
-        self.accel_z_buffer = deque(maxlen=10)
-        self.high_passed_accel_z = []
-        self.alpha_dev = 0.9
-        self.filtered_accel_z = 0
-
+        
         self.ignore_imu = False
-        self.ignore_start_time = None
-        self.ignore_duration = 3.0  # segundos a ignorar
+        self.ignore_timer = time.time()
+        self.ignore_duration = 3.6
 
+        # Antes de tu callback, inicializa buffers y filtros:
+        self.accel_buffer = deque(maxlen=50)     # Ventana de 50 muestras
+        self.accel_std = 0.0
+
+        #Logica que será neuronal
+        self.terrainchanger = False
+        self.terrain_timer = 0.0  # Guarda el tiempo de inicio
 
 
         self.ang_p = 90 # Posicion Frente del Robot
@@ -126,9 +126,9 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 3.5 #Umbral de variación estándar de un IMU
-        self.Upitch = 15 #Umbral pitch
-        self.Uroll = 15 #Umbral roll
+        self.Usigma_az = 3.62 #Umbral de variación estándar de un IMU
+        self.Upitch = 40 #Umbral pitch
+        self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
         self.W_input_to_response = np.fliplr(np.eye(16))
@@ -198,16 +198,6 @@ class NetworkPublisher(Node):
 
     def run_network(self):
 
-        self.std_dev_accel_z = np.std(self.high_passed_accel_z)
-        
-        
-        
-        # Detectar terreno rocoso
-        if self.std_dev_accel_z > 3.53:  # Umbral ajustable
-            self.get_logger().info("Terreno rocoso detectado 🚧")
-        else:
-            self.get_logger().info("Terreno liso 🛣️")
-
         
         #------------------------E S T I M U L O -------------------------------------#
 
@@ -241,9 +231,6 @@ class NetworkPublisher(Node):
         else: G = 0
         B = self.areaBoundingBoxB/500
 
-        print("R: ", str(R))
-        print("G: ", str(G))
-        print("B: ", str(B)) 
 
         self.STN[0, 1] = np.clip((self.STN[0, 0] + (1/self.TaoSTN)*(-self.STN[0, 0]*5 + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
         self.STN[1, 1] = np.clip((self.STN[1, 0] + (1/self.TaoSTN)*(-self.STN[1, 0]*5 + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
@@ -272,7 +259,7 @@ class NetworkPublisher(Node):
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
-        self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (5*self.std_dev_accel_z - 5*self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
+        self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
         self.z[1, 1] = self.z[1, 0] + (self.dt / self.tau) * (-self.z[1, 0] + (self.A * max(0, (self.pitch - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch - self.Upitch )**2))
         self.z[2, 1] = self.z[2, 0] + (self.dt / self.tau) * (-self.z[2, 0] + (self.A * max(0, (self.roll - self.Uroll ))**2) / (self.SigmaIMU**2 + (-self.z[2,0] + self.roll - self.Uroll )**2))
 
@@ -292,7 +279,7 @@ class NetworkPublisher(Node):
         self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -self.w*self.z[17,0] + self.cte)))
 
         self.z[14, 1] = self.z[14, 0] + (self.dt / self.tau) * (-self.z[14, 0] + (self.A * max(0, (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] )**2))
-        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0] -0.5*self.cte + self.z[3, 0]*self.w + 15*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]-0.5*self.cte + self.z[3, 0]*2 + 20*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
+        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0] -0.5*self.cte + self.z[3, 0]*self.w + 800*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]-0.5*self.cte + self.z[3, 0]*2 + 20*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
         self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[4, 0] - self.w*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte ))**2) / (self.Sigma**2 + (self.z[4, 0] - self.w*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte )**2))
         
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
@@ -312,6 +299,10 @@ class NetworkPublisher(Node):
 
 
         # ------------------- PRINTS -------------------------
+        
+        #print("R: ", str(R))
+        #print("G: ", str(G))
+        #print("B: ", str(B)) 
 
 
         self.get_logger().info(
@@ -339,8 +330,32 @@ class NetworkPublisher(Node):
                         f"2: {self.z[2,1]}\n"
                         f"roll: {self.roll}\n"
                         f"pitch: {self.pitch}\n"
-                        f"VIBRACION: {self.std_dev_accel_z}"
+                        f"STD total: {self.accel_std:.3f}"
                         )
+        
+        if self.accel_std > 4.5 and not self.terrainchanger:  # Se activa solo si estaba en False
+            self.get_logger().info("Terreno rocoso detectado 🚧")
+            self.terrainchanger = True
+            self.std_dev_accel_z = 9
+            self.terrain_timer = time.time()  # Guardar momento de activación
+
+        # Si está activo, verificar si pasaron 8 segundos
+        if self.terrainchanger:
+            elapsed = time.time() - self.terrain_timer
+            if elapsed < 16:
+                self.get_logger().info("Terreno rocoso detectado 🚧")
+                self.std_dev_accel_z = 9
+            else:
+                self.terrainchanger = False  # Volver a estado normal
+                self.get_logger().info("Terreno liso 🛣️")
+                self.std_dev_accel_z = 0
+
+        # Si no está activo y no hay vibración, mensaje normal
+        elif not self.terrainchanger:
+            self.std_dev_accel_z = 0
+            self.get_logger().info("Terreno liso 🛣️")
+
+
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
         
@@ -421,7 +436,8 @@ class NetworkPublisher(Node):
 
     def bumpLD_callback(self,msg):
         pass
-    
+
+
     def imu_callback(self, msg):
         # Extraer cuaterniones
         qx = msg.orientation.x
@@ -429,20 +445,29 @@ class NetworkPublisher(Node):
         qz = msg.orientation.z
         qw = msg.orientation.w
 
-        # Convertir cuaterniones a ángulos de Euler (Roll y Pitch)
-        self.roll = 180 - abs(np.degrees((np.arctan2(2 * (qw * qx + qy * qz), 1 - 2 * (qx**2 + qy**2)))))
-        self.pitch = abs(np.degrees((np.arcsin(2 * (qw * qy - qz * qx)))) )
+        # Calcular ángulos Euler
+        self.roll = 180 - abs(np.degrees(np.arctan2(2*(qw*qx + qy*qz), 1 - 2*(qx**2 + qy**2))))
+        self.pitch = abs(np.degrees(np.arcsin(2*(qw*qy - qz*qx))))
 
-        
-        z = msg.linear_acceleration.z
-        self.filtered_accel_z = self.alpha_dev * self.filtered_accel_z + (1 - self.alpha_dev) * z
-        high_pass = z - self.filtered_accel_z
-        self.high_passed_accel_z.append(high_pass)
+        # === MÉTODOS DE VIBRACIÓN ===
 
-        if len(self.accel_z_buffer) > 1:
-            self.std_dev_accel_z = np.std(self.accel_z_buffer)
-        else:
-            self.std_dev_accel_z = 0.0
+        ax, ay, az = msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z
+        accel_mag = np.sqrt(ax**2 + ay**2 + az**2)
+
+        # --- Guardar en buffers ---
+        self.accel_buffer.append(accel_mag)
+
+        if self.ignore_imu:
+            if time.time() - self.ignore_timer < self.ignore_duration:
+                # Mientras dure el tiempo, forzar el valor a 0 o al último
+                self.accel_std = 0.0  # o self.last_accel_std si prefieres el anterior
+                return
+            else:
+                # Termina la ignorancia
+                self.ignore_imu = False
+
+        # --- STD magnitud total ---
+        self.accel_std = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
 
         # Mostrar información
         # self.get_logger().info(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {self.accel_z:.2f} m/s², STD Z: {std_dev_accel_z:.4f}")
@@ -481,10 +506,12 @@ class NetworkPublisher(Node):
         mode_msg = String()
         mode_msg.data = mode
         self.mode_pub.publish(mode_msg)
-        if self.current_mode != mode:
+        self.get_logger().info(f"IGNOREIMU: {self.ignore_imu}")
+
+        if self.current_mode != mode and (self.current_mode == "C" or self.current_mode == "H"): 
+            self.ignore_timer = time.time()  
             self.ignore_imu = True
-            self.ignore_start_time = time.time()
-    
+
         self.current_mode = mode
 
     
