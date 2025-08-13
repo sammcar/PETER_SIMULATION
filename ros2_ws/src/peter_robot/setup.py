@@ -44,6 +44,7 @@ setup(
             'red_neuronal = src.red_neuronal:main',
             'camera_node = src.camera_node:main',
             'camera_Adjust = src.camera_Adjust:main',
+            'plotter = src.plotter:main'
         ],
     },
 )

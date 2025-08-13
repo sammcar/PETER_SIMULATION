@@ -10,7 +10,7 @@ import xacro
 
 def set_world_path(context, *args, **kwargs):
     """ Busca el mundo correcto y guarda la ruta en 'world_path' dentro del launch """
-    package_name = 'peter_robot'
+    package_name = 'peter_robot_c'
     pkg_share = FindPackageShare(package=package_name).find(package_name)
     worlds_dir = os.path.join(pkg_share, 'worlds')
 

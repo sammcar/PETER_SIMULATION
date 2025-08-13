@@ -16,8 +16,6 @@ import tf2_ros
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 import math
-import time
-from collections import deque
 
 # Robot parameters
 LENGTH_A = 45.0
@@ -36,7 +34,7 @@ site_now = [[0.0 for _ in range(3)] for _ in range(4)]  # 4x3 array for current 
 site_expect = [[0.0 for _ in range(3)] for _ in range(4)]  # 4x3 array for expected positions
 temp_speed = [[0.0 for _ in range(3)] for _ in range(4)]  # 4x3 array for temporary speeds
 move_speed = 8.0
-speed_multiple = 1.6
+speed_multiple = 1.0
 SPOT_TURN_SPEED = 4.0
 LEG_MOVE_SPEED = 8.0
 BODY_MOVE_SPEED = 3.0
@@ -79,13 +77,6 @@ class JointPositionPublisher(Node):
         # Publicadores para las posiciones y velocidades
         self.position_publisher_ = self.create_publisher(Float64MultiArray, '/gazebo_joint_controller/commands', 10)
         self.velocity_publisher_ = self.create_publisher(Float64MultiArray, '/gazebo_velocity_controllers/commands', 10)
-                # --- Secuenciador (debe existir antes de los timers) ---
-        self.seq = deque()          # cola de frames: {"targets":[...], "hold": segs}
-        self.seq_active = False
-        self.seq_started = None
-        self.atol = 1e-2            # tolerancia para considerar "llegó"
-        # -------------------------------------------------------
-
 
         # Suscriptores
         self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
@@ -95,7 +86,6 @@ class JointPositionPublisher(Node):
         self.create_subscription(Contacts, '/bumper/TibiaLU', self.bumper_callback, 10)
         self.create_subscription(Contacts, '/bumper/TibiaLD', self.bumper_callback, 10)
         self.subscription_imu = self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
-        self.cambio = 0
         
         # Inicialización de articulaciones y velocidades
         self.joint_positions = [0.0] * 12  # 12 articulaciones
@@ -138,90 +128,6 @@ class JointPositionPublisher(Node):
         self.past = 'C'
         self.iniciarCuadrupedo()
         self.run_state_machine()
-
-        # en __init__
-        self.seq = deque()          # cola de frames: {"targets":[...], "hold": segs}
-        self.seq_active = False
-        self.seq_started = None
-        self.atol = 1e-2            # tolerancia para "llegó"
-
-    def joints_at_targets(self):
-        # Evita fallos si aún no hay targets inicializados
-        if not hasattr(self, "target_positions") or not hasattr(self, "joint_positions"):
-            return False
-        return all(abs(jp - tp) <= self.atol
-                for jp, tp in zip(self.joint_positions, self.target_positions))
-
-    def start_sequence(self, frames):
-        """
-        frames: lista de dicts {"targets":[12 floats], "hold": segs}
-        """
-        self.seq = deque(frames)
-        self.seq_active = bool(self.seq)
-        self.seq_started = None
-        if self.seq_active:
-            first = self.seq[0]
-            self.target_positions = list(first["targets"])
-            self.seq_started = self.get_clock().now().nanoseconds / 1e9
-
-    def step_sequence(self):
-        # Si aún no inicializamos, salimos silenciosamente
-        if not hasattr(self, "seq_active") or not hasattr(self, "seq"):
-            return
-        if not self.seq_active or not self.seq:
-            return
-
-        now_s = self.get_clock().now().nanoseconds / 1e9
-        cur = self.seq[0]
-        reached = self.joints_at_targets()
-        timed = (self.seq_started is not None and
-                (now_s - self.seq_started) >= float(cur.get("hold", 0.0)))
-
-        if reached or timed:
-            self.seq.popleft()
-            if self.seq:
-                nxt = self.seq[0]
-                self.target_positions = list(nxt["targets"])
-                self.seq_started = now_s
-            else:
-                self.seq_active = False
-                self.seq_started = None
-
-                
-    def x_intermediate_targets(self):
-        # "Primero:"
-        return [
-            0.785, 0.53, 0.51,  -0.0,
-            -0.53, -0.51, -0.785, 0.53,
-            0.51,  -0.0,  -0.53, -0.51
-        ]
-
-    def x_final_targets(self):
-        # Los tres casos que ya tienes
-        if self.linear_x != 0.0 and self.linear_y == 0.0:
-            self.target_positions = [
-            0.0, 0.8, 1.8,  # CoxisRU, FemurRU, TibiaRU
-            0.0, -0.8, -1.8,  # CoxisLU, FemurLU, TibiaLU
-            0.0, 0.9, 1.8,  # CoxisRD, FemurRD, TibiaRD
-            0.0, -0.8, -1.8   # CoxisLD, FemurLD, TibiaLD
-            ]
-
-        elif self.linear_y != 0.0 and self.linear_x == 0.0:
-            self.target_positions = [
-            1.57, 0.8, 1.8,  # CoxisRU, FemurRU, TibiaRU
-            -1.42, -0.8, -1.8,  # CoxisLU, FemurLU, TibiaLU
-            -1.42, 0.9, 1.8,  # CoxisRD, FemurRD, TibiaRD
-            1.46, -0.8, -1.8   # CoxisLD, FemurLD, TibiaLD
-        ]
-        else:    
-            self.target_positions = [
-                0.7, 0.8+0.1*(self.linear_x <0 and self.linear_y < 0), 1.8,  # CoxisRU, FemurRU, TibiaRU
-                -0.7, -0.8*(self.linear_y >= 0.0)-0.9*(self.linear_y < 0.0)-0.1*(self.linear_x <0 and self.linear_y > 0), -1.8,  # CoxisLU, FemurLU, TibiaLU
-                -0.7, 0.8*(self.linear_y >= 0.0)+0.9*(self.linear_y < 0.0)+0.1*(self.linear_x <0 and self.linear_y > 0), 1.8,  # CoxisRD, FemurRD, TibiaRD
-                0.7, -0.9-0.1*(self.linear_x <0 and self.linear_y < 0), -1.8   # CoxisLD, FemurLD, TibiaLD
-            ]
-
-
 
     def run_state_machine(self):
         """Non-blocking state machine execution loop."""
@@ -829,7 +735,7 @@ class JointPositionPublisher(Node):
         position_msg.data = [joint_position_dict[name] for name in joint_order]
         self.position_publisher_.publish(position_msg)
 
-        # Velocidades no necesitan self.cambio (solo 12 articulaciones móviles)
+        # Velocidades no necesitan cambio (solo 12 articulaciones móviles)
         velocity_msg = Float64MultiArray()
         velocity_msg.data = self.joint_velocities
         self.velocity_publisher_.publish(velocity_msg)
@@ -849,6 +755,7 @@ class JointPositionPublisher(Node):
 
         self.tf_broadcaster.sendTransform(t)
 
+
         # Publicar trayectoria
         try:
             now = rclpy.time.Time()
@@ -867,8 +774,6 @@ class JointPositionPublisher(Node):
             self.path_pub.publish(self.path_msg)
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             pass  # Evita error si la transformación aún no está disponible
-
-        self.step_sequence()
 
     def update_positions(self):
         """Actualiza las posiciones de las articulaciones hacia sus objetivos de forma incremental."""
@@ -1039,69 +944,44 @@ class JointPositionPublisher(Node):
                 self.iniciarCuadrupedo()
             #///////////////////////////////////////////////////////////////////////////////////////////////////////////////
             self.past = 'C'
-            self.cambio = 0
 
         elif self.state == 'X':  # Modo omnidireccional
 
             if self.linear_x != 0.0 and self.linear_y == 0.0:
                 self.target_positions = [
-                0.0, 0.8, 1.8,  # CoxisRU, FemurRU, TibiaRU
-                0.0, -0.8, -1.8,  # CoxisLU, FemurLU, TibiaLU
-                0.0, 0.9, 1.8,  # CoxisRD, FemurRD, TibiaRD
-                0.0, -0.8, -1.8   # CoxisLD, FemurLD, TibiaLD
+                0.0, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
+                0.0, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
+                0.0, 0.9, 2.30,  # CoxisRD, FemurRD, TibiaRD
+                0.0, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
                 ]
 
             elif self.linear_y != 0.0 and self.linear_x == 0.0:
                 self.target_positions = [
-                1.57, 0.8, 1.8,  # CoxisRU, FemurRU, TibiaRU
-                -1.42, -0.8, -1.8,  # CoxisLU, FemurLU, TibiaLU
-                -1.42, 0.9, 1.8,  # CoxisRD, FemurRD, TibiaRD
-                1.46, -0.8, -1.8   # CoxisLD, FemurLD, TibiaLD
+                1.57, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
+                -1.42, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
+                -1.42, 0.9, 2.30,  # CoxisRD, FemurRD, TibiaRD
+                1.46, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
             ]
             else:    
+
                 self.target_positions = [
-                    0.7, 0.8+0.1*(self.linear_x <0 and self.linear_y < 0), 1.8,  # CoxisRU, FemurRU, TibiaRU
-                    -0.7, -0.8*(self.linear_y >= 0.0)-0.9*(self.linear_y < 0.0)-0.1*(self.linear_x <0 and self.linear_y > 0), -1.8,  # CoxisLU, FemurLU, TibiaLU
-                    -0.7, 0.8*(self.linear_y >= 0.0)+0.9*(self.linear_y < 0.0)+0.1*(self.linear_x <0 and self.linear_y > 0), 1.8,  # CoxisRD, FemurRD, TibiaRD
-                    0.7, -0.9-0.1*(self.linear_x <0 and self.linear_y < 0), -1.8   # CoxisLD, FemurLD, TibiaLD
+                    0.7, 0.8+0.1*(self.linear_x <0 and self.linear_y < 0), 2.30,  # CoxisRU, FemurRU, TibiaRU
+                    -0.7, -0.8*(self.linear_y >= 0.0)-0.9*(self.linear_y < 0.0)-0.1*(self.linear_x <0 and self.linear_y > 0), -2.30,  # CoxisLU, FemurLU, TibiaLU
+                    -0.7, 0.8*(self.linear_y >= 0.0)+0.9*(self.linear_y < 0.0)+0.1*(self.linear_x <0 and self.linear_y > 0), 2.10,  # CoxisRD, FemurRD, TibiaRD
+                    0.7, -0.9-0.1*(self.linear_x <0 and self.linear_y < 0), -2.30   # CoxisLD, FemurLD, TibiaLD
                 ]
 
-            # if self.cambio == 0 or not self.seq_active:   # <<— solo la primera vez / si no hay secuencia
-            #     first = self.x_intermediate_targets()
-            #     final = self.x_final_targets()
-            #     self.start_sequence([
-            #         {"targets": first, "hold": 0.3},   # o 0.15 si quieres ver un “respiro”
-            #         {"targets": final, "hold": 0.0},
-            #     ])
-            # else:
-            #     # ya estás en X; si cambian velocidades, actualiza el último frame
-            #     final = self.x_final_targets()
-            #     if self.seq_active and len(self.seq) > 0:
-            #         self.seq[-1]["targets"] = final
-            #     else:
-            #         self.target_positions = final
 
-            # self.past = 'X'
-            # self.cambio = 1
-            # return
-
+            self.past = 'X'
 
         elif self.state == 'H':  # Modo móvil tipo H
-
-            if self.cambio == 1:
-                servo_service_en = True
-                self.iniciarCuadrupedo()
-            else:    
-                time.sleep(0.1)
-                self.target_positions = [
-                    0.0, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
-                    0.0, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
-                    0.0, 0.9, 2.30,  # CoxisRD, FemurRD, TibiaRD
-                    0.0, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
-                ]
-
+            self.target_positions = [
+                0.0, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
+                0.0, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU
+                0.0, 0.9, 2.30,  # CoxisRD, FemurRD, TibiaRD
+                0.0, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD
+            ]
             self.past = 'H'
-            self.cambio = 0
 
     def setCenter(self):
         global site_now
