@@ -198,3 +198,82 @@ Nota: Los cambios se harán únicamente en tu rama, no en la rama principal del 
    ```bash
    git push origin <nombre-rama>
    ```
+
+
+
+
+---
+---
+
+
+
+# **Comandos de ROS**
+
+## **1. Compilar y configurar el entorno**
+```bash
+colcon build && source install/setup.bash
+```
+
+---
+
+## **2. Lanzar visualización en RViz**
+```bash
+ros2 launch peter_robot display.launch.py
+```
+
+---
+
+## **3. Lanzar simulación en Gazebo**
+```bash
+ros2 launch peter_robot gazebo.launch.py
+```
+
+---
+
+## **4. Lanzar Gazebo con un mundo específico**
+```bash
+ros2 launch peter_robot gazebo.launch.py world_name:=(nombre_del_mundo_sin_extension)
+```
+
+### **Mundos disponibles**
+- `depot` → entorno industrial  
+- `terrain` → mapa de Dieguito  
+- `empty` → entorno clásico  
+- `contextos` → mapa con estímulos fieles a la simulación  
+- `fabrica` → mapa con iluminación industrial diferente  
+
+> **Nota:** Si no se especifica un mundo, se cargará `empty` por defecto.
+
+---
+
+## **5. Control del robot**
+
+### **Teleoperado**
+En otra terminal:
+```bash
+ros2 run peter_robot peter_teleop_keyboard
+```
+
+### **Control con la red neuronal**
+En otra terminal:
+```bash
+ros2 run peter_robot red_neuronal
+```
+
+---
+
+## **6. Visualización de gráficas**
+Puedes correrlo en otra terminal mientras la simulación está activa:
+```bash
+ros2 launch peter_robot graficas_launch.py
+```
+
+---
+
+## **7. Herramientas de visualización en Gazebo**
+Para ver **LIDAR**, **superficies de contacto** y otras herramientas dentro de Gazebo, se recomienda revisar el video **"Resultados Red"** ubicado en:  
+```
+Samuel/Entregas Pasadas
+```
+en **OneDrive**.
+
