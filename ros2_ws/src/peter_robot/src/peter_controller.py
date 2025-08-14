@@ -1092,7 +1092,7 @@ class JointPositionPublisher(Node):
                 servo_service_en = True
                 self.iniciarCuadrupedo()
             else:    
-                time.sleep(0.1)
+                #time.sleep(0.1)
                 self.target_positions = [
                     0.0, 0.8, 2.30,  # CoxisRU, FemurRU, TibiaRU
                     0.0, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU

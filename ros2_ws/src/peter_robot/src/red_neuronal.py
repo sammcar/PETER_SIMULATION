@@ -97,7 +97,7 @@ class NetworkPublisher(Node):
         self.epsilem = 0.01 # Tolerancia
         self.dt = 1 # Intervalo de Integracion
         self.cte = 3 # Constante de Avance
-        self.Area = 14 # Area Limite Tuneada segun iluminacion
+        self.Area = 1400 # Area Limite Tuneada segun iluminacion
 
         
         self.roll = 0.0
@@ -239,13 +239,13 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
-        if self.lidar[4,0]*5 > 0.2: G = self.lidar[4,0]*5
+        if self.lidar[4,0]*10 > 0.2: G = self.lidar[4,0]*10
         else: G = 0
         B = self.areaBoundingBoxB/500
 
 
         self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoSTN)*(-self.StN[0, 0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
-        self.StN[1, 1] = np.clip((self.StN[1, 0] + (1/self.TaoSTN)*(-self.StN[1, 0] + G*5 - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
+        self.StN[1, 1] = np.clip((self.StN[1, 0] + (1/self.TaoSTN)*(-self.StN[1, 0] + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
         self.StN[2, 1] = np.clip((self.StN[2, 0] + (1/self.TaoSTN)*(-self.StN[2, 0] + B - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
         
         self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + self.StN[1,0] + self.StN[2,0] - self.Gpe[0,0] - self.StR[0,0])),0, None)
@@ -358,7 +358,7 @@ class NetworkPublisher(Node):
         print("lidar 4:", str(self.lidar[4,0]))
 
 
-        cmd_ang = self.limit(cmd_ang, 5)
+        cmd_ang = self.limit(cmd_ang, 1)
         cmd_lineal = self.limit(cmd_lineal, 5)
         cmd_lateral = self.limit(cmd_lateral, 5)
 
