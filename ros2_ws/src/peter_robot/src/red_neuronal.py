@@ -21,10 +21,11 @@ class NetworkPublisher(Node):
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.mode_pub = self.create_publisher(String, '/peter_mode', 10)
 
-
         self.GPEr = self.create_publisher(Float64, '/Gpe_Hostil', 10)
         self.GPEg = self.create_publisher(Float64, '/Gpe_Obstaculo', 10)
         self.GPEb = self.create_publisher(Float64, '/Gpe_Apetente', 10)
+
+        self.publisher_ = self.create_publisher(Float32MultiArray, 'neuron_activity', 10)
 
         # Modo Inicial
         self.current_mode = 'C'
@@ -64,7 +65,7 @@ class NetworkPublisher(Node):
         self.Gpi = np.zeros((3, 2)) # Globo Pálido Interno
         self.Gpe = np.zeros((3, 2)) # Globo Pálido Externo
         self.StN = np.zeros((3, 2)) # Subtalámico
-        self.StR = np.zeros((6, 2)) # Estriado
+        self.StR = np.zeros((3, 2)) # Estriado
         self.z = np.zeros((20, 2)) # Red Sam/Espitia
         self.lidar = np.zeros((5,2)) # Wta Lidar
         self.Response = np.zeros((16,2))
@@ -316,7 +317,6 @@ class NetworkPublisher(Node):
         for i in range(len(self.Gpe)): self.Gpe[i, 0] = self.Gpe[i,1]*(self.Gpe[i,1]>self.epsilem)
         for i in range(len(self.StR)): self.StR[i, 0] = self.StR[i,1]*(self.StR[i,1]>self.epsilem)
 
-
         # ------------------- PRINTS -------------------------
         
         print("R: ", str(R))
@@ -364,7 +364,6 @@ class NetworkPublisher(Node):
         print("lidar izquierda: ", str(self.lidar[2,0]))
         print("lidar derecha:", str(self.lidar[3,0]))
         print("lidar 4:", str(self.lidar[4,0]))
-
 
         cmd_ang = self.limit(cmd_ang, 1)
         cmd_lineal = self.limit(cmd_lineal, 5)
@@ -439,6 +438,8 @@ class NetworkPublisher(Node):
                 self.publish_mode('H'); print("Móvil H")
             elif self.z[14,1] > 0.5:
                 self.publish_mode('X'); print("Móvil X")
+
+            self.publish_data()
 
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
 
@@ -546,6 +547,25 @@ class NetworkPublisher(Node):
             self.ignore_timer = time.time()  
             self.ignore_imu = True
         self.current_mode = mode
+
+    def publish_data(self):
+
+        parts = [
+            np.asarray(self.Gpi)[:, 1],
+            np.asarray(self.Gpe)[:, 1],
+            np.asarray(self.StN)[:, 1],
+            np.asarray(self.StR)[:, 1],
+            np.asarray(self.z)[:, 1],
+            np.asarray(self.lidar)[:, 1],
+            np.asarray(self.activaciones_totales),
+            np.asarray(self.Response)[:, 1],
+            np.asarray(self.Aux)[:, 1],
+        ]
+
+        vec = np.concatenate([p.ravel() for p in parts]).astype(np.float32)
+        msg = Float32MultiArray()
+        msg.data = vec.tolist()
+        self.publisher_.publish(msg)
 
 #------------------------- M A I N --------------------------------------#
 
