@@ -105,7 +105,7 @@ class NetworkPublisher(Node):
         self.epsilem = 0.01 # Tolerancia
         self.dt = 1 # Intervalo de Integracion
         self.cte = 3 # Constante de Avance
-        self.Area = 1400 # Area Limite Tuneada segun iluminacion
+        self.Area = 20 # Area Limite Tuneada segun iluminacion
 
         
         self.roll = 0.0
@@ -193,7 +193,7 @@ class NetworkPublisher(Node):
 
         # Mensaje opcional si no se detecta nada dentro del rango
         # if not detected:
-        #     self.get_logger().info("No se detectó ningún obstáculo dentro del rango especificado.")
+        #     print("No se detectó ningún obstáculo dentro del rango especificado.")
 
     def map_with_limits(self, value, in_min, in_max, out_min, out_max):
         """Mapea un valor de un rango de entrada a uno de salida, con límites aplicados."""
@@ -327,7 +327,7 @@ class NetworkPublisher(Node):
         print("B: ", str(B)) 
 
 
-        self.get_logger().info(
+        print(
                         f"GpeR: {self.Gpe[0,1]}\n"
                         f"GpeG: {self.Gpe[1,1]}\n"
                         f"GpeB: {self.Gpe[2,1]}\n"
@@ -376,7 +376,7 @@ class NetworkPublisher(Node):
 
         if self.accel_std > self.Usigma_az and not self.terrainchanger:
         #if (self.accel_std > self.Usigma_az or self.low_accel_flag)and not self.terrainchanger:  # Descomentar si el robot se queda atascado mucho
-            self.get_logger().info("Terreno rocoso detectado 🚧")
+            print("Terreno rocoso detectado 🚧")
             self.terrainchanger = True
             self.std_dev_accel_z = 6
             self.terrain_timer = time.time()  # Guardar momento de activación
@@ -385,20 +385,20 @@ class NetworkPublisher(Node):
         if self.terrainchanger:
             elapsed = time.time() - self.terrain_timer
             if elapsed < 16:
-                self.get_logger().info("Terreno rocoso detectado 🚧")
+                print("Terreno rocoso detectado 🚧")
                 self.std_dev_accel_z = 6
             else:
                 self.terrainchanger = False  # Volver a estado normal
-                self.get_logger().info("Terreno liso 🛣️")
+                print("Terreno liso 🛣️")
                 self.std_dev_accel_z = 0
 
         # Si no está activo y no hay vibración, mensaje normal
         elif not self.terrainchanger:
             self.std_dev_accel_z = 0
-            self.get_logger().info("Terreno liso 🛣️")
+            print("Terreno liso 🛣️")
 
-        if self.pitch > self.Upitch: self.get_logger().info("Terreno inclinado")
-        else: self.get_logger().info("Terreno NO inclinado")
+        if self.pitch > self.Upitch: print("Terreno inclinado")
+        else: print("Terreno NO inclinado")
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
         
@@ -470,19 +470,19 @@ class NetworkPublisher(Node):
         if len(msg.data) >= 2:
             self.posR = msg.data[0]  # Posición en el rango de 0 a 180
             self.areaBoundingBoxR = msg.data[1]  # Área aproximada
-            # self.get_logger().info(f'Red - Pos: {self.posR}, Área: {self.areaBoundingBoxR}')
+            # print(f'Red - Pos: {self.posR}, Área: {self.areaBoundingBoxR}')
 
     def green_callback(self, msg):
         if len(msg.data) >= 2:
             self.posG = msg.data[0]
             self.areaBoundingBoxG = msg.data[1]
-            # self.get_logger().info(f'Green - Pos: {self.posG}, Área: {self.areaBoundingBoxG}')
+            # print(f'Green - Pos: {self.posG}, Área: {self.areaBoundingBoxG}')
 
     def blue_callback(self, msg):
         if len(msg.data) >= 2:
             self.posB = msg.data[0]
             self.areaBoundingBoxB = msg.data[1]
-            # self.get_logger().info(f'Blue - Pos: {self.posB}, Área: {self.areaBoundingBoxB}')
+            # print(f'Blue - Pos: {self.posB}, Área: {self.areaBoundingBoxB}')
     
     def imu_callback(self, msg):
         # Extraer cuaterniones
@@ -528,7 +528,7 @@ class NetworkPublisher(Node):
         self.accel_std = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
 
         # Mostrar información
-        # self.get_logger().info(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {self.accel_z:.2f} m/s², STD Z: {std_dev_accel_z:.4f}")
+        # print(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {self.accel_z:.2f} m/s², STD Z: {std_dev_accel_z:.4f}")
 
     def publish_twist(self, linear_x=None, linear_y=None, angular_z=None):
         if not hasattr(self, "_twist"):
@@ -549,7 +549,7 @@ class NetworkPublisher(Node):
         mode_msg = String()
         mode_msg.data = mode
         self.mode_pub.publish(mode_msg)
-        self.get_logger().info(f"IGNOREIMU: {self.ignore_imu}")
+        print(f"IGNOREIMU: {self.ignore_imu}")
         if self.current_mode != mode and (self.current_mode == "C" or self.current_mode == "H"): 
             self.ignore_timer = time.time()  
             self.ignore_imu = True

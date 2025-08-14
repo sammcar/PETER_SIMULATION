@@ -6,7 +6,7 @@
       <visual name="sphere_visual">
         <geometry>
           <sphere>
-            <radius>0.5</radius> <!-- radio en metros -->
+            <radius>0.25</radius> <!-- radio en metros -->
           </sphere>
         </geometry>
         <material>

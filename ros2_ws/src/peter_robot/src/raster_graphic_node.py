@@ -7,7 +7,7 @@ import numpy as np
 from threading import Thread
 
 # ==== Booleans de control ====
-PLOT_GANGLIOS_BASALES = True
+PLOT_GANGLIOS_BASALES = False
 PLOT_LOCOMOCION = True
 PLOT_DECISION_MARCHA = True
 PLOT_RED_LIDAR = True
@@ -40,15 +40,31 @@ class NeuronPlotter(Node):
         data_array = np.array(self.data_matrix).T  # Filas = neuronas, columnas = tiempo
 
         # ==== Función auxiliar para plotear submódulos ====
+        # ==== Frecuencia de muestreo (Hz) ====
+
+        FREQ_HZ = 10.0  # <-- pon aquí la frecuencia real de publicación del tópico
+
         def plot_module(submodules, module_title, custom_labels=False):
             fig, axs = plt.subplots(len(submodules), 1, figsize=(10, 2.5*len(submodules)))
             fig.suptitle(module_title)
             if len(submodules) == 1:
                 axs = [axs]  # Asegurar lista si solo hay un subplot
 
+            num_samples = data_array.shape[1]
+            time_axis = np.arange(num_samples) / FREQ_HZ  # tiempo en segundos
+
             for i, (start, end, labels, name) in enumerate(submodules):
                 raster = data_array[start:end, :]  # Filas = neuronas del rango
-                im = axs[i].imshow(raster, aspect='auto', cmap='hot', interpolation='nearest')
+
+                im = axs[i].imshow(
+                    raster,
+                    aspect='auto',
+                    cmap='gist_yarg',
+                    interpolation='nearest',
+                    vmin=0,
+                    vmax=np.max(raster) if raster.size else 1.0,
+                    extent=[time_axis[0], time_axis[-1], 0, raster.shape[0]]  # eje X en segundos
+                )
 
                 # Eje Y: etiquetas de neuronas
                 if labels:
@@ -60,10 +76,11 @@ class NeuronPlotter(Node):
 
                 axs[i].set_title(name, fontsize=10)
                 axs[i].set_ylabel("Neurona")
-                axs[i].set_xlabel("Instante")
+                axs[i].set_xlabel("Tiempo (s)")
                 fig.colorbar(im, ax=axs[i], orientation='vertical')
 
             plt.tight_layout()
+
 
         # ==== Módulo 1: Ganglios Basales ====
         if PLOT_GANGLIOS_BASALES:
@@ -78,28 +95,30 @@ class NeuronPlotter(Node):
         # ==== Módulo 2: Locomoción ====
         if PLOT_LOCOMOCION:
             submodules = [
-                (15, 26, None, "Locomoción 1"),
-                (29, 30, None, "Locomoción 2"),
+                (15, 26, [f"X{i}" for i in range(5, 14)], "Locomoción 1"),
+                (29, 30, ["X17"], "Locomoción 2"),
             ]
             plot_module(submodules, "Módulo Locomoción")
+
 
         # ==== Módulo 3: Decisión de Marcha ====
         if PLOT_DECISION_MARCHA:
             submodules = [
-                (12, 17, None, "Decisión 1"),
-                (26, 29, None, "Decisión 2"),
+                (12, 17, [f"X{i}" for i in range(0, 5)], "Decisión 1"),
+                (26, 29, [f"X{i}" for i in range(14, 17)], "Decisión 2"),
             ]
             plot_module(submodules, "Módulo Decisión de Marcha")
 
         # ==== Módulo 4: Red Lidar ====
         if PLOT_RED_LIDAR:
             submodules = [
-                (32, 37, None, "Lidar"),
-                (37, 53, None, "Input"),
-                (53, 69, None, "Response"),
-                (69, 85, None, "Auxiliar"),
+                (32, 37, [f"L{i}" for i in range(5)], "Lidar"),
+                (37, 53, [str(i) for i in range(1,17)], "Input"),
+                (53, 69, [str(i) for i in range(1,17)], "Response"),
+                (69, 85, [str(i) for i in range(1,17)], "Auxiliar"),
             ]
             plot_module(submodules, "Módulo Red Lidar")
+
 
         plt.show()
 
