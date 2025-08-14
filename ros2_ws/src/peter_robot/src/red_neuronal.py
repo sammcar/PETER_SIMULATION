@@ -81,7 +81,7 @@ class NetworkPublisher(Node):
         
         self.ignore_imu = False
         self.ignore_timer = time.time()
-        self.ignore_duration = 3.6
+        self.ignore_duration = 4.2
 
         # Antes de tu callback, inicializa buffers y filtros:
         self.accel_buffer = deque(maxlen=50)     # Ventana de 50 muestras
@@ -90,6 +90,13 @@ class NetworkPublisher(Node):
         #Logica que será neuronal
         self.terrainchanger = False
         self.terrain_timer = 0.0  # Guarda el tiempo de inicio
+
+
+        self.low_accel_counter = 0
+        self.low_accel_threshold = 0.5
+        self.low_accel_limit = 100
+        self.low_accel_flag = False
+
 
 
         self.ang_p = 90 # Posicion Frente del Robot
@@ -118,8 +125,9 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 3.62 #Umbral de variación estándar de un IMU
-        self.Upitch = 40 #Umbral pitch
+        #self.Usigma_az = 3.27 #PARA CASO PLANO-RUGOSO-PLANO
+        self.Usigma_az = 3.7 #PARA CASO PLANO-INLINADO
+        self.Upitch = 7.8 #Umbral pitch
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -290,7 +298,7 @@ class NetworkPublisher(Node):
         self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -self.w*self.z[17,0] + self.cte + self.Gpe[2,0])))
 
         self.z[14, 1] = self.z[14, 0] + (self.dt / self.tau) * (-self.z[14, 0] + (self.A * max(0, (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] )**2))
-        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 0.7*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 0.7*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
+        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 5*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 5*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
         self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte ))**2) / (self.Sigma**2 + (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte )**2))
         
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
@@ -364,7 +372,7 @@ class NetworkPublisher(Node):
 
     #------------------------- TERRAIN CHANGER -----------------------------
 
-        if self.accel_std > 4.5 and not self.terrainchanger:  # Se activa solo si estaba en False
+        if (self.accel_std > self.Usigma_az or self.low_accel_flag)and not self.terrainchanger:  # Se activa solo si estaba en False
             self.get_logger().info("Terreno rocoso detectado 🚧")
             self.terrainchanger = True
             self.std_dev_accel_z = 9
@@ -495,6 +503,18 @@ class NetworkPublisher(Node):
             else:
                 # Termina la ignorancia
                 self.ignore_imu = False
+
+            # Contar lecturas bajas consecutivas
+        if self.accel_std < self.low_accel_threshold:
+            self.low_accel_counter += 1
+        else:
+            self.low_accel_counter = 0  # Reinicia si rompe la secuencia
+
+        # Activar bandera si llegó al límite
+        if self.low_accel_counter >= self.low_accel_limit:
+            self.low_accel_flag = True
+        else:
+            self.low_accel_flag = False
 
         # --- STD magnitud total ---
         self.accel_std = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
