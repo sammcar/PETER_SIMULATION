@@ -247,6 +247,7 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
+        #R = 2 #Descomentar para probar terreno inlcinado
         if self.lidar[4,0]*5 > 0.2: G = self.lidar[4,0]*5
         else: G = 0
         B = self.areaBoundingBoxB/500
@@ -277,6 +278,8 @@ class NetworkPublisher(Node):
         else:
             self.ang_s = 90*(self.lidar[4,1]<0.3)
 
+        #self.ang_s = 90 #Descomentar para probar terreno inclinado
+
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
         self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
@@ -298,8 +301,8 @@ class NetworkPublisher(Node):
         self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -self.w*self.z[17,0] + self.cte + self.Gpe[2,0])))
 
         self.z[14, 1] = self.z[14, 0] + (self.dt / self.tau) * (-self.z[14, 0] + (self.A * max(0, (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] )**2))
-        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 5*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 5*self.z[0,0] + 0.7*self.z[1,0] + 0.7*self.z[2,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
-        self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte ))**2) / (self.Sigma**2 + (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + self.cte )**2))
+        self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 2*self.z[0,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 2*self.z[0,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
+        self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + 5*self.z[1,0] + 5*self.z[2,0] + self.cte ))**2) / (self.Sigma**2 + (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + 5*self.z[1,0] + 5*self.z[2,0] + self.cte )**2))
         
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
 
@@ -372,10 +375,11 @@ class NetworkPublisher(Node):
 
     #------------------------- TERRAIN CHANGER -----------------------------
 
-        if (self.accel_std > self.Usigma_az or self.low_accel_flag)and not self.terrainchanger:  # Se activa solo si estaba en False
+        if self.accel_std > self.Usigma_az and not self.terrainchanger:
+        #if (self.accel_std > self.Usigma_az or self.low_accel_flag)and not self.terrainchanger:  # Descomentar si el robot se queda atascado mucho
             self.get_logger().info("Terreno rocoso detectado 🚧")
             self.terrainchanger = True
-            self.std_dev_accel_z = 9
+            self.std_dev_accel_z = 6
             self.terrain_timer = time.time()  # Guardar momento de activación
 
         # Si está activo, verificar si pasaron 8 segundos
@@ -383,7 +387,7 @@ class NetworkPublisher(Node):
             elapsed = time.time() - self.terrain_timer
             if elapsed < 16:
                 self.get_logger().info("Terreno rocoso detectado 🚧")
-                self.std_dev_accel_z = 9
+                self.std_dev_accel_z = 6
             else:
                 self.terrainchanger = False  # Volver a estado normal
                 self.get_logger().info("Terreno liso 🛣️")
@@ -393,6 +397,9 @@ class NetworkPublisher(Node):
         elif not self.terrainchanger:
             self.std_dev_accel_z = 0
             self.get_logger().info("Terreno liso 🛣️")
+
+        if self.pitch > self.Upitch: self.get_logger().info("Terreno inclinado")
+        else: self.get_logger().info("Terreno NO inclinado")
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
         
