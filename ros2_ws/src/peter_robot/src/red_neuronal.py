@@ -71,7 +71,6 @@ class NetworkPublisher(Node):
         self.Response = np.zeros((16,2))
         self.Aux = np.zeros((16,2))
 
-
         #------------------------- C O N S T A N T E S --------------------------------------#
 
         #DEBUGGING
@@ -92,19 +91,16 @@ class NetworkPublisher(Node):
         self.terrainchanger = False
         self.terrain_timer = 0.0  # Guarda el tiempo de inicio
 
-
         self.low_accel_counter = 0
         self.low_accel_threshold = 0.5
         self.low_accel_limit = 100
         self.low_accel_flag = False
 
-
-
         self.ang_p = 90 # Posicion Frente del Robot
         self.ang_s = 90 # Posicion del estimulo
         self.epsilem = 0.01 # Tolerancia
         self.dt = 1 # Intervalo de Integracion
-        self.cte = 3 # Constante de Avance
+        self.cte = 5 # Constante de Avance
         self.Area = 75 # Area Limite Tuneada segun iluminacion
 
         
@@ -219,7 +215,6 @@ class NetworkPublisher(Node):
 
         return value
 
-
     def run_network(self):
         #------------------------E S T I M U L O -------------------------------------#
 
@@ -326,7 +321,6 @@ class NetworkPublisher(Node):
         print("G: ", str(G))
         print("B: ", str(B)) 
 
-
         print(
                         f"GpeR: {self.Gpe[0,1]}\n"
                         f"GpeG: {self.Gpe[1,1]}\n"
@@ -356,8 +350,6 @@ class NetworkPublisher(Node):
                         f"STD total: {self.accel_std:.3f}"
                         )
         
-
-
         print("cmd_ang: ", str(cmd_ang))
         print("cmd_lineal: ", str(cmd_lineal))
         print("cmd_lateral: ", str(cmd_lateral))
@@ -542,7 +534,6 @@ class NetworkPublisher(Node):
             self._twist.angular.z = float(angular_z)
 
         self.cmd_vel_pub.publish(self._twist)
-
 
     def publish_mode(self, mode):
         """Publica el modo actual."""

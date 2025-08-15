@@ -129,7 +129,7 @@ class CamaraNodo(Node):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         color_filters = {
-            'red': ((0, 100, 100), (10, 255, 255)),
+            'red': ((0, 65, 70), (10, 255, 215)),
             'blue': ((80, 0, 40), (179, 255, 255)),
             #'green': ((35, 80, 75), (75, 255, 255)),
         }
