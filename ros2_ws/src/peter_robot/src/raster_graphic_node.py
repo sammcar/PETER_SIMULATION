@@ -158,7 +158,8 @@ class NeuronPlotter(Node):
                 # Asegura longitud coherente si alguna lista quedó desfasada
                 m = min(len(serie), len(t_imu))
                 if m > 0:
-                    plt.plot(t_imu[:m], serie[:m], label=f'IMU {i}')
+                    plt.plot(t_imu[:m], serie[:m], label="Standar dev accel z" if i == 0 else "Pitch angle")
+                    
             plt.xlabel('Tiempo (s)')
             plt.ylabel('Valor')
             plt.title('IMU activity')
