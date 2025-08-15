@@ -86,6 +86,7 @@ class NetworkPublisher(Node):
         # Antes de tu callback, inicializa buffers y filtros:
         self.accel_buffer = deque(maxlen=50)     # Ventana de 50 muestras
         self.accel_std = 0.0
+        self.accel_std2 = 0.0
 
         #Logica que será neuronal
         self.terrainchanger = False
@@ -517,6 +518,7 @@ class NetworkPublisher(Node):
 
         # --- STD magnitud total ---
         self.accel_std = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
+        self.accel_std2 = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
 
         # Mostrar información
         # print(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {self.accel_z:.2f} m/s², STD Z: {std_dev_accel_z:.4f}")
