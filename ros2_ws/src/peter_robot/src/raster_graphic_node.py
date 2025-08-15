@@ -7,10 +7,10 @@ import numpy as np
 from threading import Thread
 
 # ==== Booleans de control ====
-PLOT_GANGLIOS_BASALES = False
+PLOT_GANGLIOS_BASALES = True
 PLOT_LOCOMOCION = True
 PLOT_DECISION_MARCHA = True
-PLOT_RED_LIDAR = False
+PLOT_RED_LIDAR = True
 
 class NeuronPlotter(Node):
     def __init__(self):
@@ -95,7 +95,7 @@ class NeuronPlotter(Node):
         # ==== Módulo 2: Locomoción ====
         if PLOT_LOCOMOCION:
             submodules = [
-                (15, 26, [f"X{i}" for i in range(5, 14)], "Locomoción 1"),
+                (15, 26, [f"X{i}" for i in range(3, 14)], "Locomoción 1"),
                 (29, 30, ["X17"], "Locomoción 2"),
             ]
             plot_module(submodules, "Módulo Locomoción")

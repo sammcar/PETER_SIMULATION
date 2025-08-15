@@ -100,10 +100,9 @@ class NetworkPublisher(Node):
         self.ang_s = 90 # Posicion del estimulo
         self.epsilem = 0.01 # Tolerancia
         self.dt = 1 # Intervalo de Integracion
-        self.cte = 5 # Constante de Avance
-        self.Area = 75 # Area Limite Tuneada segun iluminacion
+        self.cte = 3 # Constante de Avance
+        self.Area = 28 # Area Limite Tuneada segun iluminacion
 
-        
         self.roll = 0.0
         self.pitch = 0.0
         self.std_dev_accel_z = 0.0
@@ -244,22 +243,22 @@ class NetworkPublisher(Node):
 
         R = self.areaBoundingBoxR/500
         #R = 2 #Descomentar para probar inclinacion
-        if self.lidar[4,0]*10 > 0.2: G = self.lidar[4,0]*10
+        if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
         B = self.areaBoundingBoxB/500
 
 
         self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoSTN)*(-self.StN[0, 0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
         self.StN[1, 1] = np.clip((self.StN[1, 0] + (1/self.TaoSTN)*(-self.StN[1, 0] + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
-        self.StN[2, 1] = np.clip((self.StN[2, 0] + (1/self.TaoSTN)*(-self.StN[2, 0] + B - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
+        self.StN[2, 1] = np.clip((self.StN[2, 0] + (1/self.TaoSTN)*(-self.StN[2, 0] + B*0.7 - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
         
         self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + self.StN[1,0] + self.StN[2,0] - self.Gpe[0,0] - self.StR[0,0])),0, None)
         self.Gpi[1, 1] = np.clip((self.Gpi[1, 0] + (1/self.TaoGpi)*(-self.Gpi[1, 0] + self.StN[0,0] + self.StN[2,0] - self.Gpe[1,0] - self.StR[1,0])),0, None)
         self.Gpi[2, 1] = np.clip((self.Gpi[2, 0] + (1/self.TaoGpi)*(-self.Gpi[2, 0] + self.StN[0,0] + self.StN[1,0] - self.Gpe[2,0] - self.StR[2,0])),0, None)
         
         self.Gpe[0, 1] = np.clip((self.Gpe[0, 0] + (1/self.TaoGpe)*(-self.Gpe[0, 0] + self.StN[0,0])),0, None)
-        self.Gpe[1, 1] = np.clip((self.Gpe[1, 0] + (1/self.TaoGpe)*(-self.Gpe[1, 0] + self.StN[1,0])),0, None)
-        self.Gpe[2, 1] = np.clip((self.Gpe[2, 0] + (1/self.TaoGpe)*(-self.Gpe[2, 0] + self.StN[2,0])),0, None)
+        self.Gpe[1, 1] = np.clip((self.Gpe[1, 0] + (1/self.TaoGpe)*(-self.Gpe[1, 0] + self.StN[1,0]*5)),0, None)
+        self.Gpe[2, 1] = np.clip((self.Gpe[2, 0] + (1/self.TaoGpe)*(-self.Gpe[2, 0] + self.StN[2,0]*0.5)),0, None)
         
         self.StR[0, 1] = np.clip((self.StR[0, 0] + (1/self.TaoSTR)*(-self.StR[0, 0] + self.StN[0,0])),0, None)
         self.StR[1, 1] = np.clip((self.StR[1, 0] + (1/self.TaoSTR)*(-self.StR[1, 0] + self.StN[1,0])),0, None)
@@ -294,7 +293,7 @@ class NetworkPublisher(Node):
 
         self.z[11, 1] = self.z[11, 0] + (self.dt / self.tau) * (-self.z[11, 0] + max(0, (self.z[7, 0] + self.z[9, 0])))
         self.z[12, 1] = self.z[12, 0] + (self.dt / self.tau) * (-self.z[12, 0] + max(0, (self.z[10, 0] + self.z[8, 0])))
-        self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -self.w*self.z[17,0] + self.cte + self.Gpe[2,0])))
+        self.z[13, 1] = self.z[13, 0] + (self.dt / self.tau) * (-self.z[13, 0] + max(0, (-self.w*abs(cmd_ang)*self.z[11, 0] - self.w*abs(cmd_ang)*self.z[12, 0] -2*self.w*self.z[17,0] + self.cte + self.Gpe[2,0])))
 
         self.z[14, 1] = self.z[14, 0] + (self.dt / self.tau) * (-self.z[14, 0] + (self.A * max(0, (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] )**2))
         self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 2*self.z[0,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 2*self.z[0,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
@@ -303,7 +302,7 @@ class NetworkPublisher(Node):
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
 
         cmd_ang = (self.z[11,0]*(self.lidar[4,0] < 0.3)) - (self.z[12,0]*(self.lidar[4,0]<0.3))
-        cmd_lateral = (self.lidar[2,0]*1.5 + self.lidar[3,0]*1.5 + self.z[11,0]*(self.Gpe[1,0] > 0.5)) - (self.z[12,0]*(self.Gpe[1,0] > 0.5))
+        cmd_lateral = (self.lidar[2,0]*1.5 + self.lidar[3,0]*1.5 + self.z[11,0]*((self.Gpe[1,0] > 0.5)and(self.Gpe[2,0]<0.5))) - (self.z[12,0]*((self.Gpe[1,0] > 0.5)and(self.Gpe[2,0]<0.5)))
         cmd_lineal = self.lidar[0,0]*1.5 - self.lidar[1,0]*1.5 + self.z[13,0] -self.j*self.z[4,0]*(self.z[5,0] < self.epsilem and self.z[6,0] < self.epsilem)
 
         for i in range(len(self.z)): self.z[i, 0] = self.z[i,1]*(self.z[i,1]>self.epsilem)
@@ -407,14 +406,14 @@ class NetworkPublisher(Node):
             # 2) resolver prioridad y construir UN solo Twist
             tw_ang, tw_lat, tw_lin = 0.0, 0.0, 0.0
 
-            if self.z[17,1] > 0.5:
+            if self.z[17,1] > 0.25:
                 # STOP: todo a cero
                 print("Stop")
             elif ang != 0.0:
                 # prioridad 1: giro
                 tw_ang = ang
                 print("Giro Izquierda" if ang > 0 else "Giro Derecha")
-            elif lat != 0.0:
+            elif lat != 0.0 and self.z[16,1] < 0.5:
                 # prioridad 2: desplazamiento lateral
                 tw_lat = lat
                 print("Desp. Izquierda" if lat > 0 else "Desp. Derecha")
