@@ -26,6 +26,7 @@ class NetworkPublisher(Node):
         self.GPEb = self.create_publisher(Float64, '/Gpe_Apetente', 10)
 
         self.publisher_ = self.create_publisher(Float32MultiArray, 'neuron_activity', 10)
+        self.publisher_imu = self.create_publisher(Float32MultiArray, 'imu_activity', 10)
 
         # Modo Inicial
         self.current_mode = 'C'
@@ -439,6 +440,7 @@ class NetworkPublisher(Node):
                 self.publish_mode('X'); print("Móvil X")
 
             self.publish_data()
+            self.publish_imu()
 
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
 
@@ -565,6 +567,18 @@ class NetworkPublisher(Node):
         msg = Float32MultiArray()
         msg.data = vec.tolist()
         self.publisher_.publish(msg)
+
+    def publish_imu(self):
+
+        parts = [
+            np.asarray(self.accel_std2),
+            np.asarray(self.pitch),
+        ]
+
+        vec = np.concatenate([p.ravel() for p in parts]).astype(np.float32)
+        msg = Float32MultiArray()
+        msg.data = vec.tolist()
+        self.publisher_imu.publish(msg)
 
 #------------------------- M A I N --------------------------------------#
 

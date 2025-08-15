@@ -5,6 +5,7 @@ from std_msgs.msg import Float32MultiArray
 import matplotlib.pyplot as plt
 import numpy as np
 from threading import Thread
+import time
 
 # ==== Booleans de control ====
 PLOT_GANGLIOS_BASALES = False
@@ -15,6 +16,11 @@ PLOT_RED_LIDAR = False
 class NeuronPlotter(Node):
     def __init__(self):
         super().__init__('neuron_plotter')
+        # en __init__
+        self.imu_series = None   # se inicializa al primer mensaje
+        self.imu_samples = 0     # contador de muestras recibidas
+        self.IMU_FREQ_HZ = 10.0  # <<< ajusta a la frecuencia real del tópico 'imu_activity'
+
 
         self.data_matrix = []  # Guardará la historia temporal
         self.subscription = self.create_subscription(
@@ -24,7 +30,30 @@ class NeuronPlotter(Node):
             10
         )
 
+        self.subscription_imu = self.create_subscription(
+            Float32MultiArray,
+            'imu_activity',
+            self.listener_callback_imu,
+            10
+        )
+
         self.get_logger().info("🧠 Nodo plotter iniciado. Presiona Enter para mostrar gráficas.")
+
+    def listener_callback_imu(self, msg):
+        # Inicializa estructura al primer mensaje
+        if self.imu_series is None:
+            n = len(msg.data)
+            self.imu_series = [ [] for _ in range(n) ]
+
+        # Tamaño inconsistente -> descartar
+        if len(msg.data) != len(self.imu_series):
+            self.get_logger().warn(f"⚠️ IMU con {len(msg.data)} elementos, esperado {len(self.imu_series)}; se ignora este mensaje.")
+            return
+
+        # Acumula valores
+        for i, v in enumerate(msg.data):
+            self.imu_series[i].append(float(v))
+        self.imu_samples += 1
 
     def listener_callback(self, msg):
         if len(msg.data) == 85:
@@ -85,10 +114,10 @@ class NeuronPlotter(Node):
         # ==== Módulo 1: Ganglios Basales ====
         if PLOT_GANGLIOS_BASALES:
             submodules = [
-                (0, 3, ['R','G','B'], "GPi"),
-                (3, 6, ['R','G','B'], "GPe"),
-                (6, 9, ['R','G','B'], "STN"),
-                (9, 12, ['R','G','B'], "STR"),
+                (0, 3, ['B','G','R'], "GPi"),
+                (3, 6, ['B','G','R'], "GPe"),
+                (6, 9, ['B','G','R'], "STN"),
+                (9, 12, ['B','G','R'], "STR"),
             ]
             plot_module(submodules, "Módulo Ganglios Basales")
 
@@ -118,6 +147,22 @@ class NeuronPlotter(Node):
                 (69, 85, [str(i) for i in range(1,17)], "Auxiliar"),
             ]
             plot_module(submodules, "Módulo Red Lidar")
+
+        if IMU and self.imu_series is not None and self.imu_samples > 0:
+            # Eje X a partir de la frecuencia de muestreo del suscriptor IMU
+            t_imu = np.arange(self.imu_samples) / self.IMU_FREQ_HZ  # tiempo en segundos
+
+            plt.figure(figsize=(10, 6))
+            for i, serie in enumerate(self.imu_series):
+                # Asegura longitud coherente si alguna lista quedó desfasada
+                m = min(len(serie), len(t_imu))
+                if m > 0:
+                    plt.plot(t_imu[:m], serie[:m], label=f'IMU {i}')
+            plt.xlabel('Tiempo (s)')
+            plt.ylabel('Valor')
+            plt.title('IMU activity')
+            plt.legend(loc='upper right')
+            plt.grid(True)
 
 
         plt.show()
