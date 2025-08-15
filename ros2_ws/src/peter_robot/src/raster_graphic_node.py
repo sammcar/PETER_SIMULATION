@@ -78,13 +78,27 @@ class NeuronPlotter(Node):
             fig, axs = plt.subplots(len(submodules), 1, figsize=(10, 2.5*len(submodules)))
             fig.suptitle(module_title)
             if len(submodules) == 1:
-                axs = [axs]  # Asegurar lista si solo hay un subplot
+                axs = [axs]
 
             num_samples = data_array.shape[1]
-            time_axis = np.arange(num_samples) / FREQ_HZ  # tiempo en segundos
+            time_axis = np.arange(num_samples) / FREQ_HZ
 
-            for i, (start, end, labels, name) in enumerate(submodules):
-                raster = data_array[start:end, :]  # Filas = neuronas del rango
+            for i, entry in enumerate(submodules):
+                # Permitir (start, end, labels, name[, reverse])
+                if len(entry) == 5:
+                    start, end, labels, name, reverse = entry
+                else:
+                    start, end, labels, name = entry
+                    reverse = True  # por defecto invertimos (R,G,B -> B,G,R)
+
+                raster = data_array[start:end, :]
+
+                # Inversión coherente de datos y etiquetas si reverse=True
+                if reverse:
+                    raster = raster[::-1, :]
+                    ylabels = labels[::-1] if labels else [str(n+1) for n in range(start, end)][::-1]
+                else:
+                    ylabels = labels if labels else [str(n+1) for n in range(start, end)]
 
                 im = axs[i].imshow(
                     raster,
@@ -93,17 +107,11 @@ class NeuronPlotter(Node):
                     interpolation='nearest',
                     vmin=0,
                     vmax=np.max(raster) if raster.size else 1.0,
-                    extent=[time_axis[0], time_axis[-1], 0, raster.shape[0]]  # eje X en segundos
+                    extent=[time_axis[0], time_axis[-1], 0, raster.shape[0]]
                 )
 
-                # Eje Y: etiquetas de neuronas
-                if labels:
-                    axs[i].set_yticks(range(len(labels)))
-                    axs[i].set_yticklabels(labels)
-                else:
-                    axs[i].set_yticks(range(end - start))
-                    axs[i].set_yticklabels([str(n+1) for n in range(start, end)])
-
+                axs[i].set_yticks(range(len(ylabels)))
+                axs[i].set_yticklabels(ylabels)
                 axs[i].set_title(name, fontsize=10)
                 axs[i].set_ylabel("Neurona")
                 axs[i].set_xlabel("Tiempo (s)")
@@ -112,13 +120,14 @@ class NeuronPlotter(Node):
             plt.tight_layout()
 
 
+
         # ==== Módulo 1: Ganglios Basales ====
         if PLOT_GANGLIOS_BASALES:
             submodules = [
-                (0, 3, ['B','G','R'], "GPi"),
-                (3, 6, ['B','G','R'], "GPe"),
-                (6, 9, ['B','G','R'], "STN"),
-                (9, 12, ['B','G','R'], "STR"),
+                (0, 3, ['R','G','B'], "GPi"),
+                (3, 6, ['R','G','B'], "GPe"),
+                (6, 9, ['R','G','B'], "STN"),
+                (9, 12, ['R','G','B'], "STR"),
             ]
             plot_module(submodules, "Módulo Ganglios Basales")
 
@@ -158,16 +167,15 @@ class NeuronPlotter(Node):
                 # Asegura longitud coherente si alguna lista quedó desfasada
                 m = min(len(serie), len(t_imu))
                 if m > 0:
-                    plt.plot(t_imu[:m], serie[:m], label=f'IMU {i}')
+                    plt.plot(t_imu[:m], serie[:m], label="Standar dev accel z" if i == 0 else "Pitch angle")
+                    
             plt.xlabel('Tiempo (s)')
             plt.ylabel('Valor')
             plt.title('IMU activity')
             plt.legend(loc='upper right')
             plt.grid(True)
 
-
         plt.show()
-
 
 def ros_spin_thread(node):
     rclpy.spin(node)
