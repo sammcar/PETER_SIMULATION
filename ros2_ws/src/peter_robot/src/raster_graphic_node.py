@@ -8,10 +8,11 @@ from threading import Thread
 import time
 
 # ==== Booleans de control ====
-PLOT_GANGLIOS_BASALES = False
+PLOT_GANGLIOS_BASALES = True
 PLOT_LOCOMOCION = True
 PLOT_DECISION_MARCHA = True
-PLOT_RED_LIDAR = False
+PLOT_RED_LIDAR = True
+IMU = True
 
 class NeuronPlotter(Node):
     def __init__(self):
