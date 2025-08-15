@@ -123,9 +123,9 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        #self.Usigma_az = 3.18 #PARA CASO PLANO-RUGOSO-PLANO
-        self.Usigma_az = 3.7 #PARA CASO PLANO-INLINADO
-        self.Upitch = 7.8 #Umbral pitch
+        self.Usigma_az = 3.18 #PARA CASO PLANO-RUGOSO-PLANO
+        #self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
+        self.Upitch = 5 #Umbral pitch
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -243,8 +243,8 @@ class NetworkPublisher(Node):
         self.lidar[4,1] = self.lidar[4, 0] + (self.dt / self.tau) * (-self.lidar[4, 0]*1.1 + max(0, (np.sum(self.Aux[:,0]))))
 
 
-        #R = self.areaBoundingBoxR/500
-        R = 3 #Descomentar para probar inclinacion
+        R = self.areaBoundingBoxR/500
+        #R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
         B = self.areaBoundingBoxB/500
