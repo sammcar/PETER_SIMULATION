@@ -105,7 +105,7 @@ class NetworkPublisher(Node):
         self.epsilem = 0.01 # Tolerancia
         self.dt = 1 # Intervalo de Integracion
         self.cte = 3 # Constante de Avance
-        self.Area = 20 # Area Limite Tuneada segun iluminacion
+        self.Area = 75 # Area Limite Tuneada segun iluminacion
 
         
         self.roll = 0.0

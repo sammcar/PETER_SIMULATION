@@ -10,7 +10,7 @@ from threading import Thread
 PLOT_GANGLIOS_BASALES = False
 PLOT_LOCOMOCION = True
 PLOT_DECISION_MARCHA = True
-PLOT_RED_LIDAR = True
+PLOT_RED_LIDAR = False
 
 class NeuronPlotter(Node):
     def __init__(self):
