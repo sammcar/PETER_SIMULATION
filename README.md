@@ -278,3 +278,24 @@ Samuel/Entregas Pasadas
 en **OneDrive**.
 
 
+---
+---
+
+# **R E S U L T A D O S**
+
+Se hicieron pruebas de distintos escenarios y se comprobó si el comportamiento de PETER era el esperado. Para detallar gráficas puede dirigirse a la carpeta 
+```
+/Resultados
+```
+. Adicionalmente, se hizo un video que recopila los resultados grabados, puede ver el video dando click al siguiente video:
+
+### RESULTADOS VIDEO
+
+ <a href="https://youtu.be/cwxMxLqk_MA">
+  <img src="Repository/Titulo.png" alt="Texto alternativo" width="700"/>
+</a>
+
+### Vista Previa a PETER
+
+[GIF]
+
