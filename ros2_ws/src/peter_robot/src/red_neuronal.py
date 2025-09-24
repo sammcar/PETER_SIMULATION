@@ -191,18 +191,6 @@ class NetworkPublisher(Node):
         # Mensaje opcional si no se detecta nada dentro del rango
         # if not detected:
         #     print("No se detectó ningún obstáculo dentro del rango especificado.")
-
-    def map_with_limits(self, value, in_min, in_max, out_min, out_max):
-        """Mapea un valor de un rango de entrada a uno de salida, con límites aplicados."""
-        if value <= in_min:
-            return out_min
-        elif value >= in_max:
-            return out_max
-        else:
-            # Interpolación lineal
-            m = (out_max - out_min) / (in_max - in_min)
-            b = out_min - m * in_min
-            return m * value + b
         
     def limit(self, value, max):
         """Limita un valor."""
@@ -328,38 +316,47 @@ class NetworkPublisher(Node):
                         f"GpeB: {self.Gpe[2,1]}\n"
                         f"ang_p: {self.ang_p}\n"
                         f"ang_s: {self.ang_s}\n"
-                        f"3: {self.z[3,1]}\n"
-                        f"4: {self.z[4,1]}\n"
-                        f"5: {self.z[5,1]}\n"
-                        f"6: {self.z[6,1]}\n"
-                        f"7: {self.z[7,1]}\n"
-                        f"8: {self.z[8,1]}\n"
-                        f"9: {self.z[9,1]}\n"
-                        f"10: {self.z[10,1]}\n"
-                        f"11: {self.z[11,1]}\n"
-                        f"12: {self.z[12,1]}\n"
-                        f"13: {self.z[13,1]}\n"
-                        f"14: {self.z[14,1]}\n"
-                        f"15: {self.z[15,1]}\n"
-                        f"16: {self.z[16,1]}\n"
-                        f"17: {self.z[17,1]}\n"
-                        f"0: {self.z[0,1]}\n"
-                        f"1: {self.z[1,1]}\n"
-                        f"2: {self.z[2,1]}\n"
-                        f"roll: {self.roll}\n"
-                        f"pitch: {self.pitch}\n"
-                        f"STD total: {self.accel_std:.3f}"
+                        # f"3: {self.z[3,1]}\n"
+                        # f"4: {self.z[4,1]}\n"
+                        # f"5: {self.z[5,1]}\n"
+                        # f"6: {self.z[6,1]}\n"
+                        # f"7: {self.z[7,1]}\n"
+                        # f"8: {self.z[8,1]}\n"
+                        # f"9: {self.z[9,1]}\n"
+                        # f"10: {self.z[10,1]}\n"
+                        # f"11: {self.z[11,1]}\n"
+                        # f"12: {self.z[12,1]}\n"
+                        # f"13: {self.z[13,1]}\n"
+                        # f"14: {self.z[14,1]}\n"
+                        # f"15: {self.z[15,1]}\n"
+                        # f"16: {self.z[16,1]}\n"
+                        # f"17: {self.z[17,1]}\n"
+                        # f"0: {self.z[0,1]}\n"
+                        # f"1: {self.z[1,1]}\n"
+                        # f"2: {self.z[2,1]}\n"
+                        # f"roll: {self.roll}\n"
+                        # f"pitch: {self.pitch}\n"
+                        # f"STD total: {self.accel_std:.3f}"
                         )
         
-        print("cmd_ang: ", str(cmd_ang))
-        print("cmd_lineal: ", str(cmd_lineal))
-        print("cmd_lateral: ", str(cmd_lateral))
+        # print("cmd_ang: ", str(cmd_ang))
+        # print("cmd_lineal: ", str(cmd_lineal))
+        # print("cmd_lateral: ", str(cmd_lateral))
 
-        print("lidar frente: ", str(self.lidar[0,0]))
+        print("lidar frente")
         print("lidar atras: ", str(self.lidar[1,0]))
         print("lidar izquierda: ", str(self.lidar[2,0]))
         print("lidar derecha:", str(self.lidar[3,0]))
         print("lidar 4:", str(self.lidar[4,0]))
+
+        # Imprimir los 16 valores de Response
+        for i, val in enumerate(self.Response[:, 0]):
+            print(f"Response {i}: {val}")
+
+        # Imprimir los 16 valores de Aux
+        for i, val in enumerate(self.Aux[:, 0]):
+            print(f"Aux {i}: {val}")
+
 
         cmd_ang = self.limit(cmd_ang, 1)
         cmd_lineal = self.limit(cmd_lineal, 5)
