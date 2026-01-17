@@ -289,22 +289,22 @@ Se hicieron pruebas de distintos escenarios y se comprobó si el comportamiento 
 ```
 Adicionalmente, se hizo un video que recopila los resultados grabados, puede ver el video dando click al siguiente video:
 
-### RESULTADOS (VIDEOS)
+## RESULTADOS (VIDEOS)
 
-## Vista Previa a PETER
+### Vista Previa a PETER
 
 <img src="Repository/GifPETER.gif" alt="Vista previa PETER" width="500"/>
 
 
-## Robot físico:
+### Robot físico:
  <a href="https://youtu.be/Bn2_Hg4Rb5k">
-  <img src="Repository/Titulo.png" alt="Texto alternativo" width="700"/>
+  <img src="Repository/MiniaturaF.png" alt="Texto alternativo" width="600"/>
 </a>
 
 
-## Simulación:
+### Simulación:
  <a href="https://youtu.be/cwxMxLqk_MA">
-  <img src="Repository/Titulo.png" alt="Texto alternativo" width="700"/>
+  <img src="Repository/MiniaturaS.png" alt="Texto alternativo" width="600"/>
 </a>
 
 
