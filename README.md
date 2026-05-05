@@ -22,7 +22,7 @@ Nota: Si se va a subir algo en la carpeta de "Repository", se debe hacer directa
 
 ## Configuración Inicial
 1. **DESCARGAR LOS REQUISITOS PARA EL TUTORIAL DE DOCKER**: 
-   [Click aquí para descargar Docker Harmonic](https://www.mediafire.com/file/ss6lf31t07wkcio/Docker_harmonic.zip/file)
+   [Click aquí para descargar Docker Harmonic](https://www.mediafire.com/file/zn9p8fz4nifx3c9/Docker_harmonic.zip/file)
    
 2. **IMPORTANTE**: Hacer el tutorial de docker antes de usar el repositorio
 
@@ -276,5 +276,36 @@ Para ver **LIDAR**, **superficies de contacto** y otras herramientas dentro de G
 Samuel/Entregas Pasadas
 ```
 en **OneDrive**.
+
+
+---
+---
+
+# **R E S U L T A D O S**
+
+Se hicieron pruebas de distintos escenarios y se comprobó si el comportamiento de PETER era el esperado. Para detallar gráficas puede dirigirse a la carpeta 
+```
+/Resultados
+```
+Adicionalmente, se hizo un video que recopila los resultados grabados, puede ver el video dando click al siguiente video:
+
+## RESULTADOS (VIDEOS)
+
+### Vista Previa a PETER
+
+<img src="Repository/GifPETER.gif" alt="Vista previa PETER" width="500"/>
+
+
+### Robot físico:
+ <a href="https://youtu.be/Bn2_Hg4Rb5k">
+  <img src="Repository/MiniaturaF.png" alt="Texto alternativo" width="600"/>
+</a>
+
+
+### Simulación:
+ <a href="https://youtu.be/cwxMxLqk_MA">
+  <img src="Repository/MiniaturaS.png" alt="Texto alternativo" width="600"/>
+</a>
+
 
 
