@@ -1,0 +1,55 @@
+# docker-compose.yml sugerido para PETER_SIMULATION
+# Uso: docker compose up
+# Requiere: Docker Desktop con WSLg habilitado o WSL2 nativo
+# Rama: Deiv — NO modificar main directamente.
+
+version: "3.9"
+
+services:
+  peter_sim:
+    image: peter_sim:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peter_simulation
+    # ⚠️ network_mode: host expone todos los puertos del contenedor al host.
+    # Reduce el aislamiento de red. Usar únicamente en entornos de desarrollo local.
+    # ROS 2 DDS requiere red compartida para descubrimiento automático de nodos.
+    network_mode: host
+    environment:
+      - DISPLAY=${DISPLAY}                    # Para WSLg / X11
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}    # Para WSLg Wayland
+      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}
+      - QT_X11_NO_MITSHM=1
+      - ROS_DOMAIN_ID=0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw       # Socket X11 para GUI (WSLg)
+      - ${XDG_RUNTIME_DIR}:${XDG_RUNTIME_DIR}  # Socket Wayland para WSLg
+      - ./ros2_ws/src:/ros2_ws/src:ro          # Montar fuentes para desarrollo iterativo
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]              # Opcional: requiere NVIDIA Container Toolkit
+    stdin_open: true
+    tty: true
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+               source /ros2_ws/install/setup.bash &&
+               ros2 launch peter_robot gazebo.launch.py world_name:=empty"
+
+  # Servicio headless (sin GUI) para CI o servidores remotos
+  peter_sim_headless:
+    image: peter_sim:local
+    container_name: peter_simulation_headless
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=0
+    command: >
+      bash -c "source /opt/ros/humble/setup.bash &&
+               source /ros2_ws/install/setup.bash &&
+               gz sim -s -r /ros2_ws/install/peter_robot/share/peter_robot/worlds/empty.world"
+    profiles:
+      - headless
