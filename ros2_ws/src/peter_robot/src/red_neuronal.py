@@ -82,21 +82,19 @@ class NetworkPublisher(Node):
         
         self.ignore_imu = False
         self.ignore_timer = time.time()
-        self.ignore_duration = 4.2
+        #self.ignore_duration = 4.2
+        self.ignore_duration = 2
 
         # Antes de tu callback, inicializa buffers y filtros:
         self.accel_buffer = deque(maxlen=50)     # Ventana de 50 muestras
         self.accel_std = 0.0
+        self.last_accel_std = 0.0
         self.accel_std2 = 0.0
 
         #Logica que será neuronal
         self.terrainchanger = False
         self.terrain_timer = 0.0  # Guarda el tiempo de inicio
 
-        self.low_accel_counter = 0
-        self.low_accel_threshold = 0.5
-        self.low_accel_limit = 100
-        self.low_accel_flag = False
 
         self.ang_p = 90 # Posicion Frente del Robot
         self.ang_s = 90 # Posicion del estimulo
@@ -123,9 +121,11 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 3.18 #PARA CASO PLANO-RUGOSO-PLANO
+        #self.Usigma_az = 3.18 #PARA CASO PLANO-RUGOSO-PLANO ORiginal
+        self.Usigma_az = 3.16 #PARA CASO PLANO-RUGOSO-PLANO
         #self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
-        self.Upitch = 5 #Umbral pitch
+        #self.Upitch = 5 #Umbral pitch INCLINADO
+        self.Upitch = 20 
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -336,7 +336,7 @@ class NetworkPublisher(Node):
                         # f"2: {self.z[2,1]}\n"
                         # f"roll: {self.roll}\n"
                         # f"pitch: {self.pitch}\n"
-                        # f"STD total: {self.accel_std:.3f}"
+                        f"STD total: {self.accel_std:.3f}"
                         )
         
         # print("cmd_ang: ", str(cmd_ang))
@@ -365,7 +365,6 @@ class NetworkPublisher(Node):
     #------------------------- TERRAIN CHANGER -----------------------------
 
         if self.accel_std > self.Usigma_az and not self.terrainchanger:
-        #if (self.accel_std > self.Usigma_az or self.low_accel_flag)and not self.terrainchanger:  # Descomentar si el robot se queda atascado mucho
             print("Terreno rocoso detectado 🚧")
             self.terrainchanger = True
             self.std_dev_accel_z = 9
@@ -374,7 +373,7 @@ class NetworkPublisher(Node):
         # Si está activo, verificar si pasaron 8 segundos
         if self.terrainchanger:
             elapsed = time.time() - self.terrain_timer
-            if elapsed < 16:
+            if elapsed < 40:
                 print("Terreno rocoso detectado 🚧")
                 self.std_dev_accel_z = 9
             else:
@@ -497,30 +496,23 @@ class NetworkPublisher(Node):
         if self.ignore_imu:
             if time.time() - self.ignore_timer < self.ignore_duration:
                 # Mientras dure el tiempo, forzar el valor a 0 o al último
-                self.accel_std = 0.0  # o self.last_accel_std si prefieres el anterior
+                #self.accel_std = 0.0  # o 
+                self.accel_std = self.last_accel_std #si prefieres el anterior
                 return
             else:
                 # Termina la ignorancia
                 self.ignore_imu = False
 
-            # Contar lecturas bajas consecutivas
-        if self.accel_std < self.low_accel_threshold:
-            self.low_accel_counter += 1
-        else:
-            self.low_accel_counter = 0  # Reinicia si rompe la secuencia
 
-        # Activar bandera si llegó al límite
-        if self.low_accel_counter >= self.low_accel_limit:
-            self.low_accel_flag = True
-        else:
-            self.low_accel_flag = False
-
+        
         # --- STD magnitud total ---
         self.accel_std = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
         self.accel_std2 = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
 
+        self.last_accel_std = self.accel_std
+
         # Mostrar información
-        # print(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {self.accel_z:.2f} m/s², STD Z: {std_dev_accel_z:.4f}")
+        #print(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {accel_mag:.2f} m/s², STD Z: {self.accel_std:.4f}")
 
     def publish_twist(self, linear_x=None, linear_y=None, angular_z=None):
         if not hasattr(self, "_twist"):
