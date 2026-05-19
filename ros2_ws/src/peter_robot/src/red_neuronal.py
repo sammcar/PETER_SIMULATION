@@ -10,6 +10,7 @@ from std_msgs.msg import Int32MultiArray, Float32MultiArray, Float64
 from sensor_msgs.msg import Imu, LaserScan
 from ros_gz_interfaces.msg import Contacts
 from collections import deque 
+from nav_msgs.msg import Odometry
 import re 
 
 class NetworkPublisher(Node):
@@ -29,7 +30,7 @@ class NetworkPublisher(Node):
         self.publisher_imu = self.create_publisher(Float32MultiArray, 'imu_activity', 10)
 
         # Modo Inicial
-        self.current_mode = 'C'
+        self.current_mode = 'H' #Original en C
 
         # Intensidad de estimulo
         self.areaBoundingBoxR = 0.0
@@ -57,7 +58,9 @@ class NetworkPublisher(Node):
         self.initctes()
 
         # Timer para llamar la función de control cada segundo
-        self.timer = self.create_timer(0.2, self.run_network)
+        #self.timer = self.create_timer(0.2, self.run_network) #original
+        self.timer = self.create_timer(0.1, self.run_network)
+
 
     def initctes(self):
 
@@ -77,6 +80,7 @@ class NetworkPublisher(Node):
         #DEBUGGING
 
         self.MOVEMENT = True
+        self.maxstd = []
 
         #--------------IMU --------------
         
@@ -86,7 +90,7 @@ class NetworkPublisher(Node):
         self.ignore_duration = 2
 
         # Antes de tu callback, inicializa buffers y filtros:
-        self.accel_buffer = deque(maxlen=50)     # Ventana de 50 muestras
+        self.accel_buffer = deque(maxlen=100)     # Ventana de 50 muestras
         self.accel_std = 0.0
         self.last_accel_std = 0.0
         self.accel_std2 = 0.0
@@ -121,8 +125,7 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        #self.Usigma_az = 3.18 #PARA CASO PLANO-RUGOSO-PLANO ORiginal
-        self.Usigma_az = 3.16 #PARA CASO PLANO-RUGOSO-PLANO
+        self.Usigma_az = 3 #PARA CASO PLANO-RUGOSO-PLANO
         #self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
         #self.Upitch = 5 #Umbral pitch INCLINADO
         self.Upitch = 20 
@@ -159,6 +162,26 @@ class NetworkPublisher(Node):
         # Parámetros de la gaussiana
         self.sigma = 0.06  
         self.umbral = 0.95
+
+    #------------------------- ODOMETRIA --------------------------------------#
+
+        self.x = 0.0
+        self.y = 0.0
+        self.yaw = 0.0
+
+    #------------------------- METRICAS --------------------------------------#
+        # TIEMPO DE RESPUESTA
+        self.starttime = time.time() 
+        self.tchange = self.starttime + 11.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
+        self.Tresponse = None
+        self.response_measured = False
+
+        # --- DELAY CAMBIO DE MODO---
+        self.tcmd = None
+        self.Tswitch = None
+        self.mode_transition_active = False
+        self.switch_measured = False
+
 
     def gausiana(self, theta, omega):
         return np.exp((np.dot(theta, omega) - 1) / (2 * (self.sigma**2)))
@@ -310,6 +333,8 @@ class NetworkPublisher(Node):
         print("G: ", str(G))
         print("B: ", str(B)) 
 
+
+
         print(
                         f"GpeR: {self.Gpe[0,1]}\n"
                         f"GpeG: {self.Gpe[1,1]}\n"
@@ -334,28 +359,35 @@ class NetworkPublisher(Node):
                         # f"0: {self.z[0,1]}\n"
                         # f"1: {self.z[1,1]}\n"
                         # f"2: {self.z[2,1]}\n"
-                        # f"roll: {self.roll}\n"
-                        # f"pitch: {self.pitch}\n"
-                        f"STD total: {self.accel_std:.3f}"
+                        f"roll: {self.roll}\n"
+                        f"pitch: {self.pitch}\n"
+                        f"STD total: {self.accel_std:.3f}\n"
+                        f"IGNOREIMU: {self.ignore_imu}\n"
+                        f"Tresponse: {self.Tresponse} s \n"
+                        f"Tswitch: {self.Tswitch} s \n"
+                        f"maxstd {np.max(self.maxstd)}\n"
+                        f"time {time.time() - self.starttime}"
                         )
+        
+        if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd}")
         
         # print("cmd_ang: ", str(cmd_ang))
         # print("cmd_lineal: ", str(cmd_lineal))
         # print("cmd_lateral: ", str(cmd_lateral))
 
-        print("lidar frente")
-        print("lidar atras: ", str(self.lidar[1,0]))
-        print("lidar izquierda: ", str(self.lidar[2,0]))
-        print("lidar derecha:", str(self.lidar[3,0]))
-        print("lidar 4:", str(self.lidar[4,0]))
+        #print("lidar frente")
+        #print("lidar atras: ", str(self.lidar[1,0]))
+        #print("lidar izquierda: ", str(self.lidar[2,0]))
+        #print("lidar derecha:", str(self.lidar[3,0]))
+        #print("lidar 4:", str(self.lidar[4,0]))
 
         # Imprimir los 16 valores de Response
-        for i, val in enumerate(self.Response[:, 0]):
-            print(f"Response {i}: {val}")
+        #for i, val in enumerate(self.Response[:, 0]):
+        #    print(f"Response {i}: {val}")
 
         # Imprimir los 16 valores de Aux
-        for i, val in enumerate(self.Aux[:, 0]):
-            print(f"Aux {i}: {val}")
+        #for i, val in enumerate(self.Aux[:, 0]):
+        #    print(f"Aux {i}: {val}")
 
 
         cmd_ang = self.limit(cmd_ang, 1)
@@ -364,7 +396,7 @@ class NetworkPublisher(Node):
 
     #------------------------- TERRAIN CHANGER -----------------------------
 
-        if self.accel_std > self.Usigma_az and not self.terrainchanger:
+        if self.accel_std > self.Usigma_az and not self.terrainchanger: #Segunda parte del or para estancamiento
             print("Terreno rocoso detectado 🚧")
             self.terrainchanger = True
             self.std_dev_accel_z = 9
@@ -429,14 +461,30 @@ class NetworkPublisher(Node):
 
             # modos
             if self.z[15,1] > 0.5:
-                self.publish_mode('C'); print("Cuadrupedo")
+                self.publish_mode('C'); #print("Cuadrupedo")
             elif self.z[16,1] > 0.5:
-                self.publish_mode('H'); print("Móvil H")
+                self.publish_mode('H'); #print("Móvil H")
             elif self.z[14,1] > 0.5:
-                self.publish_mode('X'); print("Móvil X")
+                self.publish_mode('X'); #print("Móvil X")
 
             self.publish_data()
             self.publish_imu()
+
+
+            #------------------------- M E T R I C A S--------------------------------------#
+            stable_condition = (self.accel_std < 2 and self.pitch < 1.5 and self.roll > 178) #Estabilización cond
+            print(f"stable condition: {stable_condition}")
+
+            #Tiempo de respuesta
+            if (self.terrainchanger and not self.response_measured and stable_condition): 
+                self.Tresponse = time.time() - self.tchange
+                self.response_measured = True
+
+            #Delay de cambio
+            if (self.mode_transition_active and not self.switch_measured and stable_condition):
+                self.Tswitch = time.time() - self.tcmd
+                self.switch_measured = True
+                self.mode_transition_active = False
 
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
 
@@ -511,6 +559,8 @@ class NetworkPublisher(Node):
 
         self.last_accel_std = self.accel_std
 
+        self.maxstd.append(self.accel_std)
+
         # Mostrar información
         #print(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {accel_mag:.2f} m/s², STD Z: {self.accel_std:.4f}")
 
@@ -532,10 +582,11 @@ class NetworkPublisher(Node):
         mode_msg = String()
         mode_msg.data = mode
         self.mode_pub.publish(mode_msg)
-        print(f"IGNOREIMU: {self.ignore_imu}")
         if self.current_mode != mode and (self.current_mode == "C" or self.current_mode == "H"): 
             self.ignore_timer = time.time()  
             self.ignore_imu = True
+            self.tcmd = time.time() #delay cambio metrica
+            self.mode_transition_active = True #delay cambio (metrica)
         self.current_mode = mode
 
     def publish_data(self):
