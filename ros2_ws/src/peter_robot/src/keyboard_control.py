@@ -24,11 +24,20 @@ class SimpleTeleop(Node):
         self.pub.publish(msg)
 
 def print_help():
-    print("Teleop stdin (i/k forward/back, j/l turn left/right,")
-    print("u/o diagonal, space to stop, q to quit)")
-    print("a/q: decrease/increase max speed by 10%")
-    print("w/s: increase/decrease only linear speed by 10%")
-    print("e/d: increase/decrease only angular speed by 10%")
+    print("\nPETER TELEOP :D")
+    print("---------------------------")
+    print("To move around:")
+    print("   u    i    o")
+    print("   j    k    l")
+    print("   m    ,    .")
+    print("\nTo change mode:")
+    print("---------------------------")
+    print(" z: Movil type H mode")
+    print(" x: Omnidirectional mode")
+    print(" c: Quadruped mode")
+    print("\nq/a : increase/decrease max speeds by 10%")
+    print("w/s : increase/decrease only linear speed by 10%")
+    print("e/d : increase/decrease only angular speed by 10%")
     print("CTRL-C or q to quit\n")
 
 def main():

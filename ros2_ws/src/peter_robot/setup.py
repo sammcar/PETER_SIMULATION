@@ -46,7 +46,8 @@ setup(
             'camera_Adjust = src.camera_Adjust:main',
             'plotter = src.plotter:main',
             'raster_graphic_node = src.raster_graphic_node:main',
-            'live_signals = src.live_signals:main'
+            'live_signals = src.live_signals:main',
+            'keyboard_control = src.keyboard_control:main'
         ],
     },
 )
