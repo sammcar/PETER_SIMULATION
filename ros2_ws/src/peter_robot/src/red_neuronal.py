@@ -10,7 +10,6 @@ from std_msgs.msg import Int32MultiArray, Float32MultiArray, Float64
 from sensor_msgs.msg import Imu, LaserScan
 from ros_gz_interfaces.msg import Contacts
 from collections import deque 
-from nav_msgs.msg import Odometry
 import re 
 
 class NetworkPublisher(Node):
@@ -163,11 +162,6 @@ class NetworkPublisher(Node):
         self.sigma = 0.06  
         self.umbral = 0.95
 
-    #------------------------- ODOMETRIA --------------------------------------#
-
-        self.x = 0.0
-        self.y = 0.0
-        self.yaw = 0.0
 
     #------------------------- METRICAS --------------------------------------#
         # TIEMPO DE RESPUESTA
@@ -181,6 +175,14 @@ class NetworkPublisher(Node):
         self.Tswitch = None
         self.mode_transition_active = False
         self.switch_measured = False
+
+        # ------------------- RMS OSCILACION -------------------
+
+        self.roll_history = []
+        self.pitch_history = []
+
+        self.roll_rms = 0.0
+        self.pitch_rms = 0.0
 
 
     def gausiana(self, theta, omega):
@@ -486,6 +488,10 @@ class NetworkPublisher(Node):
                 self.switch_measured = True
                 self.mode_transition_active = False
 
+            #Amplitud de oscilacion
+            print(f"Roll RMS: {self.roll_rms:.3f} deg")
+            print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
+
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
 
     from std_msgs.msg import Float64
@@ -531,6 +537,7 @@ class NetworkPublisher(Node):
 
         # Calcular ángulos Euler
         self.roll = 180 - abs(np.degrees(np.arctan2(2*(qw*qx + qy*qz), 1 - 2*(qx**2 + qy**2))))
+        roll_centered = self.roll - 180.0
         self.pitch = abs(np.degrees(np.arcsin(2*(qw*qy - qz*qx))))
 
         # === MÉTODOS DE VIBRACIÓN ===
@@ -552,17 +559,22 @@ class NetworkPublisher(Node):
                 self.ignore_imu = False
 
 
-        
         # --- STD magnitud total ---
         self.accel_std = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
         self.accel_std2 = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
 
         self.last_accel_std = self.accel_std
 
-        self.maxstd.append(self.accel_std)
 
-        # Mostrar información
-        #print(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {accel_mag:.2f} m/s², STD Z: {self.accel_std:.4f}")
+        #METRICAS
+        self.maxstd.append(self.accel_std) #Max std
+        # Guardar historial
+        self.roll_history.append(roll_centered)
+        self.pitch_history.append(self.pitch)
+
+        # Calcular RMS
+        self.roll_rms = np.sqrt(np.mean(np.square(self.roll_history)))
+        self.pitch_rms = np.sqrt(np.mean(np.square(self.pitch_history)))
 
     def publish_twist(self, linear_x=None, linear_y=None, angular_z=None):
         if not hasattr(self, "_twist"):
