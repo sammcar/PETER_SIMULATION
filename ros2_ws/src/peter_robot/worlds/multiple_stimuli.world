@@ -1,0 +1,111 @@
+<?xml version="1.0" ?>
+<!--
+  multiple_stimuli.world
+  Mundo reproducible para "Pruebas con múltiples estímulos".
+
+  Configuración de estímulos vía argumentos de lanzamiento (ver multiple_stimuli.launch.py):
+    spawn_red   : "true" | "false"   (default: "true")
+    spawn_blue  : "true" | "false"   (default: "true")
+    spawn_green : "true" | "false"   (default: "true")
+    red_x, red_y     : posición del estímulo hostil   (default: 4.0,  2.0)
+    blue_x, blue_y   : posición del estímulo apetente (default: 4.0, -2.0)
+    green_x, green_y : posición del obstáculo         (default: 3.0,  0.0)
+
+  El robot se coloca en pose fija (x=0, y=0, yaw=0) por el launch file.
+  Terreno: plano, sin ruido, fricción estándar.
+  Los tres estímulos pueden activarse/desactivarse para estudiar conflictos.
+-->
+<sdf version="1.6">
+  <world name="multiple_stimuli">
+
+    <!-- ===== Plugins de simulación ===== -->
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-contact-system"
+            name="gz::sim::systems::Contact"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu"/>
+
+    <!-- ===== Iluminación ===== -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>1.0 1.0 1.0 1</diffuse>
+      <specular>1.0 1.0 1.0 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- ===== Condiciones globales ===== -->
+    <gravity>0 0 -9.8</gravity>
+    <magnetic_field>5.5644999999999998e-06 2.2875799999999999e-05 -4.2388400000000002e-05</magnetic_field>
+    <atmosphere type="adiabatic"/>
+    <scene>
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.7 0.7 0.7 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- ===== Terreno plano (100 x 100 m, sin ruido) ===== -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
+              </ode>
+            </friction>
+            <bounce/>
+            <contact/>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.8 0.8 0.8 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!--
+      Los estímulos se inyectan dinámicamente por multiple_stimuli.launch.py
+      mediante ros_gz_sim create con los archivos SDF de los modelos.
+      No se incluyen aquí para mantener la parametrización en el launch file.
+    -->
+
+  </world>
+</sdf>

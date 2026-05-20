@@ -28,6 +28,7 @@ setup(
         (os.path.join('share', package_name, 'meshes'), glob('meshes/*')),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
         (os.path.join('share', package_name, 'config'), glob('config/*')),
+        (os.path.join('share', package_name, 'docs'), glob('docs/*')),
     ] + get_model_data_files(),  # ✅ Aquí se agregan los modelos con estructura
     install_requires=['setuptools'],
     zip_safe=True,
@@ -40,6 +41,7 @@ setup(
         'console_scripts': [
             'peter_controller = src.peter_controller:main',
             'peter_teleop_keyboard = src.peter_teleop_keyboard:main',
+            'peter_teleop_stdin = src.peter_teleop_stdin:main',
             'peter_test_joints = src.test_move_joints:main',
             'red_neuronal = src.red_neuronal:main',
             'camera_node = src.camera_node:main',
@@ -47,7 +49,8 @@ setup(
             'plotter = src.plotter:main',
             'raster_graphic_node = src.raster_graphic_node:main',
             'live_signals = src.live_signals:main',
-            'keyboard_control = src.keyboard_control:main'
+            'keyboard_control = src.keyboard_control:main',
+            'neural_recorder = src.neural_recorder:main',
         ],
     },
 )
