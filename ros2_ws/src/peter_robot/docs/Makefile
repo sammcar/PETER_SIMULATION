@@ -1,26 +1,5 @@
 # Makefile — PETER Simulation Experiments
 # Entorno: Docker (peter_sim_dev) + ROS 2 Humble + Gazebo Fortress
-# Host: WSL2 Ubuntu 22.04  |  Contenedor: peter_sim_dev
-#
-# Uso rápido:
-#   make help                   — muestra todos los targets
-#   make build                  — compila el workspace en el contenedor
-#   make sim-single             — lanza simulación de estímulo único (rojo)
-#   make sim-multi              — lanza simulación de múltiples estímulos
-#   make teleop-host            — teleoperación desde host WSL (stdin, recomendado)
-#   make teleop-container       — teleoperación dentro del contenedor (pynput)
-#   make record                 — lanza solo el nodo de métricas
-#
-# Variables configurables:
-#   CONTAINER   nombre del contenedor Docker      (default: peter_sim_dev)
-#   WS          ruta del workspace en contenedor  (default: /ros2_ws)
-#   DOMAIN_ID   ROS_DOMAIN_ID                     (default: 0)
-#   STIM        tipo de estímulo único            (default: red)
-#   STIM_X      coordenada X del estímulo         (default: 4.0)
-#   STIM_Y      coordenada Y del estímulo         (default: 0.0)
-#   SPAWN_RED   lanzar estímulo rojo en multi     (default: true)
-#   SPAWN_BLUE  lanzar estímulo azul en multi     (default: true)
-#   SPAWN_GREEN lanzar obstáculo verde en multi   (default: false)
 
 CONTAINER   ?= peter_sim_dev
 WS          ?= /ros2_ws
@@ -32,92 +11,98 @@ SPAWN_RED   ?= true
 SPAWN_BLUE  ?= true
 SPAWN_GREEN ?= false
 
-# Prefijo para ejecutar comandos dentro del contenedor
 DC = docker exec -it $(CONTAINER) bash -c
 
-# Source del workspace en el contenedor
-SOURCE = source /opt/ros/humble/setup.bash && source $(WS)/install/setup.bash
+# Solo ROS base para compilar
+ROS_SOURCE = source /opt/ros/humble/setup.bash
 
-.PHONY: help build clean sim-single sim-multi teleop-host teleop-container \
-        record shell chown-ws
+# ROS + overlay del workspace ya compilado
+WS_SOURCE = source /opt/ros/humble/setup.bash && source $(WS)/install/setup.bash
 
-# ─────────────────────────────────────────────────────────────────────────────
+.PHONY: help build rebuild clean clean-all sim-single sim-multi teleop-host teleop-container \
+        teleop-stdin-container record neural shell chown-ws echo-metrics echo-status \
+        list-topics check-install
+
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
-	  awk 'BEGIN{FS=":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	  awk 'BEGIN{FS=":.*?## "}; {printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}'
 
-# ─────────────────────────────────────────────────────────────────────────────
-build: ## Compila el workspace con symlink-install (dentro del contenedor)
-	$(DC) "cd $(WS) && $(SOURCE) && \
-	       colcon build --symlink-install 2>&1"
+build: ## Compila el workspace dentro del contenedor
+	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build --symlink-install"
 
-clean: ## Limpia build/, install/ y log/ del workspace
+rebuild: ## Limpia y recompila el workspace dentro del contenedor
+	$(DC) "cd $(WS) && rm -rf build install log && $(ROS_SOURCE) && colcon build --symlink-install"
+
+clean: ## Limpia build/, install/ y log/ del workspace dentro del contenedor
 	$(DC) "rm -rf $(WS)/build $(WS)/install $(WS)/log"
 
-chown-ws: ## Corrige permisos si colcon build generó archivos root-owned en el host
-	@echo "Ejecuta en WSL host (requiere sudo):"
+clean-all: ## Limpia build/install/log también en el host montado
+	rm -rf ~/PETER_SIMULATION/ros2_ws/build ~/PETER_SIMULATION/ros2_ws/install ~/PETER_SIMULATION/ros2_ws/log
+
+check-install: ## Verifica que el paquete peter_robot exista en el install space
+	$(DC) "test -f $(WS)/install/peter_robot/share/peter_robot/package.xml && echo '[OK] peter_robot instalado' || (echo '[ERROR] peter_robot no está instalado'; exit 1)"
+
+chown-ws: ## Corrige permisos root-owned en el host
+	@echo "Ejecuta en WSL host:"
 	@echo "  sudo chown -R \$$(id -u):\$$(id -g) ~/PETER_SIMULATION/ros2_ws"
 
-# ─────────────────────────────────────────────────────────────────────────────
-sim-single: ## Lanza simulación de único estímulo (STIM=red|blue|green)
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && \
+sim-single: check-install ## Lanza simulación de único estímulo
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 launch peter_robot single_stimulus.launch.py \
 	         stimulus_type:=$(STIM) stimulus_x:=$(STIM_X) stimulus_y:=$(STIM_Y)"
 
-sim-single-blue: ## Lanza simulación de único estímulo azul (apetente)
+sim-single-blue: ## Simulación single estímulo azul
 	$(MAKE) sim-single STIM=blue STIM_X=4.0 STIM_Y=0.0
 
-sim-single-red: ## Lanza simulación de único estímulo rojo (hostil)
+sim-single-red: ## Simulación single estímulo rojo
 	$(MAKE) sim-single STIM=red STIM_X=4.0 STIM_Y=0.0
 
-sim-single-green: ## Lanza simulación de único estímulo verde (obstáculo)
+sim-single-green: ## Simulación single estímulo verde
 	$(MAKE) sim-single STIM=green STIM_X=3.0 STIM_Y=0.0
 
-sim-multi: ## Lanza simulación con múltiples estímulos simultáneos
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && \
+sim-multi: check-install ## Lanza simulación con múltiples estímulos
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 launch peter_robot multiple_stimuli.launch.py \
 	         spawn_red:=$(SPAWN_RED) spawn_blue:=$(SPAWN_BLUE) spawn_green:=$(SPAWN_GREEN)"
 
-sim-multi-conflict: ## Lanza simulación con estímulos rojo+azul (conflicto máximo)
+sim-multi-conflict: ## Rojo + azul
 	$(MAKE) sim-multi SPAWN_RED=true SPAWN_BLUE=true SPAWN_GREEN=false
 
-sim-multi-full: ## Lanza simulación con los tres estímulos activos
+sim-multi-full: ## Rojo + azul + verde
 	$(MAKE) sim-multi SPAWN_RED=true SPAWN_BLUE=true SPAWN_GREEN=true
 
-# ─────────────────────────────────────────────────────────────────────────────
-teleop-host: ## Teleoperación por stdin desde el HOST WSL (recomendado)
-	@echo "[Teleop] Ejecutando en host WSL — captura de teclado via stdin"
-	@cd ../../.. && python3 src/peter_robot/src/peter_teleop_stdin.py
+teleop-host: ## Teleop stdin desde host WSL
+	cd ~/PETER_SIMULATION/ros2_ws && \
+	source /opt/ros/humble/setup.bash && \
+	source install/setup.bash && \
+	python3 src/peter_robot/src/peter_teleop_stdin.py
 
-teleop-container: ## Teleoperación por pynput dentro del contenedor
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && \
+teleop-container: check-install ## Teleop pynput dentro del contenedor
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 run peter_robot peter_teleop_keyboard"
 
-teleop-stdin-container: ## Teleoperación por stdin dentro del contenedor
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && \
+teleop-stdin-container: check-install ## Teleop stdin dentro del contenedor
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 run peter_robot peter_teleop_stdin"
 
-# ─────────────────────────────────────────────────────────────────────────────
-record: ## Lanza solo el nodo de métricas neuronales (para adjuntar a sim en curso)
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && \
-	       ros2 run peter_robot neural_recorder \
-	         --ros-args -p experiment_type:=manual"
+record: check-install ## Lanza solo el nodo de métricas
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
+	       ros2 run peter_robot neural_recorder --ros-args -p experiment_type:=manual"
 
-neural: ## Lanza solo la red neuronal
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && \
+neural: check-install ## Lanza solo la red neuronal
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 run peter_robot red_neuronal"
 
-# ─────────────────────────────────────────────────────────────────────────────
-shell: ## Abre una shell interactiva dentro del contenedor
+shell: ## Abre shell en el contenedor
 	docker exec -it $(CONTAINER) bash
 
-echo-metrics: ## Muestra las métricas en tiempo real (host o contenedor)
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && \
+echo-metrics: check-install ## Muestra métricas en tiempo real
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
+	       ros2 topic echo /experiment/metrics"
+
+echo-status: check-install ## Muestra status JSON
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 topic echo /experiment/status"
 
-echo-status: ## Muestra el status JSON de la simulación
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && \
-	       ros2 topic echo /experiment/status std_msgs/msg/String"
-
-list-topics: ## Lista los topics activos
-	$(DC) "ROS_DOMAIN_ID=$(DOMAIN_ID) $(SOURCE) && ros2 topic list"
+list-topics: check-install ## Lista topics activos
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && ros2 topic list"
