@@ -11,14 +11,14 @@
 # Sin argumentos: menú interactivo para seleccionar qué exportar.
 #
 # Variables configurables (se pueden sobreescribir desde el entorno):
-#   CONTAINER           Nombre del contenedor  (por defecto: peter_sim_dev)
+#   CONTAINER           Nombre del contenedor  (por defecto: peter_simulation)
 #   CONTAINER_RESULTS   Ruta de resultados dentro del contenedor
 #   HOST_RESULTS        Ruta de destino en el host
 
 set -euo pipefail
 
 # ── Configuración ─────────────────────────────────────────────────────────────
-CONTAINER="${CONTAINER:-peter_sim_dev}"
+CONTAINER="${CONTAINER:-peter_simulation}"
 CONTAINER_RESULTS="${CONTAINER_RESULTS:-/root/peter_experiments}"
 # Destino en el host: ruta absoluta relativa al script → src/peter_robot/docs/resultados
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -328,7 +328,7 @@ for arg in "$@"; do
             echo "  --clean     Elimina todos los resultados del contenedor"
             echo ""
             echo "Variables de entorno:"
-            echo "  CONTAINER          Nombre del contenedor   (por defecto: peter_sim_dev)"
+            echo "  CONTAINER          Nombre del contenedor   (por defecto: peter_simulation)"
             echo "  CONTAINER_RESULTS  Ruta de resultados      (por defecto: /root/peter_experiments)"
             echo "  HOST_RESULTS       Ruta destino en host    (por defecto: <package>/docs/resultados)"
             exit 0

@@ -2,7 +2,7 @@
 
 > **ROS distro:** ROS 2 Humble  
 > **Simulador:** Gazebo Fortress (gz-sim 6.x)  
-> **Entorno principal:** Docker (contenedor `peter_sim_dev`) + WSL2 Ubuntu 22.04  
+> **Entorno principal:** Docker (contenedor `peter_simulation`) + WSL2 Ubuntu 22.04  
 > **Workspace host:** `~/PETER_SIMULATION/ros2_ws` → montado en contenedor como `/ros2_ws`
 
 ---
@@ -45,7 +45,7 @@ ros2_ws/src/peter_robot/
 
 ## 2. Configuración Docker
 
-El entorno de ejecución estándar es el contenedor **`peter_sim_dev`** con las
+El entorno de ejecución estándar es el contenedor **`peter_simulation`** con las
 siguientes opciones relevantes:
 
 | Configuración            | Valor                                    |
@@ -55,10 +55,17 @@ siguientes opciones relevantes:
 | X11 / visualización      | `/tmp/.X11-unix` y `$XDG_RUNTIME_DIR` montados |
 | Bind-mount workspace     | Host `~/PETER_SIMULATION/ros2_ws` → `/ros2_ws` |
 
-> **Nombre canónico del contenedor:** `peter_sim_dev`  
+> **Nombre canónico del contenedor:** `peter_simulation`  
 > Este nombre está declarado en `docker-compose.yml` y es el valor por defecto
 > de la variable `CONTAINER` en `docs/Makefile`. Para usar un nombre distinto
 > pasa `CONTAINER=otro_nombre` a cualquier target de make.
+>
+> **Pipeline rápido desde cero:**
+> ```bash
+> make docker-build    # construir imagen
+> make docker-create   # crear y arrancar contenedor
+> make build           # compilar workspace
+> ```
 
 Los cambios editados en WSL / VS Code (Remote-WSL) se reflejan inmediatamente
 en el contenedor gracias al bind-mount.
@@ -75,7 +82,7 @@ asegurar que Gazebo y las librerías nativas se resuelvan correctamente:
 make -f docs/Makefile build
 
 # Equivalente manual
-docker exec -it peter_sim_dev bash -c \
+docker exec -it peter_simulation bash -c \
   "source /opt/ros/humble/setup.bash && \
    cd /ros2_ws && colcon build --symlink-install"
 ```
@@ -117,7 +124,7 @@ make -f docs/Makefile sim-single
 make -f docs/Makefile sim-single STIM=blue STIM_X=3.0 STIM_Y=1.0
 
 # Equivalente directo con ros2 launch (dentro del contenedor)
-docker exec -it peter_sim_dev bash -c \
+docker exec -it peter_simulation bash -c \
   "source /opt/ros/humble/setup.bash && \
    source /ros2_ws/install/setup.bash && \
    ros2 launch peter_robot single_stimulus.launch.py \
@@ -163,7 +170,7 @@ make -f docs/Makefile sim-multi-conflict
 make -f docs/Makefile sim-multi-full
 
 # Equivalente manual
-docker exec -it peter_sim_dev bash -c \
+docker exec -it peter_simulation bash -c \
   "source /opt/ros/humble/setup.bash && \
    source /ros2_ws/install/setup.bash && \
    ros2 launch peter_robot multiple_stimuli.launch.py \
@@ -326,7 +333,7 @@ Requiere que el contenedor tenga acceso a un display X11.
 ```bash
 make -f docs/Makefile teleop-container
 # O directamente:
-docker exec -it peter_sim_dev bash -c \
+docker exec -it peter_simulation bash -c \
   "source /opt/ros/humble/setup.bash && \
    source /ros2_ws/install/setup.bash && \
    ros2 run peter_robot peter_teleop_keyboard"
@@ -339,17 +346,49 @@ docker exec -it peter_sim_dev bash -c \
 
 ## 9. Makefile — targets disponibles
 
-El `docs/Makefile` debe ejecutarse desde `ros2_ws/src/peter_robot/`:
+El `docs/Makefile` puede ejecutarse desde `ros2_ws/src/peter_robot/` o desde la raíz
+del repositorio (`~/PETER_SIMULATION`) usando el `Makefile` raíz:
 
 ```bash
+# Desde la raíz del repositorio (más cómodo)
+cd ~/PETER_SIMULATION
+make help
+
+# O desde el paquete
 cd ~/PETER_SIMULATION/ros2_ws/src/peter_robot
 make -f docs/Makefile help
 ```
 
+### Docker — ciclo de vida del contenedor
+
+| Target             | Descripción                                               |
+|--------------------|-----------------------------------------------------------|
+| `docker-build`     | Construye la imagen `peter_sim:local` desde el Dockerfile |
+| `docker-create`    | Crea el contenedor `peter_simulation` (workspace montado) |
+| `docker-start`     | Inicia el contenedor existente                            |
+| `docker-stop`      | Detiene el contenedor sin eliminarlo                      |
+| `docker-rm`        | Elimina el contenedor                                     |
+| `docker-status`    | Muestra estado del contenedor                             |
+| `docker-logs`      | Muestra últimas 50 líneas de log del contenedor           |
+
+### Flujo inicial desde cero
+
+```bash
+cd ~/PETER_SIMULATION
+make docker-build       # Construir imagen
+make docker-create      # Crear y arrancar el contenedor
+make build              # Compilar workspace dentro del contenedor
+make sim-single         # Lanzar primera simulación
+```
+
+### Workspace y simulaciones
+
 | Target                    | Descripción                                           |
 |---------------------------|-------------------------------------------------------|
 | `build`                   | Compila el workspace en el contenedor                 |
+| `rebuild`                 | Limpia y recompila el workspace                       |
 | `clean`                   | Elimina build/install/log                             |
+| `shell`                   | Shell interactiva en el contenedor                    |
 | `chown-ws`                | Muestra comando para corregir permisos root-owned     |
 | `sim-single`              | Simulación familia A (STIM=red\|blue\|green)          |
 | `sim-single-red`          | Simulación A con estímulo rojo                        |
@@ -363,15 +402,15 @@ make -f docs/Makefile help
 | `record`                  | Lanza solo `neural_recorder`                          |
 | `neural`                  | Lanza solo `red_neuronal`                             |
 | `echo-metrics`            | Muestra `/experiment/metrics` en tiempo real          |
-| `shell`                   | Shell interactiva en el contenedor                    |
 | `list-topics`             | Lista topics ROS 2 activos                            |
 | `export-results`          | **Exporta resultados del contenedor al host (menú interactivo)** |
 | `export-last-result`      | Exporta el resultado más reciente del contenedor      |
 | `list-results`            | Lista los resultados disponibles en el contenedor     |
 | `clean-container-results` | Elimina todos los resultados del contenedor           |
 
-Variables de entorno configurables: `CONTAINER`, `WS`, `DOMAIN_ID`, `STIM`,
-`STIM_X`, `STIM_Y`, `SPAWN_RED`, `SPAWN_BLUE`, `SPAWN_GREEN`.
+Variables configurables: `CONTAINER` (por defecto `peter_simulation`), `IMAGE`,
+`WS`, `WS_HOST`, `REPO_ROOT`, `DOMAIN_ID`, `STIM`, `STIM_X`, `STIM_Y`,
+`SPAWN_RED`, `SPAWN_BLUE`, `SPAWN_GREEN`.
 
 ---
 
@@ -430,5 +469,5 @@ make -f docs/Makefile clean-container-results
 - Builds dentro del contenedor pueden generar archivos `root`-owned en el host.
   Para corregir: `sudo chown -R $(id -u):$(id -g) ~/PETER_SIMULATION/ros2_ws`.
 - `ROS_DOMAIN_ID=0` por defecto; cambiar con `DOMAIN_ID=<n>` en make targets.
-- Para añadir `peter_sim_dev` al PATH de `GAZEBO_MODEL_PATH`, los launch files
+- Para añadir `peter_simulation` al PATH de `GAZEBO_MODEL_PATH`, los launch files
   lo configuran automáticamente mediante `SetEnvironmentVariable`.
