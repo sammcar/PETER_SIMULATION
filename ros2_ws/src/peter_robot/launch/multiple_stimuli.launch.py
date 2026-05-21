@@ -225,8 +225,18 @@ def generate_launch_description():
         )
     ])
 
+    peter_controller = TimerAction(period=9.0, actions=[
+        Node(
+            package=PACKAGE_NAME,
+            executable='peter_controller',
+            name='peter_controller',
+            output='screen',
+        )
+    ])
+
+
     # ---- Application nodes ----
-    neural_network = TimerAction(period=9.0, actions=[
+    neural_network = TimerAction(period=9.5, actions=[
         Node(
             package=PACKAGE_NAME,
             executable='red_neuronal',
@@ -273,6 +283,7 @@ def generate_launch_description():
             load_forward,
             load_head,
             load_velocity,
+            peter_controller,
             neural_network,
             camera_node,
             neural_recorder,

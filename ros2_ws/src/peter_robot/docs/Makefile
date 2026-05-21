@@ -104,5 +104,9 @@ echo-status: check-install ## Muestra status JSON
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 topic echo /experiment/status"
 
+echo-neurons: check-install ## Muestra estado de las neuronas
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
+	       ros2 topic echo /neuron_activity"
+
 list-topics: check-install ## Lista topics activos
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && ros2 topic list"
