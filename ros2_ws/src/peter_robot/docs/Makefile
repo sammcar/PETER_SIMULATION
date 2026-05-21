@@ -1,11 +1,19 @@
 # Makefile — PETER Simulation Experiments
-# Entorno: Docker (peter_sim_dev) + ROS 2 Humble + Gazebo Fortress
+# Entorno: Docker (peter_simulation) + ROS 2 Humble + Gazebo Fortress
 #
-# Nombre canónico del contenedor: peter_sim_dev
+# Nombre canónico del contenedor: peter_simulation
 # Debe coincidir con el container_name definido en docker-compose.yml.
 # Para usar otro contenedor: make <target> CONTAINER=mi_contenedor
 
-CONTAINER   ?= peter_sim_dev
+# ── Variables Docker ──────────────────────────────────────────────────────────
+# Raíz del repositorio en el host (ajustar si el repo está en otra ruta)
+REPO_ROOT   ?= $(HOME)/PETER_SIMULATION
+# Nombre de la imagen Docker del proyecto
+IMAGE       ?= peter_sim:local
+# Nombre canónico del contenedor — NO cambiar salvo sobreescritura explícita
+CONTAINER   ?= peter_simulation
+# Ruta del workspace en el host (se monta en $(WS) dentro del contenedor)
+WS_HOST     ?= $(REPO_ROOT)/ros2_ws
 WS          ?= /ros2_ws
 DOMAIN_ID   ?= 0
 STIM        ?= red
@@ -28,17 +36,104 @@ EXPORT_SCRIPT ?= ../scripts/export_results.sh
 
 .PHONY: help build rebuild clean clean-all sim-single sim-multi teleop-host teleop-container \
         teleop-stdin-container record neural shell chown-ws echo-metrics echo-status \
-        list-topics check-install \
+        list-topics check-install check-container \
+        docker-build docker-create docker-start docker-stop docker-rm docker-status docker-logs \
         export-results export-last-result list-results clean-container-results
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
-	  awk 'BEGIN{FS=":.*?## "}; {printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2}'
+	  awk 'BEGIN{FS=":.*?## "}; {printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2}'
 
-build: ## Compila el workspace dentro del contenedor
+# ── Comprobaciones de estado ──────────────────────────────────────────────────
+
+check-container: ## Verifica que el contenedor esté corriendo (muestra error accionable si no)
+	@if ! docker inspect --format '{{.State.Running}}' $(CONTAINER) 2>/dev/null | grep -q true; then \
+	  echo ""; \
+	  echo "  [ERROR] El contenedor '$(CONTAINER)' no está corriendo."; \
+	  if docker inspect $(CONTAINER) &>/dev/null; then \
+	    echo "  → Inícialo con:  make -f docs/Makefile docker-start"; \
+	  else \
+	    echo "  → Créalo con:    make -f docs/Makefile docker-create"; \
+	    echo "  → Si la imagen no existe, primero:  make -f docs/Makefile docker-build"; \
+	  fi; \
+	  echo ""; \
+	  exit 1; \
+	fi
+
+# ── Docker — ciclo de vida del contenedor ─────────────────────────────────────
+
+docker-build: ## Construye la imagen Docker del proyecto ($(IMAGE))
+	@echo "[docker-build] Construyendo imagen $(IMAGE) desde $(REPO_ROOT) ..."
+	docker build -t $(IMAGE) $(REPO_ROOT)
+	@echo "[docker-build] ✓ Imagen $(IMAGE) lista."
+
+docker-create: ## Crea el contenedor (sin iniciarlo si ya existe); requiere imagen
+	@if ! docker image inspect $(IMAGE) &>/dev/null; then \
+	  echo ""; \
+	  echo "  [ERROR] La imagen '$(IMAGE)' no existe."; \
+	  echo "  → Constrúyela con:  make -f docs/Makefile docker-build"; \
+	  echo ""; \
+	  exit 1; \
+	fi
+	@if docker inspect $(CONTAINER) &>/dev/null; then \
+	  echo "[docker-create] El contenedor '$(CONTAINER)' ya existe."; \
+	  echo "  → Inícialo con:   make -f docs/Makefile docker-start"; \
+	  echo "  → Elimínalo con:  make -f docs/Makefile docker-rm  (se perderán los datos internos)"; \
+	  exit 0; \
+	fi
+	@echo "[docker-create] Creando contenedor $(CONTAINER) ..."
+	docker run -d --name $(CONTAINER) \
+	  --network host \
+	  -e DISPLAY=$${DISPLAY:-:0} \
+	  -e WAYLAND_DISPLAY=$${WAYLAND_DISPLAY:-} \
+	  -e XDG_RUNTIME_DIR=$${XDG_RUNTIME_DIR:-/tmp} \
+	  -e QT_X11_NO_MITSHM=1 \
+	  -e ROS_DOMAIN_ID=$(DOMAIN_ID) \
+	  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+	  -v $(WS_HOST):$(WS):rw \
+	  --restart unless-stopped \
+	  $(IMAGE) sleep infinity
+	@echo "[docker-create] ✓ Contenedor '$(CONTAINER)' creado y corriendo."
+	@echo "  → Abre una shell:  make -f docs/Makefile shell"
+	@echo "  → Compila:         make -f docs/Makefile build"
+
+docker-start: ## Inicia un contenedor existente que estaba detenido
+	@if ! docker inspect $(CONTAINER) &>/dev/null; then \
+	  echo ""; \
+	  echo "  [ERROR] El contenedor '$(CONTAINER)' no existe."; \
+	  echo "  → Créalo con:  make -f docs/Makefile docker-create"; \
+	  echo ""; \
+	  exit 1; \
+	fi
+	docker start $(CONTAINER)
+	@echo "[docker-start] ✓ Contenedor '$(CONTAINER)' iniciado."
+
+docker-stop: ## Detiene el contenedor sin eliminarlo
+	@docker stop $(CONTAINER) 2>/dev/null \
+	  && echo "[docker-stop] ✓ Contenedor '$(CONTAINER)' detenido." \
+	  || echo "[docker-stop] El contenedor '$(CONTAINER)' no estaba corriendo."
+
+docker-rm: ## Elimina el contenedor (lo detiene primero si está corriendo)
+	@echo "[docker-rm] Eliminando contenedor '$(CONTAINER)' ..."
+	@docker rm -f $(CONTAINER) 2>/dev/null && \
+	  echo "[docker-rm] ✓ Contenedor '$(CONTAINER)' eliminado." || \
+	  echo "[docker-rm] El contenedor '$(CONTAINER)' no existía."
+
+docker-status: ## Muestra el estado actual del contenedor
+	@docker inspect --format \
+	  'Contenedor: {{.Name}}  Estado: {{.State.Status}}  PID: {{.State.Pid}}' \
+	  $(CONTAINER) 2>/dev/null \
+	  || echo "[INFO] El contenedor '$(CONTAINER)' no existe. Usa 'make docker-create'."
+
+docker-logs: ## Muestra las últimas 50 líneas de log del contenedor
+	@docker logs --tail=50 $(CONTAINER) 2>/dev/null \
+	  || echo "[ERROR] No se pueden obtener logs: contenedor '$(CONTAINER)' no existe."
+
+
+build: check-container ## Compila el workspace dentro del contenedor
 	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build --symlink-install"
 
-rebuild: ## Limpia y recompila el workspace dentro del contenedor
+rebuild: check-container ## Limpia y recompila el workspace dentro del contenedor
 	$(DC) "cd $(WS) && rm -rf build install log && $(ROS_SOURCE) && colcon build --symlink-install"
 
 clean: ## Limpia build/, install/ y log/ del workspace dentro del contenedor
@@ -47,7 +142,7 @@ clean: ## Limpia build/, install/ y log/ del workspace dentro del contenedor
 clean-all: ## Limpia build/install/log también en el host montado
 	rm -rf ~/PETER_SIMULATION/ros2_ws/build ~/PETER_SIMULATION/ros2_ws/install ~/PETER_SIMULATION/ros2_ws/log
 
-check-install: ## Verifica que el paquete peter_robot exista en el install space
+check-install: check-container ## Verifica que el paquete peter_robot exista en el install space
 	$(DC) "test -f $(WS)/install/peter_robot/share/peter_robot/package.xml && echo '[OK] peter_robot instalado' || (echo '[ERROR] peter_robot no está instalado'; exit 1)"
 
 chown-ws: ## Corrige permisos root-owned en el host
@@ -101,7 +196,7 @@ neural: check-install ## Lanza solo la red neuronal
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 run peter_robot red_neuronal"
 
-shell: ## Abre shell en el contenedor
+shell: check-container ## Abre shell en el contenedor
 	docker exec -it $(CONTAINER) bash
 
 echo-metrics: check-install ## Muestra métricas en tiempo real
