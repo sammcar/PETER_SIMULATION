@@ -18,7 +18,8 @@
 7. [Métricas calculadas](#7-métricas-calculadas)
 8. [Teleoperación](#8-teleoperación)
 9. [Makefile — targets disponibles](#9-makefile--targets-disponibles)
-10. [Permisos y notas de build](#10-permisos-y-notas-de-build)
+10. [Exportación de resultados](#10-exportación-de-resultados)
+11. [Permisos y notas de build](#11-permisos-y-notas-de-build)
 
 ---
 
@@ -53,6 +54,11 @@ siguientes opciones relevantes:
 | `ROS_DOMAIN_ID`          | `0` (por defecto)                        |
 | X11 / visualización      | `/tmp/.X11-unix` y `$XDG_RUNTIME_DIR` montados |
 | Bind-mount workspace     | Host `~/PETER_SIMULATION/ros2_ws` → `/ros2_ws` |
+
+> **Nombre canónico del contenedor:** `peter_sim_dev`  
+> Este nombre está declarado en `docker-compose.yml` y es el valor por defecto
+> de la variable `CONTAINER` en `docs/Makefile`. Para usar un nombre distinto
+> pasa `CONTAINER=otro_nombre` a cualquier target de make.
 
 Los cambios editados en WSL / VS Code (Remote-WSL) se reflejan inmediatamente
 en el contenedor gracias al bind-mount.
@@ -340,32 +346,85 @@ cd ~/PETER_SIMULATION/ros2_ws/src/peter_robot
 make -f docs/Makefile help
 ```
 
-| Target                | Descripción                                           |
-|-----------------------|-------------------------------------------------------|
-| `build`               | Compila el workspace en el contenedor                 |
-| `clean`               | Elimina build/install/log                             |
-| `chown-ws`            | Muestra comando para corregir permisos root-owned     |
-| `sim-single`          | Simulación familia A (STIM=red\|blue\|green)          |
-| `sim-single-red`      | Simulación A con estímulo rojo                        |
-| `sim-single-blue`     | Simulación A con estímulo azul                        |
-| `sim-single-green`    | Simulación A con obstáculo verde                      |
-| `sim-multi`           | Simulación familia B (configurable)                   |
-| `sim-multi-conflict`  | Simulación B: rojo + azul (conflicto)                 |
-| `sim-multi-full`      | Simulación B: los tres estímulos                      |
-| `teleop-host`         | Teleop stdin desde host WSL                           |
-| `teleop-container`    | Teleop pynput dentro del contenedor                   |
-| `record`              | Lanza solo `neural_recorder`                          |
-| `neural`              | Lanza solo `red_neuronal`                             |
-| `echo-metrics`        | Muestra `/experiment/metrics` en tiempo real          |
-| `shell`               | Shell interactiva en el contenedor                    |
-| `list-topics`         | Lista topics ROS 2 activos                            |
+| Target                    | Descripción                                           |
+|---------------------------|-------------------------------------------------------|
+| `build`                   | Compila el workspace en el contenedor                 |
+| `clean`                   | Elimina build/install/log                             |
+| `chown-ws`                | Muestra comando para corregir permisos root-owned     |
+| `sim-single`              | Simulación familia A (STIM=red\|blue\|green)          |
+| `sim-single-red`          | Simulación A con estímulo rojo                        |
+| `sim-single-blue`         | Simulación A con estímulo azul                        |
+| `sim-single-green`        | Simulación A con obstáculo verde                      |
+| `sim-multi`               | Simulación familia B (configurable)                   |
+| `sim-multi-conflict`      | Simulación B: rojo + azul (conflicto)                 |
+| `sim-multi-full`          | Simulación B: los tres estímulos                      |
+| `teleop-host`             | Teleop stdin desde host WSL                           |
+| `teleop-container`        | Teleop pynput dentro del contenedor                   |
+| `record`                  | Lanza solo `neural_recorder`                          |
+| `neural`                  | Lanza solo `red_neuronal`                             |
+| `echo-metrics`            | Muestra `/experiment/metrics` en tiempo real          |
+| `shell`                   | Shell interactiva en el contenedor                    |
+| `list-topics`             | Lista topics ROS 2 activos                            |
+| `export-results`          | **Exporta resultados del contenedor al host (menú interactivo)** |
+| `export-last-result`      | Exporta el resultado más reciente del contenedor      |
+| `list-results`            | Lista los resultados disponibles en el contenedor     |
+| `clean-container-results` | Elimina todos los resultados del contenedor           |
 
 Variables de entorno configurables: `CONTAINER`, `WS`, `DOMAIN_ID`, `STIM`,
 `STIM_X`, `STIM_Y`, `SPAWN_RED`, `SPAWN_BLUE`, `SPAWN_GREEN`.
 
 ---
 
-## 10. Permisos y notas de build
+## 10. Exportación de resultados
+
+Los archivos CSV generados por `neural_recorder` se guardan dentro del contenedor
+en `/root/peter_experiments/<exp_type>_<timestamp>/`. Para extraerlos al host:
+
+### Exportación interactiva (recomendada)
+
+```bash
+cd ~/PETER_SIMULATION/ros2_ws/src/peter_robot
+make -f docs/Makefile export-results
+```
+
+El script `scripts/export_results.sh` guía al usuario paso a paso:
+1. Detecta si el contenedor está corriendo.
+2. Lista las sesiones disponibles.
+3. Permite seleccionar una o varias (con `fzf` si está instalado, o menú numerado).
+4. Ofrece renombrar el directorio exportado.
+5. Copia a `docs/resultados/` dentro del paquete (host path:
+   `~/PETER_SIMULATION/ros2_ws/src/peter_robot/docs/resultados/`).
+6. Ofrece eliminar los archivos exportados del contenedor para liberar espacio.
+
+### Otros targets de exportación
+
+```bash
+# Solo listar resultados sin exportar
+make -f docs/Makefile list-results
+
+# Exportar automáticamente el más reciente (confirma nombre y borrado)
+make -f docs/Makefile export-last-result
+
+# Borrar TODOS los resultados del contenedor (pide confirmación)
+make -f docs/Makefile clean-container-results
+```
+
+### Dónde quedan los resultados exportados
+
+```
+~/PETER_SIMULATION/ros2_ws/src/peter_robot/docs/resultados/
+└── <exp_type>_<timestamp>/
+    └── metrics.csv
+```
+
+> **Nota:** La carpeta `docs/resultados/` se crea automáticamente si no existe.
+> Los archivos CSV están en `.gitignore` del paquete para no subir datos brutos al repo.
+> Si quieres versionar un resultado, muévelo a una carpeta con nombre significativo
+> fuera de `docs/resultados/` y haz commit manualmente.
+
+---
+
+## 11. Permisos y notas de build
 
 - **Siempre usar `colcon build --symlink-install`** para desarrollo iterativo.
 - Builds dentro del contenedor pueden generar archivos `root`-owned en el host.

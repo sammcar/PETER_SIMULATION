@@ -11,7 +11,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: peter_simulation
+    container_name: peter_sim_dev
     # ⚠️ network_mode: host expone todos los puertos del contenedor al host.
     # Reduce el aislamiento de red. Usar únicamente en entornos de desarrollo local.
     # ROS 2 DDS requiere red compartida para descubrimiento automático de nodos.
@@ -43,7 +43,7 @@ services:
   # Servicio headless (sin GUI) para CI o servidores remotos
   peter_sim_headless:
     image: peter_sim:local
-    container_name: peter_simulation_headless
+    container_name: peter_sim_dev_headless
     network_mode: host
     environment:
       - ROS_DOMAIN_ID=0
