@@ -1,5 +1,9 @@
 # Makefile — PETER Simulation Experiments
 # Entorno: Docker (peter_sim_dev) + ROS 2 Humble + Gazebo Fortress
+#
+# Nombre canónico del contenedor: peter_sim_dev
+# Debe coincidir con el container_name definido en docker-compose.yml.
+# Para usar otro contenedor: make <target> CONTAINER=mi_contenedor
 
 CONTAINER   ?= peter_sim_dev
 WS          ?= /ros2_ws
@@ -19,9 +23,13 @@ ROS_SOURCE = source /opt/ros/humble/setup.bash
 # ROS + overlay del workspace ya compilado
 WS_SOURCE = source /opt/ros/humble/setup.bash && source $(WS)/install/setup.bash
 
+# Ruta al script de exportación (relativa al Makefile, que vive en docs/)
+EXPORT_SCRIPT ?= ../scripts/export_results.sh
+
 .PHONY: help build rebuild clean clean-all sim-single sim-multi teleop-host teleop-container \
         teleop-stdin-container record neural shell chown-ws echo-metrics echo-status \
-        list-topics check-install
+        list-topics check-install \
+        export-results export-last-result list-results clean-container-results
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
@@ -110,3 +118,21 @@ echo-neurons: check-install ## Muestra estado de las neuronas
 
 list-topics: check-install ## Lista topics activos
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && ros2 topic list"
+
+# ── Exportación de resultados ─────────────────────────────────────────────────
+
+export-results: ## Exporta resultados del contenedor al host (menú interactivo)
+	@chmod +x $(EXPORT_SCRIPT)
+	CONTAINER=$(CONTAINER) bash $(EXPORT_SCRIPT)
+
+export-last-result: ## Exporta el resultado más reciente del contenedor
+	@chmod +x $(EXPORT_SCRIPT)
+	CONTAINER=$(CONTAINER) bash $(EXPORT_SCRIPT) --last
+
+list-results: ## Lista los resultados disponibles en el contenedor
+	@chmod +x $(EXPORT_SCRIPT)
+	CONTAINER=$(CONTAINER) bash $(EXPORT_SCRIPT) --list
+
+clean-container-results: ## Elimina TODOS los resultados del contenedor (pide confirmación)
+	@chmod +x $(EXPORT_SCRIPT)
+	CONTAINER=$(CONTAINER) bash $(EXPORT_SCRIPT) --clean
