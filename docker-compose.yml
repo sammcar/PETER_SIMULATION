@@ -25,7 +25,7 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw       # Socket X11 para GUI (WSLg)
       - ${XDG_RUNTIME_DIR}:${XDG_RUNTIME_DIR}  # Socket Wayland para WSLg
-      - ./ros2_ws/src:/ros2_ws/src:ro          # Montar fuentes para desarrollo iterativo
+      - ./ros2_ws:/ros2_ws:rw          # Montar fuentes para desarrollo iterativo
     deploy:
       resources:
         reservations:

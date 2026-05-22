@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # ============================================================
 # Dockerfile sugerido para PETER_SIMULATION
 # Base: ROS 2 Humble + Gazebo Fortress + soporte NVIDIA

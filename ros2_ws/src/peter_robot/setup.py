@@ -1,7 +1,6 @@
 from setuptools import find_packages, setup
 import os
 from glob import glob
-import shutil
 
 package_name = 'peter_robot'
 
@@ -14,6 +13,9 @@ def get_model_data_files():
             paths.append((os.path.dirname(dst_path), [src_path]))
     return paths
 
+def only_files(pattern):
+    return [f for f in glob(pattern) if os.path.isfile(f)]
+
 setup(
     name=package_name,
     version='0.0.0',
@@ -22,14 +24,14 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name, 'urdf'), glob('urdf/*')),
-        (os.path.join('share', package_name, 'launch'), glob('launch/*')),
-        (os.path.join('share', package_name, 'src'), glob('src/*.py')),
-        (os.path.join('share', package_name, 'meshes'), glob('meshes/*')),
-        (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
-        (os.path.join('share', package_name, 'config'), glob('config/*')),
-        (os.path.join('share', package_name, 'docs'), glob('docs/*')),
-    ] + get_model_data_files(),  # ✅ Aquí se agregan los modelos con estructura
+        (os.path.join('share', package_name, 'urdf'), only_files('urdf/*')),
+        (os.path.join('share', package_name, 'launch'), only_files('launch/*')),
+        (os.path.join('share', package_name, 'src'), only_files('src/*.py')),
+        (os.path.join('share', package_name, 'meshes'), only_files('meshes/*')),
+        (os.path.join('share', package_name, 'worlds'), only_files('worlds/*')),
+        (os.path.join('share', package_name, 'config'), only_files('config/*')),
+        (os.path.join('share', package_name, 'docs'), only_files('docs/*')),
+    ] + get_model_data_files(),
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='sam',

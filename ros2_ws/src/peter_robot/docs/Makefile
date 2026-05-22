@@ -32,7 +32,7 @@ ROS_SOURCE = source /opt/ros/humble/setup.bash
 WS_SOURCE = source /opt/ros/humble/setup.bash && source $(WS)/install/setup.bash
 
 # Ruta al script de exportación (relativa al Makefile, que vive en docs/)
-EXPORT_SCRIPT ?= ../scripts/export_results.sh
+EXPORT_SCRIPT ?= $(REPO_ROOT)/ros2_ws/src/peter_robot/scripts/export_results.sh
 
 .PHONY: help build rebuild clean clean-all sim-single sim-multi teleop-host teleop-container \
         teleop-stdin-container record neural shell chown-ws echo-metrics echo-status \
@@ -68,9 +68,9 @@ docker-build: ## Construye la imagen Docker del proyecto ($(IMAGE))
 	@echo "[docker-build] ✓ Imagen $(IMAGE) lista."
 
 docker-create: ## Crea el contenedor (sin iniciarlo si ya existe); requiere imagen
-	@if ! docker image inspect $(IMAGE) &>/dev/null; then \
+	@if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -Fxq '$(IMAGE)'; then \
 	  echo ""; \
-	  echo "  [ERROR] La imagen '$(IMAGE)' no existe."; \
+	  echo "  [ERROR] La imagen '$(IMAGE)' no existe localmente."; \
 	  echo "  → Constrúyela con:  make -f docs/Makefile docker-build"; \
 	  echo ""; \
 	  exit 1; \
@@ -78,7 +78,7 @@ docker-create: ## Crea el contenedor (sin iniciarlo si ya existe); requiere imag
 	@if docker inspect $(CONTAINER) &>/dev/null; then \
 	  echo "[docker-create] El contenedor '$(CONTAINER)' ya existe."; \
 	  echo "  → Inícialo con:   make -f docs/Makefile docker-start"; \
-	  echo "  → Elimínalo con:  make -f docs/Makefile docker-rm  (se perderán los datos internos)"; \
+	  echo "  → Elimínalo con:  make -f docs/Makefile docker-rm"; \
 	  exit 0; \
 	fi
 	@echo "[docker-create] Creando contenedor $(CONTAINER) ..."
@@ -92,7 +92,7 @@ docker-create: ## Crea el contenedor (sin iniciarlo si ya existe); requiere imag
 	  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
 	  -v $(WS_HOST):$(WS):rw \
 	  --restart unless-stopped \
-	  $(IMAGE) sleep infinity
+	  $(IMAGE) tail -f /dev/null
 	@echo "[docker-create] ✓ Contenedor '$(CONTAINER)' creado y corriendo."
 	@echo "  → Abre una shell:  make -f docs/Makefile shell"
 	@echo "  → Compila:         make -f docs/Makefile build"
