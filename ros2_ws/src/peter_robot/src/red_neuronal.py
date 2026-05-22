@@ -11,6 +11,12 @@ from sensor_msgs.msg import Imu, LaserScan
 from ros_gz_interfaces.msg import Contacts
 from collections import deque 
 import re 
+import subprocess
+"""
+NOTA DIEGO: el tiempo de prueba, goal y noise son constantes que se deben cambiar segun la prueba, se puede hacer un publisher que envie esos valores si no se desea cambiar el código frecuentemente
+La posición del robot se obtiene sin un suscriptor debido a que cuandop se hace el bridge del tópico no se incluyen las etiquetas(headers) de cada objeto de la simulación
+Lo anterior mencionado es una característica de gazebo aunque yo opino que es más un error del propio software
+"""
 
 class NetworkPublisher(Node):
 
@@ -27,6 +33,7 @@ class NetworkPublisher(Node):
 
         self.publisher_ = self.create_publisher(Float32MultiArray, 'neuron_activity', 10)
         self.publisher_imu = self.create_publisher(Float32MultiArray, 'imu_activity', 10)
+        self.rmse_pub = self.create_publisher(Float64, '/rmse_ct', 10) #RMSE
 
         # Modo Inicial
         self.current_mode = 'H' #Original en C
@@ -58,7 +65,7 @@ class NetworkPublisher(Node):
 
         # Timer para llamar la función de control cada segundo
         #self.timer = self.create_timer(0.2, self.run_network) #original
-        self.timer = self.create_timer(0.1, self.run_network)
+        self.timer = self.create_timer(0.2, self.run_network)
 
 
     def initctes(self):
@@ -124,7 +131,7 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 3 #PARA CASO PLANO-RUGOSO-PLANO
+        self.Usigma_az = 2.9 #PARA CASO PLANO-RUGOSO-PLANO
         #self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
         #self.Upitch = 5 #Umbral pitch INCLINADO
         self.Upitch = 20 
@@ -184,12 +191,141 @@ class NetworkPublisher(Node):
         self.roll_rms = 0.0
         self.pitch_rms = 0.0
 
+        #RMSE
+
+        self.goal = np.array([2.0, 0.0])
+        self.start = np.array([0.0, 0.0])
+
+        self.direction = self.goal - self.start
+        self.direction_norm = np.linalg.norm(self.direction)
+
+        # buffers
+        self.errors_ct = []
+        self.duration = 30.0  # duración de la prueba (segundos)
+        self.published = False
+
+
+        # --------------- Metricas de robustez --------------------
+
+
+
+        #RUIDO
+      
+        # Niveles de ruido a evaluar (fracción del valor medido, equivalente a ±%)
+        self.NoiseLevel = [0.0, 0.05, 0.10, 0.20, 0.30]   # 0 % → 5 % → 10 % → 20 % → 30 %
+
+        # Nivel activo en este experimento (índice en NoiseLevel).
+        # Cámbialo antes de cada prueba: 0=limpio, 1=±5%, 2=±10%, etc.
+        self.ACTIVE_NOISE_LEVEL_IDX = 0   # ← MODIFICAR ANTES DE CADA PRUEBA (0 = No ruido)
+
+        # Semilla reproducible (None = aleatoria)
+        self.NoiseSeed = 42
+
+
+        #══════════════════════════════════════════════════════════════
+        #(Robustness Index)
+        # ═══════════════════════════════════════════════════════════════════
+
+        # RNG reproducible
+        self._rng = np.random.default_rng(self.NoiseSeed)
+
+        # Nivel de ruido activo (σ como fracción del valor de entrada)
+        self._sigma_noise = self.NoiseLevel[self.ACTIVE_NOISE_LEVEL_IDX]
+        self.get_logger().info(
+            f"[ROBUSTEZ] Nivel de ruido activo: "
+            f"σ = {self._sigma_noise*100:.0f}%  "
+            f"(índice {self.ACTIVE_NOISE_LEVEL_IDX} de {self.NoiseLevel})"
+        )
+
+
+        #Analisis de Convergencia
+
+        self.V_history = []
+        self.V = 0.0
+
+       
+    # =========================================================================
+    # INYECCIÓN DE RUIDO — funciones auxiliares
+    # =========================================================================
+
+    def _add_gaussian_noise(self, value: float, sigma_fraction: float) -> float:
+        """
+        Añade ruido gaussiano a un escalar.
+        σ_abs = sigma_fraction × |value|   (ruido proporcional al valor)
+        Si value ≈ 0, usa σ_abs mínimo de 1e-4 para evitar ruido cero.
+        """
+        if sigma_fraction == 0.0:
+            return value
+        sigma_abs = max(abs(value) * sigma_fraction, 1e-4)
+        noise = self._rng.normal(0.0, sigma_abs)
+        return value + noise
+
+    def _add_gaussian_noise_array(self, arr: np.ndarray,
+                                  sigma_fraction: float) -> np.ndarray:
+        """
+        Añade ruido gaussiano elemento a elemento a un array numpy.
+        σ_abs[i] = sigma_fraction × |arr[i]|
+        """
+        if sigma_fraction == 0.0:
+            return arr.copy()
+        sigma_abs = np.maximum(np.abs(arr) * sigma_fraction, 1e-4)
+        noise = self._rng.normal(0.0, sigma_abs)
+        return arr + noise
+
+
+    def get_peter_pose(self):
+        cmd = [
+            "gz", "topic",
+            "-e",
+            "-t", "/world/default/pose/info",
+            "-n", "1"
+        ]
+
+        try:
+            output = subprocess.check_output(cmd, timeout=0.3).decode("utf-8")
+        except subprocess.TimeoutExpired:
+            return None
+
+        pattern = r'name: "peter".*?position\s*{\s*x:\s*([-\d.eE]+)\s*y:\s*([-\d.eE]+)\s*z:\s*([-\d.eE]+)'
+        match = re.search(pattern, output, re.DOTALL)
+
+        if match:
+            return tuple(map(float, match.groups()))
+
+        return None
+
+    def cross_track_error(self, p):
+        p2 = p[:2]
+
+        dx = self.direction[0]
+        dy = self.direction[1]
+
+        px = p2[0] - self.start[0]
+        py = p2[1] - self.start[1]
+
+        cross = dx * py - dy * px
+
+        return abs(cross) / self.direction_norm
+
 
     def gausiana(self, theta, omega):
         return np.exp((np.dot(theta, omega) - 1) / (2 * (self.sigma**2)))
 
     def lidar_callback(self, msg):
         ranges = np.array(msg.ranges)
+
+        # ── Inyectar ruido gaussiano al LiDAR ────────────────────────────
+        # σ proporcional al rango medido; NaN/Inf se preservan
+        if self._sigma_noise > 0.0:
+            valid = np.isfinite(ranges)
+            noisy = ranges.copy()
+            noisy[valid] = self._add_gaussian_noise_array(
+                ranges[valid], self._sigma_noise)
+            # Clampear valores negativos (distancia no puede ser < 0)
+            noisy[valid] = np.maximum(noisy[valid], 0.0)
+            ranges = noisy
+
+
         angle_min = msg.angle_min
         angle_increment = msg.angle_increment  
 
@@ -343,24 +479,24 @@ class NetworkPublisher(Node):
                         f"GpeB: {self.Gpe[2,1]}\n"
                         f"ang_p: {self.ang_p}\n"
                         f"ang_s: {self.ang_s}\n"
-                        # f"3: {self.z[3,1]}\n"
-                        # f"4: {self.z[4,1]}\n"
-                        # f"5: {self.z[5,1]}\n"
-                        # f"6: {self.z[6,1]}\n"
-                        # f"7: {self.z[7,1]}\n"
-                        # f"8: {self.z[8,1]}\n"
-                        # f"9: {self.z[9,1]}\n"
-                        # f"10: {self.z[10,1]}\n"
-                        # f"11: {self.z[11,1]}\n"
-                        # f"12: {self.z[12,1]}\n"
-                        # f"13: {self.z[13,1]}\n"
-                        # f"14: {self.z[14,1]}\n"
-                        # f"15: {self.z[15,1]}\n"
-                        # f"16: {self.z[16,1]}\n"
-                        # f"17: {self.z[17,1]}\n"
-                        # f"0: {self.z[0,1]}\n"
-                        # f"1: {self.z[1,1]}\n"
-                        # f"2: {self.z[2,1]}\n"
+                         f"3: {self.z[3,1]}\n"
+                         f"4: {self.z[4,1]}\n"
+                         f"5: {self.z[5,1]}\n"
+                         f"6: {self.z[6,1]}\n"
+                         f"7: {self.z[7,1]}\n"
+                         f"8: {self.z[8,1]}\n"
+                         f"9: {self.z[9,1]}\n"
+                         f"10: {self.z[10,1]}\n"
+                         f"11: {self.z[11,1]}\n"
+                         f"12: {self.z[12,1]}\n"
+                         f"13: {self.z[13,1]}\n"
+                         f"14: {self.z[14,1]}\n"
+                         f"15: {self.z[15,1]}\n"
+                         f"16: {self.z[16,1]}\n"
+                         f"17: {self.z[17,1]}\n"
+                         f"0: {self.z[0,1]}\n"
+                         f"1: {self.z[1,1]}\n"
+                         f"2: {self.z[2,1]}\n"
                         f"roll: {self.roll}\n"
                         f"pitch: {self.pitch}\n"
                         f"STD total: {self.accel_std:.3f}\n"
@@ -492,6 +628,41 @@ class NetworkPublisher(Node):
             print(f"Roll RMS: {self.roll_rms:.3f} deg")
             print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
 
+
+            #-------------- RMSE ------------------
+
+            pose = self.get_peter_pose()
+
+            if pose is None:
+                return
+
+            ct = self.cross_track_error(pose)
+            self.errors_ct.append(ct)
+
+            elapsed = time.time() - self.starttime
+
+            # debug opcional
+            print(f"t={elapsed:.1f}s | CT={ct:.3f}")
+            print(f"X {pose[0]:.4f}")
+            print(f"Y {pose[1]:.4f}")
+            print(f"Z {pose[2]:.4f}")
+
+            # -----------------------------
+            # FINAL DE PRUEBA
+            # -----------------------------
+            if elapsed >= self.duration and not self.published:
+
+                rmse_ct = np.sqrt(np.mean(np.array(self.errors_ct) ** 2))
+
+                msg = Float64()
+                msg.data = float(rmse_ct)
+
+                self.rmse_pub.publish(msg)
+
+                print(f"FINAL RMSE CT = {rmse_ct:.4f}")
+
+                self.published = True
+
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
 
     from std_msgs.msg import Float64
@@ -512,21 +683,46 @@ class NetworkPublisher(Node):
         # Callbacks de cada estímulo
     def red_callback(self, msg):
         if len(msg.data) >= 2:
-            self.posR = msg.data[0]  # Posición en el rango de 0 a 180
-            self.areaBoundingBoxR = msg.data[1]  # Área aproximada
-            # print(f'Red - Pos: {self.posR}, Área: {self.areaBoundingBoxR}')
+            pos_raw  = msg.data[0]
+            area_raw = msg.data[1]
+
+            # ── Inyectar ruido gaussiano a la cámara (bounding box rojo) ─
+            # El área se perturba; la posición angular también
+            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
+            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
+            area_noisy = max(0.0, area_noisy)  # área no puede ser negativa
+
+            self.posR = pos_noisy
+            self.areaBoundingBoxR = area_noisy
+
+
 
     def green_callback(self, msg):
         if len(msg.data) >= 2:
-            self.posG = msg.data[0]
-            self.areaBoundingBoxG = msg.data[1]
-            # print(f'Green - Pos: {self.posG}, Área: {self.areaBoundingBoxG}')
+            pos_raw  = msg.data[0]
+            area_raw = msg.data[1]
+
+            # ── Inyectar ruido gaussiano a la cámara (bounding box azul) ─
+            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
+            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
+            area_noisy = max(0.0, area_noisy)
+
+            self.posG = pos_noisy
+            self.areaBoundingBoxG = area_noisy
+    
 
     def blue_callback(self, msg):
         if len(msg.data) >= 2:
-            self.posB = msg.data[0]
-            self.areaBoundingBoxB = msg.data[1]
-            # print(f'Blue - Pos: {self.posB}, Área: {self.areaBoundingBoxB}')
+            pos_raw  = msg.data[0]
+            area_raw = msg.data[1]
+
+            # ── Inyectar ruido gaussiano a la cámara (bounding box azul) ─
+            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
+            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
+            area_noisy = max(0.0, area_noisy)
+
+            self.posB = pos_noisy
+            self.areaBoundingBoxB = area_noisy
     
     def imu_callback(self, msg):
         # Extraer cuaterniones
@@ -542,7 +738,15 @@ class NetworkPublisher(Node):
 
         # === MÉTODOS DE VIBRACIÓN ===
 
-        ax, ay, az = msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z
+        ax = msg.linear_acceleration.x
+        ay = msg.linear_acceleration.y
+        az = msg.linear_acceleration.z
+
+        # ── Inyectar ruido gaussiano al IMU ──────────────────────────────
+        ax = self._add_gaussian_noise(ax, self._sigma_noise)
+        ay = self._add_gaussian_noise(ay, self._sigma_noise)
+        az = self._add_gaussian_noise(az, self._sigma_noise)
+        
         accel_mag = np.sqrt(ax**2 + ay**2 + az**2)
 
         # --- Guardar en buffers ---
