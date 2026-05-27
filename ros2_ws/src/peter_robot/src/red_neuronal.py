@@ -11,6 +11,12 @@ from sensor_msgs.msg import Imu, LaserScan
 from ros_gz_interfaces.msg import Contacts
 from collections import deque 
 import re 
+import subprocess
+"""
+NOTA DIEGO: el tiempo de prueba, goal y noise son constantes que se deben cambiar segun la prueba, se puede hacer un publisher que envie esos valores si no se desea cambiar el código frecuentemente
+La posición del robot se obtiene sin un suscriptor debido a que cuandop se hace el bridge del tópico no se incluyen las etiquetas(headers) de cada objeto de la simulación
+Lo anterior mencionado es una característica de gazebo aunque yo opino que es más un error del propio software
+"""
 
 class NetworkPublisher(Node):
 
@@ -27,9 +33,10 @@ class NetworkPublisher(Node):
 
         self.publisher_ = self.create_publisher(Float32MultiArray, 'neuron_activity', 10)
         self.publisher_imu = self.create_publisher(Float32MultiArray, 'imu_activity', 10)
+        self.metrics_pub = self.create_publisher(Float32MultiArray, '/Metrics', 10) #Tiempo de respuesta, delay de cambio, amplitud de oscilación, noise
 
         # Modo Inicial
-        self.current_mode = 'C'
+        self.current_mode = 'H' #Original en C
 
         # Intensidad de estimulo
         self.areaBoundingBoxR = 0.0
@@ -57,7 +64,9 @@ class NetworkPublisher(Node):
         self.initctes()
 
         # Timer para llamar la función de control cada segundo
-        self.timer = self.create_timer(0.2, self.run_network)
+        #self.timer = self.create_timer(0.2, self.run_network) #original
+        self.timer = self.create_timer(0.15, self.run_network)
+
 
     def initctes(self):
 
@@ -77,26 +86,25 @@ class NetworkPublisher(Node):
         #DEBUGGING
 
         self.MOVEMENT = True
+        self.maxstd = []
 
         #--------------IMU --------------
         
         self.ignore_imu = False
         self.ignore_timer = time.time()
-        self.ignore_duration = 4.2
+        #self.ignore_duration = 4.2
+        self.ignore_duration = 2
 
         # Antes de tu callback, inicializa buffers y filtros:
-        self.accel_buffer = deque(maxlen=50)     # Ventana de 50 muestras
+        self.accel_buffer = deque(maxlen=100)     # Ventana de 50 muestras
         self.accel_std = 0.0
+        self.last_accel_std = 0.0
         self.accel_std2 = 0.0
 
         #Logica que será neuronal
         self.terrainchanger = False
         self.terrain_timer = 0.0  # Guarda el tiempo de inicio
 
-        self.low_accel_counter = 0
-        self.low_accel_threshold = 0.5
-        self.low_accel_limit = 100
-        self.low_accel_flag = False
 
         self.ang_p = 90 # Posicion Frente del Robot
         self.ang_s = 90 # Posicion del estimulo
@@ -123,9 +131,10 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        #self.Usigma_az = 3.27 #PARA CASO PLANO-RUGOSO-PLANO
-        self.Usigma_az = 3.7 #PARA CASO PLANO-INLINADO
-        self.Upitch = 7.8 #Umbral pitch
+        self.Usigma_az = 2.9 #PARA CASO PLANO-RUGOSO-PLANO
+        #self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
+        #self.Upitch = 5 #Umbral pitch INCLINADO
+        self.Upitch = 20 
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -160,11 +169,100 @@ class NetworkPublisher(Node):
         self.sigma = 0.06  
         self.umbral = 0.95
 
+
+    #------------------------- METRICAS --------------------------------------#
+        self.metricsArr = [0.0, 0.0, 0.0, 0.0]
+
+        # TIEMPO DE RESPUESTA
+        self.starttime = time.time() 
+        self.tchange = self.starttime + 11.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
+        self.Tresponse = None
+        self.response_measured = False
+
+        # --- DELAY CAMBIO DE MODO---
+        self.tcmd = None
+        self.Tswitch = None
+        self.mode_transition_active = False
+        self.switch_measured = False
+
+        # ------------------- RMS OSCILACION -------------------
+
+        self.roll_history = []
+        self.pitch_history = []
+
+        self.roll_rms = 0.0
+        self.pitch_rms = 0.0
+
+        # --------------- Metricas de robustez --------------------
+        # Niveles de ruido a evaluar (fracción del valor medido, equivalente a ±%)
+        self.NoiseLevel = [0.0, 0.05, 0.10, 0.20, 0.30]   # 0 % → 5 % → 10 % → 20 % → 30 %
+
+        # Nivel activo en este experimento (índice en NoiseLevel).
+        # Cámbialo antes de cada prueba: 0=limpio, 1=±5%, 2=±10%, etc.
+        self.ACTIVE_NOISE_LEVEL_IDX = 0   # ← MODIFICAR ANTES DE CADA PRUEBA (0 = No ruido)
+
+        # Semilla reproducible (None = aleatoria)
+        self.NoiseSeed = 42
+
+        # RNG reproducible
+        self._rng = np.random.default_rng(self.NoiseSeed)
+
+        # Nivel de ruido activo (σ como fracción del valor de entrada)
+        self._sigma_noise = self.NoiseLevel[self.ACTIVE_NOISE_LEVEL_IDX]
+        self.get_logger().info(
+            f"[ROBUSTEZ] Nivel de ruido activo: "
+            f"σ = {self._sigma_noise*100:.0f}%  "
+            f"(índice {self.ACTIVE_NOISE_LEVEL_IDX} de {self.NoiseLevel})"
+        )
+
+       
+    # =========================================================================
+    # INYECCIÓN DE RUIDO — funciones auxiliares
+    # =========================================================================
+
+    def _add_gaussian_noise(self, value: float, sigma_fraction: float) -> float:
+        """
+        Añade ruido gaussiano a un escalar.
+        σ_abs = sigma_fraction × |value|   (ruido proporcional al valor)
+        Si value ≈ 0, usa σ_abs mínimo de 1e-4 para evitar ruido cero.
+        """
+        if sigma_fraction == 0.0:
+            return value
+        sigma_abs = max(abs(value) * sigma_fraction, 1e-4)
+        noise = self._rng.normal(0.0, sigma_abs)
+        return value + noise
+
+    def _add_gaussian_noise_array(self, arr: np.ndarray,
+                                  sigma_fraction: float) -> np.ndarray:
+        """
+        Añade ruido gaussiano elemento a elemento a un array numpy.
+        σ_abs[i] = sigma_fraction × |arr[i]|
+        """
+        if sigma_fraction == 0.0:
+            return arr.copy()
+        sigma_abs = np.maximum(np.abs(arr) * sigma_fraction, 1e-4)
+        noise = self._rng.normal(0.0, sigma_abs)
+        return arr + noise
+
+
     def gausiana(self, theta, omega):
         return np.exp((np.dot(theta, omega) - 1) / (2 * (self.sigma**2)))
 
     def lidar_callback(self, msg):
         ranges = np.array(msg.ranges)
+
+        # ── Inyectar ruido gaussiano al LiDAR ────────────────────────────
+        # σ proporcional al rango medido; NaN/Inf se preservan
+        if self._sigma_noise > 0.0:
+            valid = np.isfinite(ranges)
+            noisy = ranges.copy()
+            noisy[valid] = self._add_gaussian_noise_array(
+                ranges[valid], self._sigma_noise)
+            # Clampear valores negativos (distancia no puede ser < 0)
+            noisy[valid] = np.maximum(noisy[valid], 0.0)
+            ranges = noisy
+
+
         angle_min = msg.angle_min
         angle_increment = msg.angle_increment  
 
@@ -232,7 +330,7 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
-        #R = 2 #Descomentar para probar inclinacion
+        #R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
         B = self.areaBoundingBoxB/500
@@ -263,7 +361,7 @@ class NetworkPublisher(Node):
         else:
             self.ang_s = 90*(self.lidar[4,1]<0.3)
 
-        #self.ang_s = 90 #Descomentar para probar terreno inclinado
+        self.ang_s = 90 #Descomentar para probar terreno inclinado
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
@@ -310,6 +408,8 @@ class NetworkPublisher(Node):
         print("G: ", str(G))
         print("B: ", str(B)) 
 
+
+
         print(
                         f"GpeR: {self.Gpe[0,1]}\n"
                         f"GpeG: {self.Gpe[1,1]}\n"
@@ -334,28 +434,35 @@ class NetworkPublisher(Node):
                         # f"0: {self.z[0,1]}\n"
                         # f"1: {self.z[1,1]}\n"
                         # f"2: {self.z[2,1]}\n"
-                        # f"roll: {self.roll}\n"
-                        # f"pitch: {self.pitch}\n"
-                        # f"STD total: {self.accel_std:.3f}"
+                        f"roll: {self.roll}\n"
+                        f"pitch: {self.pitch}\n"
+                        f"STD total: {self.accel_std:.3f}\n"
+                        f"IGNOREIMU: {self.ignore_imu}\n"
+                        f"Tresponse: {self.Tresponse} s \n"
+                        f"Tswitch: {self.Tswitch} s \n"
+                        f"maxstd {np.max(self.maxstd)}\n"
+                        f"time {time.time() - self.starttime}"
                         )
+        
+        if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
         
         # print("cmd_ang: ", str(cmd_ang))
         # print("cmd_lineal: ", str(cmd_lineal))
         # print("cmd_lateral: ", str(cmd_lateral))
 
-        print("lidar frente")
-        print("lidar atras: ", str(self.lidar[1,0]))
-        print("lidar izquierda: ", str(self.lidar[2,0]))
-        print("lidar derecha:", str(self.lidar[3,0]))
-        print("lidar 4:", str(self.lidar[4,0]))
+        #print("lidar frente")
+        #print("lidar atras: ", str(self.lidar[1,0]))
+        #print("lidar izquierda: ", str(self.lidar[2,0]))
+        #print("lidar derecha:", str(self.lidar[3,0]))
+        #print("lidar 4:", str(self.lidar[4,0]))
 
         # Imprimir los 16 valores de Response
-        for i, val in enumerate(self.Response[:, 0]):
-            print(f"Response {i}: {val}")
+        #for i, val in enumerate(self.Response[:, 0]):
+        #    print(f"Response {i}: {val}")
 
         # Imprimir los 16 valores de Aux
-        for i, val in enumerate(self.Aux[:, 0]):
-            print(f"Aux {i}: {val}")
+        #for i, val in enumerate(self.Aux[:, 0]):
+        #    print(f"Aux {i}: {val}")
 
 
         cmd_ang = self.limit(cmd_ang, 1)
@@ -364,19 +471,18 @@ class NetworkPublisher(Node):
 
     #------------------------- TERRAIN CHANGER -----------------------------
 
-        if self.accel_std > self.Usigma_az and not self.terrainchanger:
-        #if (self.accel_std > self.Usigma_az or self.low_accel_flag)and not self.terrainchanger:  # Descomentar si el robot se queda atascado mucho
+        if self.accel_std > self.Usigma_az and not self.terrainchanger: #Segunda parte del or para estancamiento
             print("Terreno rocoso detectado 🚧")
             self.terrainchanger = True
-            self.std_dev_accel_z = 6
+            self.std_dev_accel_z = 9
             self.terrain_timer = time.time()  # Guardar momento de activación
 
         # Si está activo, verificar si pasaron 8 segundos
         if self.terrainchanger:
             elapsed = time.time() - self.terrain_timer
-            if elapsed < 16:
+            if elapsed < 40:
                 print("Terreno rocoso detectado 🚧")
-                self.std_dev_accel_z = 6
+                self.std_dev_accel_z = 9
             else:
                 self.terrainchanger = False  # Volver a estado normal
                 print("Terreno liso 🛣️")
@@ -430,14 +536,40 @@ class NetworkPublisher(Node):
 
             # modos
             if self.z[15,1] > 0.5:
-                self.publish_mode('C'); print("Cuadrupedo")
+                self.publish_mode('C'); #print("Cuadrupedo")
             elif self.z[16,1] > 0.5:
-                self.publish_mode('H'); print("Móvil H")
+                self.publish_mode('H'); #print("Móvil H")
             elif self.z[14,1] > 0.5:
-                self.publish_mode('X'); print("Móvil X")
+                self.publish_mode('X'); #print("Móvil X")
 
             self.publish_data()
             self.publish_imu()
+
+
+            #------------------------- M E T R I C A S--------------------------------------#
+            stable_condition = (self.accel_std < 2 and self.pitch < 1.5 and self.roll > 178) #Estabilización cond
+            print(f"stable condition: {stable_condition}")
+
+            #Tiempo de respuesta
+            if (self.terrainchanger and not self.response_measured and stable_condition): 
+                self.Tresponse = time.time() - self.tchange
+                self.response_measured = True
+
+            #Delay de cambio
+            if (self.mode_transition_active and not self.switch_measured and stable_condition):
+                self.Tswitch = time.time() - self.tcmd
+                self.switch_measured = True
+                self.mode_transition_active = False
+
+            #Amplitud de oscilacion
+            print(f"Roll RMS: {self.roll_rms:.3f} deg")
+            print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
+
+            self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_LEVEL_IDX]
+            self.publicarMatericas()
+
+
+
 
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
 
@@ -456,24 +588,59 @@ class NetworkPublisher(Node):
         self.GPEg.publish(msg_g)
         self.GPEb.publish(msg_b)
 
+    def publicarMatericas(self):
+        
+        msg = Float32MultiArray()
+
+        msg.data = self.metricsArr
+
+        self.metrics_pub.publish(msg)
+
+
+
         # Callbacks de cada estímulo
     def red_callback(self, msg):
         if len(msg.data) >= 2:
-            self.posR = msg.data[0]  # Posición en el rango de 0 a 180
-            self.areaBoundingBoxR = msg.data[1]  # Área aproximada
-            # print(f'Red - Pos: {self.posR}, Área: {self.areaBoundingBoxR}')
+            pos_raw  = msg.data[0]
+            area_raw = msg.data[1]
+
+            # ── Inyectar ruido gaussiano a la cámara (bounding box rojo) ─
+            # El área se perturba; la posición angular también
+            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
+            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
+            area_noisy = max(0.0, area_noisy)  # área no puede ser negativa
+
+            self.posR = pos_noisy
+            self.areaBoundingBoxR = area_noisy
+
+
 
     def green_callback(self, msg):
         if len(msg.data) >= 2:
-            self.posG = msg.data[0]
-            self.areaBoundingBoxG = msg.data[1]
-            # print(f'Green - Pos: {self.posG}, Área: {self.areaBoundingBoxG}')
+            pos_raw  = msg.data[0]
+            area_raw = msg.data[1]
+
+            # ── Inyectar ruido gaussiano a la cámara (bounding box azul) ─
+            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
+            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
+            area_noisy = max(0.0, area_noisy)
+
+            self.posG = pos_noisy
+            self.areaBoundingBoxG = area_noisy
+    
 
     def blue_callback(self, msg):
         if len(msg.data) >= 2:
-            self.posB = msg.data[0]
-            self.areaBoundingBoxB = msg.data[1]
-            # print(f'Blue - Pos: {self.posB}, Área: {self.areaBoundingBoxB}')
+            pos_raw  = msg.data[0]
+            area_raw = msg.data[1]
+
+            # ── Inyectar ruido gaussiano a la cámara (bounding box azul) ─
+            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
+            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
+            area_noisy = max(0.0, area_noisy)
+
+            self.posB = pos_noisy
+            self.areaBoundingBoxB = area_noisy
     
     def imu_callback(self, msg):
         # Extraer cuaterniones
@@ -484,11 +651,20 @@ class NetworkPublisher(Node):
 
         # Calcular ángulos Euler
         self.roll = 180 - abs(np.degrees(np.arctan2(2*(qw*qx + qy*qz), 1 - 2*(qx**2 + qy**2))))
+        roll_centered = self.roll - 180.0
         self.pitch = abs(np.degrees(np.arcsin(2*(qw*qy - qz*qx))))
 
         # === MÉTODOS DE VIBRACIÓN ===
 
-        ax, ay, az = msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z
+        ax = msg.linear_acceleration.x
+        ay = msg.linear_acceleration.y
+        az = msg.linear_acceleration.z
+
+        # ── Inyectar ruido gaussiano al IMU ──────────────────────────────
+        ax = self._add_gaussian_noise(ax, self._sigma_noise)
+        ay = self._add_gaussian_noise(ay, self._sigma_noise)
+        az = self._add_gaussian_noise(az, self._sigma_noise)
+        
         accel_mag = np.sqrt(ax**2 + ay**2 + az**2)
 
         # --- Guardar en buffers ---
@@ -497,30 +673,30 @@ class NetworkPublisher(Node):
         if self.ignore_imu:
             if time.time() - self.ignore_timer < self.ignore_duration:
                 # Mientras dure el tiempo, forzar el valor a 0 o al último
-                self.accel_std = 0.0  # o self.last_accel_std si prefieres el anterior
+                #self.accel_std = 0.0  # o 
+                self.accel_std = self.last_accel_std #si prefieres el anterior
                 return
             else:
                 # Termina la ignorancia
                 self.ignore_imu = False
 
-            # Contar lecturas bajas consecutivas
-        if self.accel_std < self.low_accel_threshold:
-            self.low_accel_counter += 1
-        else:
-            self.low_accel_counter = 0  # Reinicia si rompe la secuencia
-
-        # Activar bandera si llegó al límite
-        if self.low_accel_counter >= self.low_accel_limit:
-            self.low_accel_flag = True
-        else:
-            self.low_accel_flag = False
 
         # --- STD magnitud total ---
         self.accel_std = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
         self.accel_std2 = np.std(self.accel_buffer) if len(self.accel_buffer) > 1 else 0.0
 
-        # Mostrar información
-        # print(f"Roll: {self.roll:.2f}°, Pitch: {self.pitch:.2f}°, Aceleración Z: {self.accel_z:.2f} m/s², STD Z: {std_dev_accel_z:.4f}")
+        self.last_accel_std = self.accel_std
+
+
+        #METRICAS
+        self.maxstd.append(self.accel_std) #Max std
+        # Guardar historial
+        self.roll_history.append(roll_centered)
+        self.pitch_history.append(self.pitch)
+
+        # Calcular RMS
+        self.roll_rms = np.sqrt(np.mean(np.square(self.roll_history)))
+        self.pitch_rms = np.sqrt(np.mean(np.square(self.pitch_history)))
 
     def publish_twist(self, linear_x=None, linear_y=None, angular_z=None):
         if not hasattr(self, "_twist"):
@@ -540,10 +716,11 @@ class NetworkPublisher(Node):
         mode_msg = String()
         mode_msg.data = mode
         self.mode_pub.publish(mode_msg)
-        print(f"IGNOREIMU: {self.ignore_imu}")
         if self.current_mode != mode and (self.current_mode == "C" or self.current_mode == "H"): 
             self.ignore_timer = time.time()  
             self.ignore_imu = True
+            self.tcmd = time.time() #delay cambio metrica
+            self.mode_transition_active = True #delay cambio (metrica)
         self.current_mode = mode
 
     def publish_data(self):
