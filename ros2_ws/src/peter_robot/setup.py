@@ -47,7 +47,8 @@ setup(
             'plotter = src.plotter:main',
             'raster_graphic_node = src.raster_graphic_node:main',
             'live_signals = src.live_signals:main',
-            'RobustnessMetric = src.robustnessListener:main'
+            'RobustnessMetric = src.robustnessListener:main',
+            "RMSENode = src.RMSE_node:main"
         ],
     },
 )

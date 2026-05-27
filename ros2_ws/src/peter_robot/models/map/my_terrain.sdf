@@ -35,7 +35,7 @@
               <uri>file://materials/scripts/</uri>
               <name>my_texture</name>
             </script>
-            <normal_map>file://materials/textures/relieve_normal.png</normal_map>
+            <normal_map>file://materials/textures/texture.png</normal_map>
           </material>
         </visual>
       </link>

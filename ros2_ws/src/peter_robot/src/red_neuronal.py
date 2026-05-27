@@ -33,7 +33,7 @@ class NetworkPublisher(Node):
 
         self.publisher_ = self.create_publisher(Float32MultiArray, 'neuron_activity', 10)
         self.publisher_imu = self.create_publisher(Float32MultiArray, 'imu_activity', 10)
-        self.rmse_pub = self.create_publisher(Float64, '/rmse_ct', 10) #RMSE
+        self.metrics_pub = self.create_publisher(Float32MultiArray, '/Metrics', 10) #Tiempo de respuesta, delay de cambio, amplitud de oscilación, noise
 
         # Modo Inicial
         self.current_mode = 'H' #Original en C
@@ -65,7 +65,7 @@ class NetworkPublisher(Node):
 
         # Timer para llamar la función de control cada segundo
         #self.timer = self.create_timer(0.2, self.run_network) #original
-        self.timer = self.create_timer(0.2, self.run_network)
+        self.timer = self.create_timer(0.15, self.run_network)
 
 
     def initctes(self):
@@ -171,6 +171,8 @@ class NetworkPublisher(Node):
 
 
     #------------------------- METRICAS --------------------------------------#
+        self.metricsArr = [0.0, 0.0, 0.0, 0.0]
+
         # TIEMPO DE RESPUESTA
         self.starttime = time.time() 
         self.tchange = self.starttime + 11.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
@@ -191,26 +193,7 @@ class NetworkPublisher(Node):
         self.roll_rms = 0.0
         self.pitch_rms = 0.0
 
-        #RMSE
-
-        self.goal = np.array([2.0, 0.0])
-        self.start = np.array([0.0, 0.0])
-
-        self.direction = self.goal - self.start
-        self.direction_norm = np.linalg.norm(self.direction)
-
-        # buffers
-        self.errors_ct = []
-        self.duration = 30.0  # duración de la prueba (segundos)
-        self.published = False
-
-
         # --------------- Metricas de robustez --------------------
-
-
-
-        #RUIDO
-      
         # Niveles de ruido a evaluar (fracción del valor medido, equivalente a ±%)
         self.NoiseLevel = [0.0, 0.05, 0.10, 0.20, 0.30]   # 0 % → 5 % → 10 % → 20 % → 30 %
 
@@ -220,11 +203,6 @@ class NetworkPublisher(Node):
 
         # Semilla reproducible (None = aleatoria)
         self.NoiseSeed = 42
-
-
-        #══════════════════════════════════════════════════════════════
-        #(Robustness Index)
-        # ═══════════════════════════════════════════════════════════════════
 
         # RNG reproducible
         self._rng = np.random.default_rng(self.NoiseSeed)
@@ -236,12 +214,6 @@ class NetworkPublisher(Node):
             f"σ = {self._sigma_noise*100:.0f}%  "
             f"(índice {self.ACTIVE_NOISE_LEVEL_IDX} de {self.NoiseLevel})"
         )
-
-
-        #Analisis de Convergencia
-
-        self.V_history = []
-        self.V = 0.0
 
        
     # =========================================================================
@@ -271,41 +243,6 @@ class NetworkPublisher(Node):
         sigma_abs = np.maximum(np.abs(arr) * sigma_fraction, 1e-4)
         noise = self._rng.normal(0.0, sigma_abs)
         return arr + noise
-
-
-    def get_peter_pose(self):
-        cmd = [
-            "gz", "topic",
-            "-e",
-            "-t", "/world/default/pose/info",
-            "-n", "1"
-        ]
-
-        try:
-            output = subprocess.check_output(cmd, timeout=0.3).decode("utf-8")
-        except subprocess.TimeoutExpired:
-            return None
-
-        pattern = r'name: "peter".*?position\s*{\s*x:\s*([-\d.eE]+)\s*y:\s*([-\d.eE]+)\s*z:\s*([-\d.eE]+)'
-        match = re.search(pattern, output, re.DOTALL)
-
-        if match:
-            return tuple(map(float, match.groups()))
-
-        return None
-
-    def cross_track_error(self, p):
-        p2 = p[:2]
-
-        dx = self.direction[0]
-        dy = self.direction[1]
-
-        px = p2[0] - self.start[0]
-        py = p2[1] - self.start[1]
-
-        cross = dx * py - dy * px
-
-        return abs(cross) / self.direction_norm
 
 
     def gausiana(self, theta, omega):
@@ -479,24 +416,24 @@ class NetworkPublisher(Node):
                         f"GpeB: {self.Gpe[2,1]}\n"
                         f"ang_p: {self.ang_p}\n"
                         f"ang_s: {self.ang_s}\n"
-                         f"3: {self.z[3,1]}\n"
-                         f"4: {self.z[4,1]}\n"
-                         f"5: {self.z[5,1]}\n"
-                         f"6: {self.z[6,1]}\n"
-                         f"7: {self.z[7,1]}\n"
-                         f"8: {self.z[8,1]}\n"
-                         f"9: {self.z[9,1]}\n"
-                         f"10: {self.z[10,1]}\n"
-                         f"11: {self.z[11,1]}\n"
-                         f"12: {self.z[12,1]}\n"
-                         f"13: {self.z[13,1]}\n"
-                         f"14: {self.z[14,1]}\n"
-                         f"15: {self.z[15,1]}\n"
-                         f"16: {self.z[16,1]}\n"
-                         f"17: {self.z[17,1]}\n"
-                         f"0: {self.z[0,1]}\n"
-                         f"1: {self.z[1,1]}\n"
-                         f"2: {self.z[2,1]}\n"
+                        # f"3: {self.z[3,1]}\n"
+                        # f"4: {self.z[4,1]}\n"
+                        # f"5: {self.z[5,1]}\n"
+                        # f"6: {self.z[6,1]}\n"
+                        # f"7: {self.z[7,1]}\n"
+                        # f"8: {self.z[8,1]}\n"
+                        # f"9: {self.z[9,1]}\n"
+                        # f"10: {self.z[10,1]}\n"
+                        # f"11: {self.z[11,1]}\n"
+                        # f"12: {self.z[12,1]}\n"
+                        # f"13: {self.z[13,1]}\n"
+                        # f"14: {self.z[14,1]}\n"
+                        # f"15: {self.z[15,1]}\n"
+                        # f"16: {self.z[16,1]}\n"
+                        # f"17: {self.z[17,1]}\n"
+                        # f"0: {self.z[0,1]}\n"
+                        # f"1: {self.z[1,1]}\n"
+                        # f"2: {self.z[2,1]}\n"
                         f"roll: {self.roll}\n"
                         f"pitch: {self.pitch}\n"
                         f"STD total: {self.accel_std:.3f}\n"
@@ -507,7 +444,7 @@ class NetworkPublisher(Node):
                         f"time {time.time() - self.starttime}"
                         )
         
-        if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd}")
+        if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
         
         # print("cmd_ang: ", str(cmd_ang))
         # print("cmd_lineal: ", str(cmd_lineal))
@@ -628,40 +565,11 @@ class NetworkPublisher(Node):
             print(f"Roll RMS: {self.roll_rms:.3f} deg")
             print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
 
+            self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_LEVEL_IDX]
+            self.publicarMatericas()
 
-            #-------------- RMSE ------------------
 
-            pose = self.get_peter_pose()
 
-            if pose is None:
-                return
-
-            ct = self.cross_track_error(pose)
-            self.errors_ct.append(ct)
-
-            elapsed = time.time() - self.starttime
-
-            # debug opcional
-            print(f"t={elapsed:.1f}s | CT={ct:.3f}")
-            print(f"X {pose[0]:.4f}")
-            print(f"Y {pose[1]:.4f}")
-            print(f"Z {pose[2]:.4f}")
-
-            # -----------------------------
-            # FINAL DE PRUEBA
-            # -----------------------------
-            if elapsed >= self.duration and not self.published:
-
-                rmse_ct = np.sqrt(np.mean(np.array(self.errors_ct) ** 2))
-
-                msg = Float64()
-                msg.data = float(rmse_ct)
-
-                self.rmse_pub.publish(msg)
-
-                print(f"FINAL RMSE CT = {rmse_ct:.4f}")
-
-                self.published = True
 
     #------------------------- F U N C I O N E S    A U X I L I A R E S --------------------------------------#
 
@@ -679,6 +587,16 @@ class NetworkPublisher(Node):
         self.GPEr.publish(msg_r)
         self.GPEg.publish(msg_g)
         self.GPEb.publish(msg_b)
+
+    def publicarMatericas(self):
+        
+        msg = Float32MultiArray()
+
+        msg.data = self.metricsArr
+
+        self.metrics_pub.publish(msg)
+
+
 
         # Callbacks de cada estímulo
     def red_callback(self, msg):

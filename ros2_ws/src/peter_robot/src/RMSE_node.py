@@ -10,6 +10,9 @@ import subprocess
 import re
 import time
 
+#NOTA: se integró este código al principal de la red para evitar la ejecución de muchos códigos al mismo tiempo pero
+#esto afectó gravemente el rendimiento de la red, por lo tanto lo volví a separar
+
 
 class RMSEPublisher(Node):
 

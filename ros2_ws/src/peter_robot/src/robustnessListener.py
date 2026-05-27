@@ -4,6 +4,8 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64
 
+#Nota: el indice de robustez se calcula haciendo múltiples pruebas por lo tanto es necesario que sea un nodo
+#separado que se ejecuta siempre
 
 class RIListener(Node):
 
