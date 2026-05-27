@@ -44,7 +44,14 @@ setup(
             'red_neuronal = src.red_neuronal:main',
             'camera_node = src.camera_node:main',
             'camera_Adjust = src.camera_Adjust:main',
+<<<<<<< Updated upstream
             'plotter = src.plotter:main'
+=======
+            'plotter = src.plotter:main',
+            'raster_graphic_node = src.raster_graphic_node:main',
+            'live_signals = src.live_signals:main',
+            'peter_stability_monitor = src.peter_stability_monitor:main'
+>>>>>>> Stashed changes
         ],
     },
 )
