@@ -204,6 +204,11 @@ void loop() {
     if (USE_IMU) imu_update(now);
     gait_update(now);
 
+    if (now < 500) {
+        while (Serial.available()) Serial.read();
+        return;
+    }
+
     if (Serial.available()) {
         String line = Serial.readStringUntil('\n');
         line.trim();
