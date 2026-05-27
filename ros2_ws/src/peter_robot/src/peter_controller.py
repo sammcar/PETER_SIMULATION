@@ -2,7 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, String
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseArray, Pose
 from sensor_msgs.msg import Imu
 import math
 import time
@@ -56,6 +56,19 @@ TURN_Y0 = TEMP_B * math.sin(TEMP_ALPHA) - TURN_Y1 - LENGTH_SIDE
 
 class JointPositionPublisher(Node):
 
+    # Hip attachment points in base_link frame [m], from URDF CoxisXX_joint origins.
+    # Body frame: X = forward, Y = left, Z = up.
+    # Coxa frame orientation (rpy from URDF) determines the 2D leg-to-body transform:
+    #   Right legs (RU=0, RD=2) rpy="π 0 -π/2": body_x = hip_x - ys, body_y = hip_y - xs
+    #   Left  legs (LU=1, LD=3) rpy="-π 0 +π/2": body_x = hip_x + ys, body_y = hip_y + xs
+    # where xs, ys = site_now[i][0]/1000, site_now[i][1]/1000 (leg-local coords in meters)
+    HIP_XY = [
+        ( 0.096588, -0.060798),  # 0: RU front-right
+        ( 0.096588,  0.060798),  # 1: LU front-left
+        (-0.093230, -0.060798),  # 2: RD back-right
+        (-0.093230,  0.060798),  # 3: LD back-left
+    ]
+
     def iniciarCuadrupedo(self):
         global site_expect, site_now
 
@@ -79,6 +92,10 @@ class JointPositionPublisher(Node):
         # Publicadores para las posiciones y velocidades
         self.position_publisher_ = self.create_publisher(Float64MultiArray, '/gazebo_joint_controller/commands', 10)
         self.velocity_publisher_ = self.create_publisher(Float64MultiArray, '/gazebo_velocity_controllers/commands', 10)
+        # Stability publisher: foot positions + CoM in base_link frame (mode C only).
+        # PoseArray with 5 poses: poses[0..3] = feet (RU,LU,RD,LD), poses[4] = CoM.
+        # pose.position.x/y = body-frame coords [m]; orientation.w = 1 grounded, 0 in air.
+        self.stability_pub = self.create_publisher(PoseArray, '/peter/stability_data', 10)
                 # --- Secuenciador (debe existir antes de los timers) ---
         self.seq = deque()          # cola de frames: {"targets":[...], "hold": segs}
         self.seq_active = False
@@ -791,6 +808,56 @@ class JointPositionPublisher(Node):
             self.set_site(3, SIDE, 0, Z_DEFAULT)
             self.wait_all_reach()
 
+    def _foot_body_xy(self, i):
+        """Return foot (x, y) in base_link frame [m] for leg i from site_now [mm].
+
+        Derivation: coxa joint axis=(0,0,-1), joint angle = +/-theta1 per leg.
+        R_right = [[0,-1,0],[-1,0,0],[0,0,-1]] (RU,RD rpy="pi 0 -pi/2")
+        R_left  = [[0, 1,0],[ 1,0,0],[0,0,-1]] (LU,LD rpy="-pi 0 pi/2")
+
+          i=0 RU: joint=+theta1 -> foot_in_coxa=[xs,-ys] -> R_right->[ys,-xs]  -> hx+ys, hy-xs
+          i=1 LU: joint=-theta1 -> foot_in_coxa=[xs,+ys] -> R_left ->[ys,+xs]  -> hx+ys, hy+xs
+          i=2 RD: joint=-theta1 -> foot_in_coxa=[xs,+ys] -> R_right->[-ys,-xs] -> hx-ys, hy-xs
+          i=3 LD: joint=+theta1 -> foot_in_coxa=[xs,-ys] -> R_left ->[-ys,+xs] -> hx-ys, hy+xs
+        """
+        xs = site_now[i][0] / 1000.0
+        ys = site_now[i][1] / 1000.0
+        hx, hy = self.HIP_XY[i]
+        if i == 0:   # RU
+            return hx + ys, hy - xs
+        elif i == 1: # LU
+            return hx + ys, hy + xs
+        elif i == 2: # RD
+            return hx - ys, hy - xs
+        else:        # LD
+            return hx - ys, hy + xs
+
+    def _publish_stability_data(self):
+        """Publish foot positions and CoM in base_link frame. Only active in mode C."""
+        if self.state != 'C':
+            return
+        msg = PoseArray()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'base_link'
+
+        for i in range(4):
+            p = Pose()
+            p.position.x, p.position.y = self._foot_body_xy(i)
+            p.position.z = 0.0
+            # orientation.w encodes contact state: 1.0 = on ground, 0.0 = in air
+            p.orientation.w = 0.0 if site_now[i][2] < Z_DEFAULT - 5.0 else 1.0
+            msg.poses.append(p)
+
+        # CoM: geometric body center (base_link origin)
+        com = Pose()
+        com.position.x = 0.0
+        com.position.y = 0.0
+        com.position.z = 0.0
+        com.orientation.w = 1.0
+        msg.poses.append(com)
+
+        self.stability_pub.publish(msg)
+
     def timer_callback(self):
         self.update_positions()
         self.update_velocities()
@@ -869,6 +936,7 @@ class JointPositionPublisher(Node):
             pass  # Evita error si la transformación aún no está disponible
 
         self.step_sequence()
+        self._publish_stability_data()
 
     def update_positions(self):
         """Actualiza las posiciones de las articulaciones hacia sus objetivos de forma incremental."""

@@ -51,8 +51,8 @@ setup(
             'plotter = src.plotter:main',
             'raster_graphic_node = src.raster_graphic_node:main',
             'live_signals = src.live_signals:main',
-            'keyboard_control = src.keyboard_control:main',
             'neural_recorder = src.neural_recorder:main',
+            'peter_stability_monitor = src.peter_stability_monitor:main'
         ],
     },
 )
