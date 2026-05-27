@@ -845,7 +845,7 @@ class JointPositionPublisher(Node):
             p.position.x, p.position.y = self._foot_body_xy(i)
             p.position.z = 0.0
             # orientation.w encodes contact state: 1.0 = on ground, 0.0 = in air
-            p.orientation.w = 0.0 if self.on_air[i] else 1.0
+            p.orientation.w = 0.0 if site_now[i][2] < Z_DEFAULT - 5.0 else 1.0
             msg.poses.append(p)
 
         # CoM: geometric body center (base_link origin)
