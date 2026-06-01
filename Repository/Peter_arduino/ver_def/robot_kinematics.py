@@ -62,6 +62,12 @@ class SpiderLeg:
 
         self.q = np.zeros(3)   # [theta_coxa, theta_femur, theta_tibia] rad
 
+        # Posición de reposo individual (frame pata). Copiados de params por
+        # defecto; sobreescribir por pata para poses asimétricas (ej. modo C).
+        self.rest_x: float = params.rest_x
+        self.rest_y: float = params.rest_y
+        self.rest_z: float = params.rest_z
+
     # ── Cinemática Inversa ────────────────────────────────────────────
 
     def ik(self, foot_pos_body: np.ndarray) -> Optional[np.ndarray]:
@@ -146,9 +152,9 @@ class SpiderLeg:
 
     def get_rest_foot_body(self) -> np.ndarray:
         """Posición del pie en postura de reposo, en frame del cuerpo."""
-        p_rest = np.array([self.p.L_coxa + self.p.rest_x,
-                           self.p.rest_y,
-                           self.p.rest_z])
+        p_rest = np.array([self.p.L_coxa + self.rest_x,
+                           self.rest_y,
+                           self.rest_z])
         return self.R_leg2body @ p_rest + self.body_offset
 
 

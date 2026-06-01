@@ -51,13 +51,12 @@ class GaitV2:
     """
 
     def __init__(self, robot: SpiderQuadruped,
-                 step_len:        float = 0.040,   # STEP_LEN
-                 step_len_lat:    float = 0.020,   # STEP_LEN_LAT
-                 step_h:          float = 0.035,   # STEP_H
-                 leg_speed:       float = 0.006,   # LEG_SPEED
-                 body_speed:      float = 0.003,   # BODY_SPEED
-                 reach_tol:       float = 0.002,   # REACH_TOL
-                 asymmetric_init: bool  = True):   # Pose asimétrica inicial (igual a peter_controller.py modo C)
+                 step_len:     float = 0.040,   # STEP_LEN
+                 step_len_lat: float = 0.020,   # STEP_LEN_LAT
+                 step_h:       float = 0.035,   # STEP_H
+                 leg_speed:    float = 0.006,   # LEG_SPEED
+                 body_speed:   float = 0.003,   # BODY_SPEED
+                 reach_tol:    float = 0.002):  # REACH_TOL
         self.robot        = robot
         self.step_len     = step_len
         self.step_len_lat = step_len_lat
@@ -65,7 +64,6 @@ class GaitV2:
         self.leg_speed    = leg_speed
         self.body_speed   = body_speed
         self.reach_tol    = reach_tol
-        self._asymmetric_init = asymmetric_init
 
         # site_now / site_expect / site_rest — shape (4, 3), frame cuerpo
         self._site_now    = np.zeros((4, 3))
@@ -86,35 +84,13 @@ class GaitV2:
 
     # ── gait_init() ───────────────────────────────────────────────────────
 
-    def _foot_at_coxa(self, leg_name: str, coxa_rad: float) -> np.ndarray:
-        """Devuelve la posición del pie en frame cuerpo para un ángulo de coxa dado.
-
-        Equivale al site_now[i] = [reach*cos(a), reach*sin(a), rest_z] de peter_controller.py
-        antes de aplicar IK y los ajustes de signo por lado.
-        """
-        leg   = self.robot.legs[leg_name]
-        reach = leg.p.L_coxa + leg.p.rest_x
-        p_leg = np.array([reach * np.cos(coxa_rad),
-                          reach * np.sin(coxa_rad),
-                          leg.p.rest_z])
-        return leg.R_leg2body @ p_leg + leg.body_offset
-
     def _gait_init(self):
-        """Lleva las patas a posición de reposo (o asimétrica) y aplica IK.
-
-        Pose asimétrica (peter_controller.py modo C, iniciarCuadrupedo):
-          FL, RL → coxa 0°  (= [SIDE, 0] en peter; primera pareja en levantar)
-          FR, RR → coxa 45° (= [DIAG, DIAG] en peter; pareja de apoyo inicial)
-        """
+        """Lleva todas las patas a posición de reposo y aplica IK."""
         for i, name in enumerate(LEG_NAMES):
             rest = self.robot.legs[name].get_rest_foot_body()
-            self._site_rest[i] = rest
-            if self._asymmetric_init and name in ('FR', 'RR'):
-                init_pos = self._foot_at_coxa(name, np.radians(45.0))
-            else:
-                init_pos = rest.copy()
-            self._site_now[i]    = init_pos
-            self._site_expect[i] = init_pos.copy()
+            self._site_rest[i]   = rest
+            self._site_now[i]    = rest.copy()
+            self._site_expect[i] = rest.copy()
         self._apply_ik_all()
         self._phase = PHASE_IDLE
 

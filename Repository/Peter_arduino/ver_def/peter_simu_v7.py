@@ -49,10 +49,37 @@ params = RobotParams(
     L_coxa      = 0.042,   # L_COXA
     L_femur     = 0.068,   # L_FEMUR
     L_tibia     = 0.123,   # L_TIBIA
-    rest_x      = 0.11,    # REST_X (corregido de 0.00 → 0.11; ver config.h)
-    rest_z      = -0.100,  # REST_Z
+    rest_x      = 0.0685,  # alcance horizontal del Gazebo (FR/RR default)
+    rest_y      = 0.0,
+    rest_z      = -0.140,  # altura máxima segura con bias 22° (Gazebo: -152mm)
     tibia_lim   = (-150.0, 0.0),
 )
+
+# ── Pose inicial modo C — asimétrica (igual que peter_controller.py) ───
+# FL y RL apuntan a 90° en body (directamente al costado).
+# FR y RR mantienen su diagonal nativa (-45° / -135°) → rest_y=0 (default).
+#
+# Para que el pie de FL quede a ángulo θ_body en body frame, el ángulo
+# en el frame de la pata es: θ_leg = θ_body - COXA_ANGLE[pata]
+# Con r_total = L_COXA + REACH: rest_x = r*cos(θ_leg) - L_COXA
+#                                rest_y = r*sin(θ_leg)
+_REACH_G  = 0.0685                        # alcance femur→pie (m), igual Gazebo
+_R_TOTAL  = params.L_coxa + _REACH_G     # = 0.1105 m
+
+def _mode_c_rest(coxa_angle_deg: float, target_body_deg: float):
+    """Devuelve (rest_x, rest_y) para que el pie quede a target_body_deg."""
+    theta_leg = np.radians(target_body_deg - coxa_angle_deg)
+    rx = _R_TOTAL * np.cos(theta_leg) - params.L_coxa
+    ry = _R_TOTAL * np.sin(theta_leg)
+    return float(rx), float(ry)
+
+_MODE_C = {
+    # (COXA_ANGLE_del_Arduino, ángulo_deseado_en_body_frame)
+    'FL': _mode_c_rest( 45,  90),   # rx≈0.036, ry≈+0.078
+    'FR': _mode_c_rest(-45, -45),   # rx≈0.069, ry=0  (sin cambio)
+    'RL': _mode_c_rest(135,  90),   # rx≈0.036, ry≈-0.078
+    'RR': _mode_c_rest(225, -135),  # rx≈0.069, ry=0  (sin cambio)
+}
 
 # ── Paleta visual ──────────────────────────────────────────────────────
 LEG_COLORS = {'FL': '#00BFFF', 'FR': '#FF6B35', 'RL': '#7CFC00', 'RR': '#FF1493'}
@@ -345,10 +372,17 @@ def animate_v2(robot: SpiderQuadruped, gait: GaitV2) -> FuncAnimation:
 
 if __name__ == '__main__':
     robot = SpiderQuadruped(params)
+
+    # Aplicar pose modo C: sobreescribir rest_x/rest_y por pata
+    for _name, (_rx, _ry) in _MODE_C.items():
+        robot.legs[_name].rest_x = _rx
+        robot.legs[_name].rest_y = _ry
+        robot.legs[_name].rest_z = params.rest_z
+
     gait  = GaitV2(robot,
                    step_len     = 0.040,   # STEP_LEN
                    step_len_lat = 0.020,   # STEP_LEN_LAT
-                   step_h       = 0.035,   # STEP_H
+                   step_h       = 0.030,   # reducido: patas ya cerca del límite
                    leg_speed    = 0.006,   # LEG_SPEED
                    body_speed   = 0.003,   # BODY_SPEED
                    reach_tol    = 0.002)   # REACH_TOL
