@@ -22,24 +22,19 @@
 #define L_COXA    0.042f
 #define L_FEMUR   0.068f
 #define L_TIBIA   0.123f
-#define REST_X    0.00f
+#define REST_X    0.11f   // mínimo seguro: 0.10f (θ_tibia=-90°); con 0.00f el servo clipa
 #define REST_Z   -0.100f
 
 // ── Parámetros de marcha crawl ─────────────────────────────────────────
 #define STEP_LEN      0.040f  // metros — longitud de paso adelante/atrás
-#define STEP_LEN_LAT  0.020f  // metros — paso lateral (reducido: coxas FR/RR necesitan ~27° para 40mm vs ~14° para 20mm)
-#define STEP_H    0.035f    // metros — altura de elevación del pie
-#define STEP_MS   2000       // milisegundos por fase de balanceo
+#define STEP_LEN_LAT  0.020f  // metros — paso lateral
+#define STEP_H        0.035f  // metros — altura de elevación del pie
 
-#define BODY_SHIFT_FWD_X  0.40f  // comp X durante marcha adelante/atrás (eje primario)
-#define BODY_SHIFT_FWD_Y  0.30f  // comp Y durante marcha adelante/atrás (eje cruzado)
-#define BODY_SHIFT_LAT_X  0.20f  // comp X durante marcha lateral (eje cruzado)
-#define BODY_SHIFT_LAT_Y  0.35f  // comp Y durante marcha lateral (mayor porque paso lateral es menor)
+#define LEG_SPEED     0.006f  // metros por iteración del loop — velocidad de la pata en vuelo
+#define BODY_SPEED    0.003f  // metros por iteración del loop — velocidad durante fase de cuerpo
+#define REACH_TOL     0.002f  // metros — tolerancia para considerar una posición alcanzada
 
-#define TIBIA_BIAS_DEG    22.0f  // grados extra de doblado de rodilla para compensar cedencia del servo (positivo = más doblado)
-#define BODY_PREP_RATIO   0.35f  // fracción de la fase dedicada a preparar el cuerpo antes de levantar la pata
-#define RETURN_MS         2000   // ms para el retorno a reposo al detenerse (independiente de STEP_MS)
-#define RETURN_LAND_RATIO 0.35f  // fracción del retorno para bajar patas al suelo (solo Z); el resto reposiciona X/Y
+#define TIBIA_BIAS_DEG  22.0f  // grados extra de doblado de rodilla para compensar cedencia del servo
 
 // ── IMU MPU-6050 ───────────────────────────────────────────────────────
 #define USE_IMU        0       // 1 = habilita el IMU | 0 = deshabilita completamente (sin corrección ni parada de seguridad)
