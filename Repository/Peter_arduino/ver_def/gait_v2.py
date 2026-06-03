@@ -2,8 +2,8 @@
 gait_v2.py — Puerto Python adaptado al patrón "Y Acostada" (Peter Controller)
 ════════════════════════════════════════════════════════════════════
 Replica la lógica de peter_controller.py mediante una máquina de
-estados de offset (14 pasos) que cierra el ciclo matemáticamente y
-es 100% compatible con la interfaz de peter_simu_v7.py.
+estados de offset (14 pasos). Calcula el step_len geométricamente 
+para garantizar simetría perfecta al transicionar entre poses.
 """
 
 import numpy as np
@@ -30,24 +30,23 @@ PHASE_LOWER  = 'LOWER'
 PHASE_BODY   = 'BODY'
 PHASE_RETURN = 'RETURN'
 
-# ── Tabla de Estados: (Fase, Pata_Activa, Offsets_XY[FL, FR, RL, RR]) ──
-# Los offsets son multiplicadores relativos a (dx, dy). Esto garantiza
-# que al finalizar el ciclo las 4 patas regresen a un offset relativo 0.
+# ── Tabla de Estados Estáticos (Ciclo Completo Cerrado) ───────────────
 _STATE_TABLE = [
-    (PHASE_LIFT,  'FL', [ 0,  0,  0,  0]),  # 0: Inicia FL
+    (PHASE_LIFT,  'FL', [ 0,  0,  0,  0]),  # 0: Inicia ciclo FL (desde Left Y)
     (PHASE_MOVE,  'FL', [ 2,  0,  0,  0]),  # 1: Avanza FL (+2)
     (PHASE_LOWER, 'FL', [ 2,  0,  0,  0]),  # 2: Baja FL
-    (PHASE_BODY,  'RR', [ 1, -1, -1, -1]),  # 3: Chasis avanza (patas -1). Cambio a RR para contar paso
+    (PHASE_BODY,  'RR', [ 1, -1, -1, -1]),  # 3: Chasis avanza (patas -1). Cambio a RR para conteo de paso
     (PHASE_LIFT,  'RR', [ 1, -1, -1, -1]),  # 4: Inicia RR
     (PHASE_MOVE,  'RR', [ 1, -1, -1,  1]),  # 5: Avanza RR (+2)
-    (PHASE_LOWER, 'RR', [ 1, -1, -1,  1]),  # 6: Baja RR
-    (PHASE_LIFT,  'FR', [ 1, -1, -1,  1]),  # 7: Inicia FR
+    (PHASE_LOWER, 'RR', [ 1, -1, -1,  1]),  # 6: Baja RR -> ¡Aquí se alcanza la pose 'Right Y' estable!
+    
+    (PHASE_LIFT,  'FR', [ 1, -1, -1,  1]),  # 7: Inicia ciclo FR (desde Right Y)
     (PHASE_MOVE,  'FR', [ 1,  1, -1,  1]),  # 8: Avanza FR (+2)
     (PHASE_LOWER, 'FR', [ 1,  1, -1,  1]),  # 9: Baja FR
-    (PHASE_BODY,  'RL', [ 0,  0, -2,  0]),  # 10: Chasis avanza (patas -1). Cambio a RL para contar paso
+    (PHASE_BODY,  'RL', [ 0,  0, -2,  0]),  # 10: Chasis avanza (patas -1). Cambio a RL para conteo de paso
     (PHASE_LIFT,  'RL', [ 0,  0, -2,  0]),  # 11: Inicia RL
     (PHASE_MOVE,  'RL', [ 0,  0,  0,  0]),  # 12: Avanza RL (+2)
-    (PHASE_LOWER, 'RL', [ 0,  0,  0,  0]),  # 13: Baja RL (Ciclo cerrado perfecto a 0)
+    (PHASE_LOWER, 'RL', [ 0,  0,  0,  0]),  # 13: Baja RL -> ¡Aquí se alcanza la pose 'Left Y' estable!
 ]
 
 
@@ -73,10 +72,14 @@ class GaitV2:
 
         self._phase         = PHASE_IDLE
         self._current_swing = 'FL'
+        
+        # Estructura de control asíncrono
         self._dir           = GAIT_STOP
+        self._next_dir      = GAIT_STOP
+        
         self._step_dx       = 0.0
         self._step_dy       = 0.0
-        self._state_idx     = 0
+        self._state_idx     = 13  # Inicializa por defecto asentado en Left Y Home
 
         self.body_pos = np.zeros(3)
         self._gait_init()
@@ -89,6 +92,14 @@ class GaitV2:
             self._site_now[i]    = rest.copy()
             self._site_expect[i] = rest.copy()
 
+        # ── SOLUCIÓN DE SIMETRÍA ──
+        # Se calcula la distancia exacta requerida en el eje X entre la pata
+        # lateral (FL=0) y la diagonal (FR=1) para garantizar un espejo perfecto.
+        # Esto anula la variable manual del slider y obedece a la geometría pura.
+        distancia_x_geometrica = abs(self._site_rest[1][0] - self._site_rest[0][0])
+        self.step_len = distancia_x_geometrica
+
+        self._state_idx = 13  # Estado inicial estable de reposo
         self._apply_ik_all()
         self._phase = PHASE_IDLE
 
@@ -96,13 +107,12 @@ class GaitV2:
         self._phase         = PHASE_IDLE
         self._current_swing = 'FL'
         self._dir           = GAIT_STOP
-        self._step_dx       = 0.0
-        self._step_dy       = 0.0
-        self._state_idx     = 0
+        self._next_dir      = GAIT_STOP
+        self._state_idx     = 13
         self.body_pos       = np.zeros(3)
         self._gait_init()
 
-    # ── Interfaces expuestas para peter_simu_v7.py ──────────────────
+    # ── Interfaces expuestas para el simulador ────────────────────────
 
     @property
     def phase(self) -> str:
@@ -114,24 +124,21 @@ class GaitV2:
 
     @property
     def direction(self) -> str:
-        return self._dir
+        return self._next_dir
 
-    # ── Actualización de comandos ─────────────────────────────────────
+    # ── Control de Transiciones Síncronas (Puntos de Inflexión) ───────
 
     def set_dir(self, direction: str):
-        if direction == self._dir:
-            return
-        self._dir = direction
+        """Almacena el comando objetivo. Reasigna el ciclo inmediatamente si está en IDLE."""
+        self._next_dir = direction
 
-        if direction == GAIT_STOP:
-            if self._phase != PHASE_IDLE:
-                self._phase = PHASE_RETURN
-                self._site_expect[:] = self._site_rest[:]
-            return
-
-        # Si estaba en reposo, inicia la tabla de secuencia en el paso 0
-        if self._phase in (PHASE_IDLE, PHASE_RETURN):
-            self._state_idx = 0
+        if self._phase == PHASE_IDLE and direction != GAIT_STOP:
+            self._dir = direction
+            # Reanudación inteligente según la "Y" actual donde se detuvo
+            if self._state_idx == 6:
+                self._state_idx = 7   # Reanuda con FR (Lateral Derecho)
+            else:
+                self._state_idx = 0   # Reanuda con FL (Lateral Izquierdo)
             self._update_state_machine()
 
     def update(self) -> dict:
@@ -147,7 +154,7 @@ class GaitV2:
             self._apply_ik_all()
             return self._foot_dict()
 
-        # Ejecución activa de las fases
+        # Ejecución normal del ciclo cinemático
         prev = self._site_now.copy()
         speed = self.body_speed if self._phase == PHASE_BODY else self.leg_speed
         done = self._tick_toward_expect(speed)
@@ -156,23 +163,36 @@ class GaitV2:
             self._accumulate_body(prev)
 
         if done:
-            if self._dir == GAIT_STOP:
-                self._phase = PHASE_RETURN
-                self._site_expect[:] = self._site_rest[:]
+            # EVALUACIÓN EN LOS DOS PUNTOS ESTABLES (Cierre de Medio Ciclo o Ciclo Completo)
+            if self._state_idx == 6:  # Llegamos a la pose 'Right Y'
+                self._dir = self._next_dir
+                if self._dir == GAIT_STOP:
+                    self._phase = PHASE_IDLE
+                else:
+                    self._state_idx = 7
+                    self._update_state_machine()
+                    
+            elif self._state_idx == 13:  # Llegamos a la pose 'Left Y'
+                self._dir = self._next_dir
+                if self._dir == GAIT_STOP:
+                    self._phase = PHASE_IDLE
+                else:
+                    self._state_idx = 0
+                    self._update_state_machine()
             else:
-                self._state_idx = (self._state_idx + 1) % len(_STATE_TABLE)
+                # Continuación natural de la secuencia intermedia
+                self._state_idx += 1
                 self._update_state_machine()
 
         self._apply_ik_all()
         return self._foot_dict()
 
-    # ── Máquina de estados interna y geometría ────────────────────────
+    # ── Máquina de estados interna y cálculo geométrico ───────────────
 
     def _update_state_machine(self):
-        """Calcula los targets absolutos basándose en la tabla lógica."""
+        """Calcula los targets basándose estrictamente en los offsets de las sub-fases."""
         
-        # Solo actualizar (dx, dy) al inicio de un medio ciclo (evita saltos bruscos
-        # si cambias de dirección a mitad de la caminata)
+        # Muestrear el vector de paso (dx, dy) únicamente al iniciar una nueva pierna lateral (0 o 7)
         if self._state_idx in (0, 7):
             self._step_dx, self._step_dy = self._dir_to_step(self._dir)
 
@@ -183,13 +203,11 @@ class GaitV2:
         for l_idx, name in enumerate(LEG_NAMES):
             rx, ry, rz = self._site_rest[l_idx]
             
-            # Aplicar el multiplicador de offset correspondiente a esta fase
             mult = offsets[l_idx]
             target_x = rx + mult * self._step_dx
             target_y = ry + mult * self._step_dy
             target_z = rz
             
-            # Subir el Z solo si es la pata activa y está levantada o moviéndose
             if name == swing_leg and phase in (PHASE_LIFT, PHASE_MOVE):
                 target_z += self.step_h
 
@@ -231,10 +249,6 @@ class GaitV2:
         return {LEG_NAMES[i]: self._site_now[i].copy() for i in range(4)}
 
     def _accumulate_body(self, prev: np.ndarray):
-        """
-        En la fase BODY o RETURN todas las patas actúan como apoyo.
-        El desplazamiento del cuerpo relativo a tierra es el inverso al de las patas.
-        """
         delta = self._site_now - prev
         mean_delta = delta.mean(axis=0)
         self.body_pos -= mean_delta
