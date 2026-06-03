@@ -1,23 +1,15 @@
 """
-gait_v2.py — Puerto Python de gait.cpp (versión máquina de estados)
+gait_v2.py — Puerto Python adaptado al patrón "Y Acostada" (Peter Controller)
 ════════════════════════════════════════════════════════════════════
-Replica la lógica de gait.cpp iteración por iteración:
-  • Misma máquina de estados: IDLE → LIFT → MOVE → LOWER → BODY → RETURN
-  • tick_toward_expect() a velocidad constante por iteración (sin dt real)
-  • Parámetros por defecto = config.h
-
-Diferencias con robot_gait.py (viejo simulador):
-  • Sin interpolación temporal (no usa step_duration ni dt)
-  • Sin body_shift de equilibrio (eliminado en la nueva versión del Arduino)
-  • Añade strafe LEFT/RIGHT y diagonales (igual que el Arduino)
-
-Cada llamada a update() equivale a una iteración de loop() en el Arduino.
+Replica la lógica de peter_controller.py mediante una máquina de
+estados de offset (14 pasos) que cierra el ciclo matemáticamente y
+es 100% compatible con la interfaz de peter_simu_v7.py.
 """
 
 import numpy as np
 from ver_def.robot_kinematics import SpiderQuadruped
 
-# ── Constantes de dirección (= GaitDir en gait.h) ─────────────────────
+# ── Constantes de dirección ───────────────────────────────────────────
 GAIT_STOP      = 'STOP'
 GAIT_FORWARD   = 'FORWARD'
 GAIT_BACKWARD  = 'BACKWARD'
@@ -28,11 +20,9 @@ GAIT_FWD_RIGHT = 'FWD_RIGHT'
 GAIT_BCK_LEFT  = 'BCK_LEFT'
 GAIT_BCK_RIGHT = 'BCK_RIGHT'
 
-# Orden diagonal-wave: FL → RR → FR → RL  (= SWING_ORDER en gait.cpp)
-LEG_NAMES   = ['FL', 'FR', 'RL', 'RR']   # índice 0-3
-SWING_ORDER = [0, 3, 1, 2]               # FL=0  RR=3  FR=1  RL=2
+LEG_NAMES = ['FL', 'FR', 'RL', 'RR']
 
-# Fases (= Phase enum en gait.cpp)
+# ── Fases Originales (Para compatibilidad con el simulador) ───────────
 PHASE_IDLE   = 'IDLE'
 PHASE_LIFT   = 'LIFT'
 PHASE_MOVE   = 'MOVE'
@@ -40,23 +30,35 @@ PHASE_LOWER  = 'LOWER'
 PHASE_BODY   = 'BODY'
 PHASE_RETURN = 'RETURN'
 
+# ── Tabla de Estados: (Fase, Pata_Activa, Offsets_XY[FL, FR, RL, RR]) ──
+# Los offsets son multiplicadores relativos a (dx, dy). Esto garantiza
+# que al finalizar el ciclo las 4 patas regresen a un offset relativo 0.
+_STATE_TABLE = [
+    (PHASE_LIFT,  'FL', [ 0,  0,  0,  0]),  # 0: Inicia FL
+    (PHASE_MOVE,  'FL', [ 2,  0,  0,  0]),  # 1: Avanza FL (+2)
+    (PHASE_LOWER, 'FL', [ 2,  0,  0,  0]),  # 2: Baja FL
+    (PHASE_BODY,  'RR', [ 1, -1, -1, -1]),  # 3: Chasis avanza (patas -1). Cambio a RR para contar paso
+    (PHASE_LIFT,  'RR', [ 1, -1, -1, -1]),  # 4: Inicia RR
+    (PHASE_MOVE,  'RR', [ 1, -1, -1,  1]),  # 5: Avanza RR (+2)
+    (PHASE_LOWER, 'RR', [ 1, -1, -1,  1]),  # 6: Baja RR
+    (PHASE_LIFT,  'FR', [ 1, -1, -1,  1]),  # 7: Inicia FR
+    (PHASE_MOVE,  'FR', [ 1,  1, -1,  1]),  # 8: Avanza FR (+2)
+    (PHASE_LOWER, 'FR', [ 1,  1, -1,  1]),  # 9: Baja FR
+    (PHASE_BODY,  'RL', [ 0,  0, -2,  0]),  # 10: Chasis avanza (patas -1). Cambio a RL para contar paso
+    (PHASE_LIFT,  'RL', [ 0,  0, -2,  0]),  # 11: Inicia RL
+    (PHASE_MOVE,  'RL', [ 0,  0,  0,  0]),  # 12: Avanza RL (+2)
+    (PHASE_LOWER, 'RL', [ 0,  0,  0,  0]),  # 13: Baja RL (Ciclo cerrado perfecto a 0)
+]
+
 
 class GaitV2:
-    """
-    Marcha crawl diagonal-wave — puerto de gait.cpp.
-
-    Parámetros por defecto coinciden con config.h del Arduino.
-    La velocidad visual depende del frame-rate de la animación:
-    con 30 fps y leg_speed=0.006 un paso completo dura ~22 frames (~0.73 s).
-    """
-
     def __init__(self, robot: SpiderQuadruped,
-                 step_len:     float = 0.040,   # STEP_LEN
-                 step_len_lat: float = 0.020,   # STEP_LEN_LAT
-                 step_h:       float = 0.035,   # STEP_H
-                 leg_speed:    float = 0.006,   # LEG_SPEED
-                 body_speed:   float = 0.003,   # BODY_SPEED
-                 reach_tol:    float = 0.002):  # REACH_TOL
+                 step_len:     float = 0.040,
+                 step_len_lat: float = 0.020,
+                 step_h:       float = 0.035,
+                 leg_speed:    float = 0.006,
+                 body_speed:   float = 0.003,
+                 reach_tol:    float = 0.002):
         self.robot        = robot
         self.step_len     = step_len
         self.step_len_lat = step_len_lat
@@ -65,46 +67,42 @@ class GaitV2:
         self.body_speed   = body_speed
         self.reach_tol    = reach_tol
 
-        # site_now / site_expect / site_rest — shape (4, 3), frame cuerpo
         self._site_now    = np.zeros((4, 3))
         self._site_expect = np.zeros((4, 3))
         self._site_rest   = np.zeros((4, 3))
 
-        self._phase     = PHASE_IDLE
-        self._swing_idx = 0           # índice 0-3 en SWING_ORDER
-        self._dir       = GAIT_STOP
-        self._step_dx   = 0.0
-        self._step_dy   = 0.0
+        self._phase         = PHASE_IDLE
+        self._current_swing = 'FL'
+        self._dir           = GAIT_STOP
+        self._step_dx       = 0.0
+        self._step_dy       = 0.0
+        self._state_idx     = 0
 
-        # Posición acumulada del cuerpo en frame mundo (solo para visualización).
-        # Se actualiza durante BODY y RETURN usando el desplazamiento de las patas.
         self.body_pos = np.zeros(3)
-
         self._gait_init()
 
-    # ── gait_init() ───────────────────────────────────────────────────────
-
     def _gait_init(self):
-        """Lleva todas las patas a posición de reposo y aplica IK."""
+        """Captura la pose inicial definida (Y acostada) en site_rest."""
         for i, name in enumerate(LEG_NAMES):
             rest = self.robot.legs[name].get_rest_foot_body()
-            self._site_rest[i]   = rest
+            self._site_rest[i]   = rest.copy()
             self._site_now[i]    = rest.copy()
             self._site_expect[i] = rest.copy()
+
         self._apply_ik_all()
         self._phase = PHASE_IDLE
 
     def reset(self):
-        """Reinicia el estado completo a reposo."""
-        self._phase     = PHASE_IDLE
-        self._swing_idx = 0
-        self._dir       = GAIT_STOP
-        self._step_dx   = 0.0
-        self._step_dy   = 0.0
-        self.body_pos   = np.zeros(3)
+        self._phase         = PHASE_IDLE
+        self._current_swing = 'FL'
+        self._dir           = GAIT_STOP
+        self._step_dx       = 0.0
+        self._step_dy       = 0.0
+        self._state_idx     = 0
+        self.body_pos       = np.zeros(3)
         self._gait_init()
 
-    # ── Propiedades de estado (para visualización) ─────────────────────
+    # ── Interfaces expuestas para peter_simu_v7.py ──────────────────
 
     @property
     def phase(self) -> str:
@@ -112,13 +110,13 @@ class GaitV2:
 
     @property
     def current_swing(self) -> str:
-        return LEG_NAMES[SWING_ORDER[self._swing_idx]]
+        return self._current_swing
 
     @property
     def direction(self) -> str:
         return self._dir
 
-    # ── gait_set_dir() ────────────────────────────────────────────────
+    # ── Actualización de comandos ─────────────────────────────────────
 
     def set_dir(self, direction: str):
         if direction == self._dir:
@@ -128,24 +126,15 @@ class GaitV2:
         if direction == GAIT_STOP:
             if self._phase != PHASE_IDLE:
                 self._phase = PHASE_RETURN
-                self._expect_all_rest()
+                self._site_expect[:] = self._site_rest[:]
             return
 
-        # Arrancar desde reposo o cancelar retorno en curso
+        # Si estaba en reposo, inicia la tabla de secuencia en el paso 0
         if self._phase in (PHASE_IDLE, PHASE_RETURN):
-            self._swing_idx = 0
-            self._freeze_stance_legs()
-            self._phase = PHASE_LIFT
-            self._start_lift()
-        # Si ya marcha, la nueva dirección toma efecto en el próximo start_lift()
-
-    # ── gait_update() ────────────────────────────────────────────────
+            self._state_idx = 0
+            self._update_state_machine()
 
     def update(self) -> dict:
-        """
-        Una iteración del loop() del Arduino.
-        Aplica IK al robot y retorna {name: np.array([x,y,z])} en frame cuerpo.
-        """
         if self._phase == PHASE_IDLE:
             return self._foot_dict()
 
@@ -158,42 +147,55 @@ class GaitV2:
             self._apply_ik_all()
             return self._foot_dict()
 
-        # ── Fases de balanceo ───────────────────────────────────────
-        if self._phase == PHASE_LIFT:
-            if self._tick_toward_expect(self.leg_speed):
-                self._phase = PHASE_MOVE
-                self._start_move()
+        # Ejecución activa de las fases
+        prev = self._site_now.copy()
+        speed = self.body_speed if self._phase == PHASE_BODY else self.leg_speed
+        done = self._tick_toward_expect(speed)
 
-        elif self._phase == PHASE_MOVE:
-            if self._tick_toward_expect(self.leg_speed):
-                self._phase = PHASE_LOWER
-                self._start_lower()
-
-        elif self._phase == PHASE_LOWER:
-            if self._tick_toward_expect(self.leg_speed):
-                self._phase = PHASE_BODY
-                self._expect_all_stride_back(self._step_dx, self._step_dy)
-
-        elif self._phase == PHASE_BODY:
-            prev = self._site_now.copy()
-            done = self._tick_toward_expect(self.body_speed)
+        if self._phase == PHASE_BODY:
             self._accumulate_body(prev)
-            if done:
-                if self._dir == GAIT_STOP:
-                    self._phase = PHASE_RETURN
-                    self._expect_all_rest()
-                else:
-                    self._swing_idx = (self._swing_idx + 1) % 4
-                    self._phase = PHASE_LIFT
-                    self._start_lift()
+
+        if done:
+            if self._dir == GAIT_STOP:
+                self._phase = PHASE_RETURN
+                self._site_expect[:] = self._site_rest[:]
+            else:
+                self._state_idx = (self._state_idx + 1) % len(_STATE_TABLE)
+                self._update_state_machine()
 
         self._apply_ik_all()
         return self._foot_dict()
 
-    # ── Helpers — traducción directa de gait.cpp ──────────────────────
+    # ── Máquina de estados interna y geometría ────────────────────────
+
+    def _update_state_machine(self):
+        """Calcula los targets absolutos basándose en la tabla lógica."""
+        
+        # Solo actualizar (dx, dy) al inicio de un medio ciclo (evita saltos bruscos
+        # si cambias de dirección a mitad de la caminata)
+        if self._state_idx in (0, 7):
+            self._step_dx, self._step_dy = self._dir_to_step(self._dir)
+
+        phase, swing_leg, offsets = _STATE_TABLE[self._state_idx]
+        self._phase = phase
+        self._current_swing = swing_leg
+
+        for l_idx, name in enumerate(LEG_NAMES):
+            rx, ry, rz = self._site_rest[l_idx]
+            
+            # Aplicar el multiplicador de offset correspondiente a esta fase
+            mult = offsets[l_idx]
+            target_x = rx + mult * self._step_dx
+            target_y = ry + mult * self._step_dy
+            target_z = rz
+            
+            # Subir el Z solo si es la pata activa y está levantada o moviéndose
+            if name == swing_leg and phase in (PHASE_LIFT, PHASE_MOVE):
+                target_z += self.step_h
+
+            self._site_expect[l_idx] = [target_x, target_y, target_z]
 
     def _dir_to_step(self, direction: str):
-        """dir_to_step() — retorna (dx, dy) en metros."""
         sl  = self.step_len
         sll = self.step_len_lat
         d   = sl * 0.707
@@ -209,7 +211,6 @@ class GaitV2:
         }.get(direction, (0.0, 0.0))
 
     def _tick_toward_expect(self, speed: float) -> bool:
-        """tick_toward_expect() — retorna True cuando todas las patas llegaron."""
         all_done = True
         for l in range(4):
             for j in range(3):
@@ -222,52 +223,7 @@ class GaitV2:
                     self._site_now[l, j] = self._site_expect[l, j]
         return all_done
 
-    def _set_site_one(self, leg: int, x: float, y: float, z: float):
-        self._site_expect[leg] = [x, y, z]
-
-    def _expect_all_rest(self):
-        self._site_expect[:] = self._site_rest
-
-    def _expect_all_stride_back(self, dx: float, dy: float):
-        """Todas las patas al apoyo posterior: rest - step/2."""
-        for l in range(4):
-            self._site_expect[l, 0] = self._site_rest[l, 0] - dx * 0.5
-            self._site_expect[l, 1] = self._site_rest[l, 1] - dy * 0.5
-            self._site_expect[l, 2] = self._site_rest[l, 2]
-
-    def _freeze_stance_legs(self):
-        """Congela los expects de las patas en apoyo a su posición actual."""
-        for l in range(4):
-            if l != SWING_ORDER[self._swing_idx]:
-                self._site_expect[l] = self._site_now[l].copy()
-
-    def _start_lift(self):
-        sl = SWING_ORDER[self._swing_idx]
-        self._step_dx, self._step_dy = self._dir_to_step(self._dir)
-        # Solo sube Z; XY quedan donde está
-        self._set_site_one(sl,
-            self._site_now[sl, 0],
-            self._site_now[sl, 1],
-            self._site_rest[sl, 2] + self.step_h)
-
-    def _start_move(self):
-        sl = SWING_ORDER[self._swing_idx]
-        # Avanza a rest + medio paso, a altura levantada
-        self._set_site_one(sl,
-            self._site_rest[sl, 0] + self._step_dx * 0.5,
-            self._site_rest[sl, 1] + self._step_dy * 0.5,
-            self._site_rest[sl, 2] + self.step_h)
-
-    def _start_lower(self):
-        sl = SWING_ORDER[self._swing_idx]
-        # Baja al suelo en la posición delantera
-        self._set_site_one(sl,
-            self._site_rest[sl, 0] + self._step_dx * 0.5,
-            self._site_rest[sl, 1] + self._step_dy * 0.5,
-            self._site_rest[sl, 2])
-
     def _apply_ik_all(self):
-        """apply_ik_all() — llama a IK de Python en lugar de mover()."""
         for i, name in enumerate(LEG_NAMES):
             self.robot.legs[name].ik(self._site_now[i])
 
@@ -276,15 +232,10 @@ class GaitV2:
 
     def _accumulate_body(self, prev: np.ndarray):
         """
-        Aproxima la posición del cuerpo en frame mundo para visualización.
-        El cuerpo avanza cuando los pies en apoyo retroceden.
-        Solo actualiza durante BODY y RETURN (cuando pies tocan el suelo).
+        En la fase BODY o RETURN todas las patas actúan como apoyo.
+        El desplazamiento del cuerpo relativo a tierra es el inverso al de las patas.
         """
-        delta = self._site_now - prev          # desplazamiento de cada pata
-        sw    = SWING_ORDER[self._swing_idx]
-        # Solo las patas en apoyo (no la que acaba de aterrizar en LIFT/MOVE/LOWER)
-        stance = [i for i in range(4) if i != sw]
-        if stance:
-            mean_delta        = delta[stance].mean(axis=0)
-            self.body_pos    -= mean_delta       # cuerpo va en sentido opuesto
-            self.body_pos[2]  = 0.0             # mantener altura 0 (suelo plano)
+        delta = self._site_now - prev
+        mean_delta = delta.mean(axis=0)
+        self.body_pos -= mean_delta
+        self.body_pos[2] = 0.0
