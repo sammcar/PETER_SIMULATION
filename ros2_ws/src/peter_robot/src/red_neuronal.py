@@ -199,7 +199,11 @@ class NetworkPublisher(Node):
 
         # Nivel activo en este experimento (índice en NoiseLevel).
         # Cámbialo antes de cada prueba: 0=limpio, 1=±5%, 2=±10%, etc.
-        self.ACTIVE_NOISE_LEVEL_IDX = 0   # ← MODIFICAR ANTES DE CADA PRUEBA (0 = No ruido)
+
+        self.declare_parameter('nl', 0) #Noise level default
+
+        self.ACTIVE_NOISE_LEVEL_IDX = (self.get_parameter('nl').get_parameter_value().integer_value) #Parametro noise level ros2 run peter_robot red_neuronal --ros-args -p nl:=0
+        self.ACTIVE_NOISE_LEVEL_IDX = 2   # ← MODIFICAR ANTES DE CADA PRUEBA (0 = No ruido)
 
         # Semilla reproducible (None = aleatoria)
         self.NoiseSeed = 42
@@ -590,9 +594,11 @@ class NetworkPublisher(Node):
 
     def publicarMatericas(self):
         
+        clean_metrics = [float(x) if x is not None else 0.0 for x in self.metricsArr] #Limpia los valores None
+
         msg = Float32MultiArray()
 
-        msg.data = self.metricsArr
+        msg.data = clean_metrics
 
         self.metrics_pub.publish(msg)
 
