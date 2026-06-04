@@ -49,6 +49,33 @@ _STATE_TABLE = [
     (PHASE_LOWER, 'RL', [ 0,  0,  0,  0]),  # 13: Baja RL -> ¡Aquí se alcanza la pose 'Left Y' estable!
 ]
 
+# ── Tabla de Estados para Marcha Atrás ───────────────────────────────
+# La pata más adelantada en la dirección de retroceso oscila primero.
+# Desde Left Y: RL (lateral trasera) → FR. Desde Right Y: RR → FL.
+# Los offsets funcionan igual que en _STATE_TABLE pero con step_dx < 0,
+# por lo que un offset +2 mueve la pata 2*|step_dx| hacia atrás.
+_STATE_TABLE_BWD = [
+    # Desde Left Y (estado estable): RL primero
+    (PHASE_LIFT,  'RL', [ 0,  0,  0,  0]),  # B0: RL levanta desde reposo
+    (PHASE_MOVE,  'RL', [ 0,  0,  2,  0]),  # B1: RL retrocede (+2 * step_dx)
+    (PHASE_LOWER, 'RL', [ 0,  0,  2,  0]),  # B2: RL baja
+    (PHASE_BODY,  'FR', [-1, -1,  1, -1]),  # B3: cuerpo retrocede; cambio a FR
+    (PHASE_LIFT,  'FR', [-1, -1,  1, -1]),  # B4: FR levanta
+    (PHASE_MOVE,  'FR', [-1,  1,  1, -1]),  # B5: FR retrocede
+    (PHASE_LOWER, 'FR', [-1,  1,  1, -1]),  # B6: FR baja -> pose 'Right Y' estable
+
+    # Desde Right Y (estado estable): RR primero
+    (PHASE_LIFT,  'RR', [-1,  1,  1, -1]),  # B7: RR levanta
+    (PHASE_MOVE,  'RR', [-1,  1,  1,  1]),  # B8: RR retrocede
+    (PHASE_LOWER, 'RR', [-1,  1,  1,  1]),  # B9: RR baja
+    (PHASE_BODY,  'FL', [-2,  0,  0,  0]),  # B10: cuerpo retrocede; cambio a FL
+    (PHASE_LIFT,  'FL', [-2,  0,  0,  0]),  # B11: FL levanta
+    (PHASE_MOVE,  'FL', [ 0,  0,  0,  0]),  # B12: FL retrocede
+    (PHASE_LOWER, 'FL', [ 0,  0,  0,  0]),  # B13: FL baja -> pose 'Left Y' estable
+]
+
+_BWD_DIRS = {GAIT_BACKWARD, GAIT_BCK_LEFT, GAIT_BCK_RIGHT}
+
 
 class GaitV2:
     def __init__(self, robot: SpiderQuadruped,
@@ -134,11 +161,12 @@ class GaitV2:
 
         if self._phase == PHASE_IDLE and direction != GAIT_STOP:
             self._dir = direction
-            # Reanudación inteligente según la "Y" actual donde se detuvo
+            # Reanudación inteligente según la "Y" actual donde se detuvo.
+            # La tabla correcta (FWD o BWD) se elige en _update_state_machine.
             if self._state_idx == 6:
-                self._state_idx = 7   # Reanuda con FR (Lateral Derecho)
+                self._state_idx = 7   # Right Y: FWD→FR primero, BWD→RR primero
             else:
-                self._state_idx = 0   # Reanuda con FL (Lateral Izquierdo)
+                self._state_idx = 0   # Left Y:  FWD→FL primero, BWD→RL primero
             self._update_state_machine()
 
     def update(self) -> dict:
@@ -191,12 +219,13 @@ class GaitV2:
 
     def _update_state_machine(self):
         """Calcula los targets basándose estrictamente en los offsets de las sub-fases."""
-        
+
         # Muestrear el vector de paso (dx, dy) únicamente al iniciar una nueva pierna lateral (0 o 7)
         if self._state_idx in (0, 7):
             self._step_dx, self._step_dy = self._dir_to_step(self._dir)
 
-        phase, swing_leg, offsets = _STATE_TABLE[self._state_idx]
+        table = _STATE_TABLE_BWD if self._dir in _BWD_DIRS else _STATE_TABLE
+        phase, swing_leg, offsets = table[self._state_idx]
         self._phase = phase
         self._current_swing = swing_leg
 
