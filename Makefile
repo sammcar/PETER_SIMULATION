@@ -43,7 +43,8 @@ PASSTHROUGH := IMAGE=$(IMAGE) CONTAINER=$(CONTAINER) WS=$(WS) \
         sim-multi sim-multi-conflict sim-multi-full \
         teleop-host teleop-container record neural \
         echo-metrics echo-status list-topics \
-        export-results export-last-result list-results clean-container-results
+        export-results export-last-result list-results clean-container-results \
+        run-experiments
 
 help: ## Muestra todos los comandos disponibles
 	@make -f $(MK) help IMAGE=$(IMAGE) CONTAINER=$(CONTAINER) 2>/dev/null || \
@@ -140,3 +141,6 @@ list-results: ## Lista los resultados disponibles en el contenedor
 
 clean-container-results: ## Elimina todos los resultados del contenedor
 	@make -f $(MK) clean-container-results $(PASSTHROUGH)
+
+run-experiments: ## Lanza el orquestador automático de experimentos dentro del contenedor
+	@make -f $(MK) run-experiments $(PASSTHROUGH)

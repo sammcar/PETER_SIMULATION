@@ -38,7 +38,8 @@ EXPORT_SCRIPT ?= $(REPO_ROOT)/ros2_ws/src/peter_robot/scripts/export_results.sh
         teleop-stdin-container record neural shell chown-ws echo-metrics echo-status \
         list-topics check-install check-container \
         docker-build docker-create docker-start docker-stop docker-rm docker-status docker-logs \
-        export-results export-last-result list-results clean-container-results
+        export-results export-last-result list-results clean-container-results \
+        run-experiments
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
@@ -231,3 +232,6 @@ list-results: ## Lista los resultados disponibles en el contenedor
 clean-container-results: ## Elimina TODOS los resultados del contenedor (pide confirmación)
 	@chmod +x $(EXPORT_SCRIPT)
 	CONTAINER=$(CONTAINER) bash $(EXPORT_SCRIPT) --clean
+
+run-experiments: check-install ## Ejecuta el orquestador automático de experimentos dentro del contenedor
+	$(DC) "$(WS_SOURCE) && ROS_DOMAIN_ID=$(DOMAIN_ID) python3 $(WS)/src/peter_robot/scripts/test_manager.py $(WS)/src/peter_robot/config/experiments_config.yaml"

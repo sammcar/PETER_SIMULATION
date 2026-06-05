@@ -31,6 +31,7 @@ setup(
         (os.path.join('share', package_name, 'worlds'), only_files('worlds/*')),
         (os.path.join('share', package_name, 'config'), only_files('config/*')),
         (os.path.join('share', package_name, 'docs'), only_files('docs/*')),
+        (os.path.join('share', package_name, 'scripts'), only_files('scripts/*')),
     ] + get_model_data_files(),
     install_requires=['setuptools'],
     zip_safe=True,
@@ -54,7 +55,8 @@ setup(
             'neural_recorder = src.neural_recorder:main',
             'peter_stability_monitor = src.peter_stability_monitor:main',
             'RobustnessMetric = src.robustnessListener:main',
-            "RMSENode = src.RMSE_node:main"
+            "RMSENode = src.RMSE_node:main",
+            'test_manager = scripts.test_manager:main',
         ],
     },
 )
