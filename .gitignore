@@ -7,3 +7,11 @@ ros2_ws/core.*
 ros2_ws/src/peter_robot/docs/resultados/*
 !ros2_ws/src/peter_robot/docs/resultados/.gitkeep
 pruebas/
+
+# Archivos de herramientas locales — nunca versionar
+**/.clangd
+**/compile_commands.json
+**/.python-version
+**/__pycache__/
+**/*.pyc
+**/*.pyo

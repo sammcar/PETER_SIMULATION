@@ -5,68 +5,73 @@
 #include <string.h>
 #include <math.h>
 
-// Orden de balanceo diagonal-wave crawl: FL → RR → FR → RL
-// (mientras una pata balancea, las tres contrarias forman un triángulo estable)
+// Orden diagonal-wave: FL → RR → FR → RL
 static const uint8_t SWING_ORDER[4] = { LEG_FL, LEG_RR, LEG_FR, LEG_RL };
 
+// ── Fases de la máquina de estados ────────────────────────────────────
+typedef enum {
+    PHASE_IDLE = 0,
+    PHASE_LIFT,    // sube la pata de balanceo (solo Z)
+    PHASE_MOVE,    // avanza la pata de balanceo (X/Y a altura levantada)
+    PHASE_LOWER,   // baja la pata de balanceo al suelo
+    PHASE_BODY,    // mueve todas las patas a la posición de apoyo posterior
+    PHASE_RETURN,  // retorno suave a reposo
+} Phase;
+
 // ── Estado interno ─────────────────────────────────────────────────────
+static float site_now[4][3];    // posición actual del pie (frame cuerpo, metros)
+static float site_expect[4][3]; // posición objetivo del pie
+static float site_rest[4][3];   // posición de reposo de cada pata
 
-static float foot_pos[4][3];        // objetivo actual del pie en frame cuerpo
-static float foot_rest[4][3];       // posición de reposo en frame cuerpo
+static Phase   phase       = PHASE_IDLE;
+static uint8_t swing_idx   = 0;           // índice 0-3 en SWING_ORDER
+static GaitDir current_dir = GAIT_STOP;
+static float   step_dx     = 0.0f;
+static float   step_dy     = 0.0f;
 
-// Datos fijados al inicio de cada fase de balanceo
-static float swing_start[3];        // posición del pie de balanceo al inicio
-static float swing_end[3];          // posición destino del pie de balanceo
-static float stance_start[4][3];    // posición de las patas en apoyo al inicio de fase
-static float phase_dx, phase_dy;    // vector de paso capturado al inicio de la fase
-
-static GaitDir  current_dir   = GAIT_STOP;
-static uint8_t  current_phase = 0;       // índice 0-3 en SWING_ORDER
-static uint32_t phase_start_ms = 0;
-static bool     active    = false;
-static bool     returning = false;
-static float    return_start[4][3];      // foot_pos al inicio del retorno a reposo
-
-static float body_shift[2]        = {0.0f, 0.0f};  // desplazamiento actual del cuerpo (x,y)
-static float body_shift_start[2]  = {0.0f, 0.0f};  // desplazamiento al inicio de la fase
-static float body_shift_tgt[2]    = {0.0f, 0.0f};  // desplazamiento objetivo de la fase
-static float return_body_shift[2] = {0.0f, 0.0f};  // desplazamiento al inicio del retorno a reposo
-
-// Implementada en peter_arduino.ino
 extern void mover(uint8_t leg, uint8_t joint, float angulo_deg);
-
-static inline float smoothstep(float t) { return t * t * (3.0f - 2.0f * t); }
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-// Vector de paso (dx, dy) en metros según la dirección pedida.
-// Para giros: patas izquierdas van hacia atrás, derechas hacia adelante (skid-steer).
-static void dir_to_step(GaitDir dir, uint8_t leg, float& dx, float& dy) {
-    float sl  = STEP_LEN;
-    float sll = STEP_LEN_LAT;
-    float d   = sl * 0.707f;   // diagonal normalizada
-
+static void dir_to_step(GaitDir dir, float &dx, float &dy) {
+    float sl = STEP_LEN, sll = STEP_LEN_LAT;
+    float d  = sl * 0.707f;
     switch (dir) {
-        case GAIT_FORWARD:   dx =  sl;  dy =  0;   return;
-        case GAIT_BACKWARD:  dx = -sl;  dy =  0;   return;
-        case GAIT_LEFT:      dx =  0;   dy =  sll; return;
-        case GAIT_RIGHT:     dx =  0;   dy = -sll; return;
-        case GAIT_FWD_LEFT:  dx =  d;   dy =  d;   return;
-        case GAIT_FWD_RIGHT: dx =  d;   dy = -d;   return;
-        case GAIT_BCK_LEFT:  dx = -d;   dy =  d;   return;
-        case GAIT_BCK_RIGHT: dx = -d;   dy = -d;   return;
-        default:             dx =  0;   dy =  0;   return;
+        case GAIT_FORWARD:   dx =  sl;  dy =  0;    return;
+        case GAIT_BACKWARD:  dx = -sl;  dy =  0;    return;
+        case GAIT_LEFT:      dx =  0;   dy =  sll;  return;
+        case GAIT_RIGHT:     dx =  0;   dy = -sll;  return;
+        case GAIT_FWD_LEFT:  dx =  d;   dy =  d;    return;
+        case GAIT_FWD_RIGHT: dx =  d;   dy = -d;    return;
+        case GAIT_BCK_LEFT:  dx = -d;   dy =  d;    return;
+        case GAIT_BCK_RIGHT: dx = -d;   dy = -d;    return;
+        default:             dx =  0;   dy =  0;    return;
     }
 }
 
-// Envía los ángulos IK actuales de todas las patas a los servos.
-// Se resta body_shift para que el cuerpo se desplace hacia el polígono de soporte.
+// Mueve site_now hacia site_expect a la velocidad dada.
+// Retorna true cuando TODAS las patas alcanzaron su objetivo.
+static bool tick_toward_expect(float speed) {
+    bool all_done = true;
+    for (uint8_t l = 0; l < 4; l++) {
+        for (uint8_t j = 0; j < 3; j++) {
+            float diff = site_expect[l][j] - site_now[l][j];
+            if (fabsf(diff) > REACH_TOL) {
+                all_done = false;
+                float step = fminf(fabsf(diff), speed);
+                site_now[l][j] += (diff > 0.0f ? step : -step);
+            } else {
+                site_now[l][j] = site_expect[l][j];
+            }
+        }
+    }
+    return all_done;
+}
+
 static void apply_ik_all() {
     for (uint8_t l = 0; l < 4; l++) {
         float q[3];
-        float fx = foot_pos[l][0] - body_shift[0];
-        float fy = foot_pos[l][1] - body_shift[1];
-        if (leg_ik(l, fx, fy, foot_pos[l][2], q)) {
+        if (leg_ik(l, site_now[l][0], site_now[l][1], site_now[l][2], q)) {
             mover(l, COXA,  q[0]);
             mover(l, FEMUR, q[1]);
             mover(l, TIBIA, q[2] - TIBIA_BIAS_DEG);
@@ -74,195 +79,162 @@ static void apply_ik_all() {
     }
 }
 
-// Prepara los datos de la fase de balanceo del ciclo actual.
-static void start_phase() {
-    uint8_t sl = SWING_ORDER[current_phase];
+// Fija el objetivo de UNA pata; las demás no cambian.
+static void set_site_one(uint8_t leg, float x, float y, float z) {
+    site_expect[leg][0] = x;
+    site_expect[leg][1] = y;
+    site_expect[leg][2] = z;
+}
 
-    // Vector de paso para esta fase (congelado hasta la siguiente fase)
-    dir_to_step(current_dir, sl, phase_dx, phase_dy);
-
-    // Guardar posiciones de inicio
+// Todas las patas a su posición de reposo.
+static void expect_all_rest() {
     for (uint8_t l = 0; l < 4; l++)
-        memcpy(stance_start[l], foot_pos[l], sizeof(float[3]));
+        memcpy(site_expect[l], site_rest[l], sizeof(float[3]));
+}
 
-    // La pata de balanceo parte de su posición actual y aterriza medio paso
-    // por delante de su posición de reposo
-    memcpy(swing_start, foot_pos[sl], sizeof(float[3]));
-    swing_end[0] = foot_rest[sl][0] + phase_dx * 0.5f;
-    swing_end[1] = foot_rest[sl][1] + phase_dy * 0.5f;
-    swing_end[2] = foot_rest[sl][2];   // sin elevación al aterrizar
-
-    // Centroide del triángulo de soporte → objetivo del desplazamiento del cuerpo
-    float cx = 0.0f, cy = 0.0f;
+// Todas las patas a la posición de apoyo posterior: rest - step/2.
+// Esto hace avanzar el cuerpo medio paso al llegar ahí.
+static void expect_all_stride_back(float dx, float dy) {
     for (uint8_t l = 0; l < 4; l++) {
-        if (l != sl) { cx += foot_pos[l][0]; cy += foot_pos[l][1]; }
+        site_expect[l][0] = site_rest[l][0] - dx * 0.5f;
+        site_expect[l][1] = site_rest[l][1] - dy * 0.5f;
+        site_expect[l][2] = site_rest[l][2];
     }
-    cx /= 3.0f;  cy /= 3.0f;
-    body_shift_start[0] = body_shift[0];
-    body_shift_start[1] = body_shift[1];
-    bool lat = fabsf(phase_dy) > fabsf(phase_dx);
-    body_shift_tgt[0]   = cx * (lat ? BODY_SHIFT_LAT_X : BODY_SHIFT_FWD_X);
-    body_shift_tgt[1]   = cy * (lat ? BODY_SHIFT_LAT_Y : BODY_SHIFT_FWD_Y);
+}
 
-    // Corrección adicional por inclinación del IMU.
-    // Se suma al desplazamiento del centroide para compensar superficies inclinadas.
-    // Si la corrección está invertida, cambiar el signo de IMU_GAIN_X / IMU_GAIN_Y en config.h.
-    if (USE_IMU && imu_ok()) {
-        body_shift_tgt[0] += imu_get_pitch() * IMU_GAIN_X;
-        body_shift_tgt[1] += imu_get_roll()  * IMU_GAIN_Y;
+// Sincroniza los expects de las patas en apoyo a su posición actual
+// (evita movimiento no deseado al comenzar una nueva marcha desde IDLE).
+static void freeze_stance_legs() {
+    for (uint8_t l = 0; l < 4; l++) {
+        if (l != SWING_ORDER[swing_idx])
+            memcpy(site_expect[l], site_now[l], sizeof(float[3]));
     }
+}
+
+// ── Inicio de cada sub-fase ────────────────────────────────────────────
+
+static void start_lift() {
+    uint8_t sl = SWING_ORDER[swing_idx];
+    dir_to_step(current_dir, step_dx, step_dy);
+    // Levanta solo la coordenada Z; X/Y quedan donde está.
+    set_site_one(sl,
+        site_now[sl][0],
+        site_now[sl][1],
+        site_rest[sl][2] + STEP_H);
+}
+
+static void start_move() {
+    uint8_t sl = SWING_ORDER[swing_idx];
+    // Avanza a la posición delantera (rest + medio paso) a altura levantada.
+    set_site_one(sl,
+        site_rest[sl][0] + step_dx * 0.5f,
+        site_rest[sl][1] + step_dy * 0.5f,
+        site_rest[sl][2] + STEP_H);
+}
+
+static void start_lower() {
+    uint8_t sl = SWING_ORDER[swing_idx];
+    // Baja al suelo en la posición delantera.
+    set_site_one(sl,
+        site_rest[sl][0] + step_dx * 0.5f,
+        site_rest[sl][1] + step_dy * 0.5f,
+        site_rest[sl][2]);
 }
 
 // ── API pública ────────────────────────────────────────────────────────
 
 void gait_init() {
     for (uint8_t l = 0; l < 4; l++) {
-        leg_rest_pos(l, foot_rest[l]);
-        memcpy(foot_pos[l], foot_rest[l], sizeof(float[3]));
+        leg_rest_pos(l, site_rest[l]);
+        memcpy(site_now[l],    site_rest[l], sizeof(float[3]));
+        memcpy(site_expect[l], site_rest[l], sizeof(float[3]));
     }
     apply_ik_all();
+    phase = PHASE_IDLE;
 }
 
 void gait_set_dir(GaitDir dir) {
+    if (dir == current_dir) return;
+    current_dir = dir;
+
     if (dir == GAIT_STOP) {
-        current_dir = GAIT_STOP;
-        if (active || returning) {
-            active    = false;
-            returning = true;
-            phase_start_ms = 0;
-            for (uint8_t l = 0; l < 4; l++)
-                memcpy(return_start[l], foot_pos[l], sizeof(float[3]));
-            return_body_shift[0] = body_shift[0];
-            return_body_shift[1] = body_shift[1];
+        if (phase != PHASE_IDLE) {
+            phase = PHASE_RETURN;
+            expect_all_rest();
         }
         return;
     }
 
-    current_dir = dir;
-    if (!active) {
-        returning      = false;   // cancela retorno si estaba en curso
-        active         = true;
-        current_phase  = 0;
-        phase_start_ms = 0;       // se fijará en el primer gait_update()
-        start_phase();
+    // Arrancar desde reposo o cancelar un retorno en curso.
+    if (phase == PHASE_IDLE || phase == PHASE_RETURN) {
+        swing_idx = 0;
+        freeze_stance_legs();
+        phase = PHASE_LIFT;
+        start_lift();
     }
-    // Si ya está activo: la nueva dirección toma efecto en la próxima fase
+    // Si ya está en marcha, la nueva dirección toma efecto en el próximo start_lift().
 }
 
 void gait_update(uint32_t now_ms) {
+    (void)now_ms;
 
-    // ── Retorno suave a reposo ─────────────────────────────────────────
-    if (returning) {
-        if (phase_start_ms == 0) phase_start_ms = now_ms;
-        float t = (float)(now_ms - phase_start_ms) / RETURN_MS;
-        if (t >= 1.0f) {
-            returning      = false;
-            phase_start_ms = 0;
-            for (uint8_t l = 0; l < 4; l++)
-                memcpy(foot_pos[l], foot_rest[l], sizeof(float[3]));
-            body_shift[0] = 0.0f;
-            body_shift[1] = 0.0f;
-        } else if (t <= RETURN_LAND_RATIO) {
-            // Fase 1: solo bajar las patas al suelo (solo Z).
-            // Garantiza que ninguna pata quede en el aire antes de reposicionar.
-            float tl = smoothstep(t / RETURN_LAND_RATIO);
-            for (uint8_t l = 0; l < 4; l++) {
-                foot_pos[l][0] = return_start[l][0];
-                foot_pos[l][1] = return_start[l][1];
-                foot_pos[l][2] = return_start[l][2] + (foot_rest[l][2] - return_start[l][2]) * tl;
-            }
-            body_shift[0] = return_body_shift[0];
-            body_shift[1] = return_body_shift[1];
-        } else {
-            // Fase 2: con patas en tierra, reposicionar X/Y y centrar el cuerpo.
-            float tr = smoothstep((t - RETURN_LAND_RATIO) / (1.0f - RETURN_LAND_RATIO));
-            for (uint8_t l = 0; l < 4; l++) {
-                foot_pos[l][0] = return_start[l][0] + (foot_rest[l][0] - return_start[l][0]) * tr;
-                foot_pos[l][1] = return_start[l][1] + (foot_rest[l][1] - return_start[l][1]) * tr;
-                foot_pos[l][2] = foot_rest[l][2];
-            }
-            body_shift[0] = return_body_shift[0] * (1.0f - tr);
-            body_shift[1] = return_body_shift[1] * (1.0f - tr);
-        }
-        apply_ik_all();
-        return;
-    }
-
-    // Detención de seguridad: si la inclinación supera el límite, parar la marcha.
-    if (USE_IMU && active && imu_ok()) {
+    // Parada de seguridad por IMU.
+    if (USE_IMU && imu_ok() && phase != PHASE_IDLE && phase != PHASE_RETURN) {
         if (fabsf(imu_get_pitch()) > IMU_MAX_TILT || fabsf(imu_get_roll()) > IMU_MAX_TILT) {
-            gait_set_dir(GAIT_STOP);
+            current_dir = GAIT_STOP;
+            phase       = PHASE_RETURN;
+            expect_all_rest();
         }
     }
 
-    if (!active) return;
+    switch (phase) {
 
-    // ── Marcha activa ──────────────────────────────────────────────────
-    if (phase_start_ms == 0) phase_start_ms = now_ms;
+        case PHASE_IDLE:
+            return;
 
-    uint32_t elapsed = now_ms - phase_start_ms;
-    float t = (elapsed < (uint32_t)STEP_MS)
-              ? (float)elapsed / STEP_MS
-              : 1.0f;
+        case PHASE_RETURN:
+            if (tick_toward_expect(BODY_SPEED)) phase = PHASE_IDLE;
+            apply_ik_all();
+            return;
 
-    uint8_t swing_leg = SWING_ORDER[current_phase];
+        case PHASE_LIFT:
+            if (tick_toward_expect(LEG_SPEED)) {
+                phase = PHASE_MOVE;
+                start_move();
+            }
+            break;
 
-    if (t <= BODY_PREP_RATIO) {
-        // ── Sub-fase 1: preparación ────────────────────────────────────
-        // El cuerpo se desplaza hacia el centroide del triángulo de soporte
-        // con las 4 patas todavía en el suelo.
-        float tp = smoothstep(t / BODY_PREP_RATIO);   // 0→1, suavizado para cero velocidad al inicio y al fin
-        body_shift[0] = body_shift_start[0] + (body_shift_tgt[0] - body_shift_start[0]) * tp;
-        body_shift[1] = body_shift_start[1] + (body_shift_tgt[1] - body_shift_start[1]) * tp;
-        for (uint8_t l = 0; l < 4; l++) {
-            foot_pos[l][0] = stance_start[l][0];
-            foot_pos[l][1] = stance_start[l][1];
-        }
-    } else {
-        // ── Sub-fase 2: balanceo ───────────────────────────────────────
-        // Cuerpo fijo en el centroide; la pata sube y avanza.
-        body_shift[0] = body_shift_tgt[0];
-        body_shift[1] = body_shift_tgt[1];
-        float ts = (t - BODY_PREP_RATIO) / (1.0f - BODY_PREP_RATIO);   // 0→1 dentro del balanceo
+        case PHASE_MOVE:
+            if (tick_toward_expect(LEG_SPEED)) {
+                phase = PHASE_LOWER;
+                start_lower();
+            }
+            break;
 
-        // 16·t²·(1-t)²: derivada nula en t=0 y t=1, despegue y aterrizaje sin golpe
-        float lift  = STEP_H * 16.0f * ts * ts * (1.0f - ts) * (1.0f - ts);
-        float ts_sm = smoothstep(ts);   // posicionamiento horizontal con arranque/parada suave
-        foot_pos[swing_leg][0] = swing_start[0] + (swing_end[0] - swing_start[0]) * ts_sm;
-        foot_pos[swing_leg][1] = swing_start[1] + (swing_end[1] - swing_start[1]) * ts_sm;
-        foot_pos[swing_leg][2] = swing_end[2] + lift;
+        case PHASE_LOWER:
+            if (tick_toward_expect(LEG_SPEED)) {
+                phase = PHASE_BODY;
+                expect_all_stride_back(step_dx, step_dy);
+            }
+            break;
 
-        for (uint8_t l = 0; l < 4; l++) {
-            if (l == swing_leg) continue;
-            foot_pos[l][0] = stance_start[l][0] - phase_dx * 0.25f * ts_sm;
-            foot_pos[l][1] = stance_start[l][1] - phase_dy * 0.25f * ts_sm;
-        }
+        case PHASE_BODY:
+            if (tick_toward_expect(BODY_SPEED)) {
+                if (current_dir == GAIT_STOP) {
+                    phase = PHASE_RETURN;
+                    expect_all_rest();
+                } else {
+                    swing_idx = (swing_idx + 1) % 4;
+                    phase     = PHASE_LIFT;
+                    start_lift();
+                }
+            }
+            break;
     }
 
     apply_ik_all();
-
-    // ── Fin de fase ────────────────────────────────────────────────────
-    if (elapsed >= (uint32_t)STEP_MS) {
-        // Fijar la pata de balanceo en su posición final
-        memcpy(foot_pos[swing_leg], swing_end, sizeof(float[3]));
-
-        current_phase  = (current_phase + 1) % 4;
-        phase_start_ms = now_ms;
-
-        if (current_dir == GAIT_STOP) {
-            active    = false;
-            returning = true;
-            for (uint8_t l = 0; l < 4; l++)
-                memcpy(return_start[l], foot_pos[l], sizeof(float[3]));
-            return_body_shift[0] = body_shift[0];
-            return_body_shift[1] = body_shift[1];
-            phase_start_ms = 0;
-        } else {
-            start_phase();
-        }
-    }
 }
 
 void gait_get_foot_pos(int leg, float out[3]) {
-    memcpy(out, foot_pos[leg], sizeof(float[3]));
+    memcpy(out, site_now[leg], sizeof(float[3]));
 }
