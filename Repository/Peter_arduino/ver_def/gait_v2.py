@@ -73,9 +73,13 @@ _TURN_DIRS = {GAIT_TURN_LEFT, GAIT_TURN_RIGHT}
 # Secuencia de 4 pasos de prueba
 _STATE_TABLE_TURN_R = [
     (PHASE_LIFT,  'FL'),  # 0: Levantar FL
-    (PHASE_BODY,  'FL'),  # 1: Acomodar cuerpo a coordenadas exactas peter_controller
-    (PHASE_MOVE,  'FL'),  # 2: Mover FL a su coordenada target peter_controller
-    (PHASE_LOWER, 'FL'),  # 3: Bajar FL y detener
+    (PHASE_BODY,  'FL'),  # 1: Cuerpo gira; FR/RL/RR → peter_targets
+    (PHASE_MOVE,  'FL'),  # 2: FL vuela a peter_target
+    (PHASE_LOWER, 'FL'),  # 3: Bajar FL
+    (PHASE_LIFT,  'FR'),  # 4: Levantar FR
+    (PHASE_BODY,  'FR'),  # 5: Cuerpo gira; FL/RL/RR → pose Right-Y
+    (PHASE_MOVE,  'FR'),  # 6: FR vuela a posición Right-Y
+    (PHASE_LOWER, 'FR'),  # 7: Bajar FR → RIGHT_Y
 ]
 
 _STATE_TABLE_TURN_L = [
@@ -151,6 +155,9 @@ class GaitV2:
         self.TURN_X0 = self.TURN_X1 - T_B * math.cos(T_ALPHA)
         self.TURN_Y0 = T_B * math.sin(T_ALPHA) - self.TURN_Y1 - L_SIDE
 
+        self.SIDE_m  = L_A + L_C   # extensión total de la pata = 0.1135 m
+        self.DIAG_m  = DIAG        # extensión diagonal = SIDE_m/sqrt(2) ≈ 0.08026 m
+
     def _get_peter_target(self, name, local_x, local_y, z):
         """Convierte coordenadas locales de Peter a Frame del Cuerpo según _foot_body_xy()"""
         hx, hy, _ = self.robot.legs[name].body_offset
@@ -214,9 +221,13 @@ class GaitV2:
                 at_right_y   = (self._stable_pose == 'RIGHT_Y')
 
                 if at_right_y and self._last_was_turn and is_turn:
-                    self._state_idx = 6   
+                    self._state_idx = 6
+                elif at_right_y and self._last_was_turn and not is_turn:
+                    dx, dy = self._dir_to_step(direction)
+                    self._snap_to_right_y_rest(dx, dy)
+                    self._state_idx = 7
                 elif at_right_y and not self._last_was_turn and not is_turn:
-                    self._state_idx = 7   
+                    self._state_idx = 7
                 else:
                     self._state_idx = 0
             self._update_state_machine()
@@ -250,16 +261,7 @@ class GaitV2:
             self._accumulate_turn(prev)
 
         if done:
-            # Forzar parada inmediata al completar la secuencia de prueba de giro derecho
-            if self._dir == GAIT_TURN_RIGHT and self._state_idx == 3:
-                self._stable_pose   = 'RIGHT_Y'
-                self._last_was_turn = True
-                self._dir           = GAIT_STOP
-                self._phase         = PHASE_IDLE
-                self._apply_ik_all()
-                return self._foot_dict()
-
-            right_cp = 5 if is_turn else 6
+            right_cp = 7 if self._dir == GAIT_TURN_RIGHT else (5 if is_turn else 6)
             left_cp  = 11 if is_turn else 13
 
             if self._state_idx == right_cp:
@@ -271,16 +273,23 @@ class GaitV2:
                     self._state_idx = right_cp + 1
                     self._update_state_machine()
                 elif is_turn and new_dir not in _TURN_DIRS:
+                    was_turn_right = (self._dir == GAIT_TURN_RIGHT)
                     self._dir = new_dir
                     if self._dir == GAIT_STOP:
                         self._phase = PHASE_IDLE
                     else:
-                        self._state_idx = 0
+                        if was_turn_right:
+                            dx, dy = self._dir_to_step(self._dir)
+                            self._snap_to_right_y_rest(dx, dy)
+                        self._state_idx = 7 if was_turn_right else 0
                         self._update_state_machine()
                 else:
                     self._dir = new_dir
                     if self._dir == GAIT_STOP:
                         self._phase = PHASE_IDLE
+                    elif self._dir == GAIT_TURN_RIGHT:
+                        self._state_idx = 0
+                        self._update_state_machine()
                     else:
                         self._state_idx = right_cp + 1
                         self._update_state_machine()
@@ -327,22 +336,49 @@ class GaitV2:
                         if name == 'FL':
                             tgt[2] += self.step_h
 
-                    elif self._state_idx == 1:  # PHASE_BODY
-                        if name == 'FL':        # FL se queda quieta en el aire
+                    elif self._state_idx == 1:  # PHASE_BODY — FL en aire, resto a peter_targets
+                        if name == 'FL':
                             tgt = self._site_now[l_idx].copy()
-                        else:                   # FR, RL, RR se mueven a coordenadas Peter
+                        else:
                             tgt = peter_targets[name].copy()
 
-                    elif self._state_idx == 2:  # PHASE_MOVE
-                        if name == 'FL':        # FL viaja en el aire a coordenada Peter
+                    elif self._state_idx == 2:  # PHASE_MOVE — FL vuela a peter_target
+                        if name == 'FL':
                             tgt = peter_targets[name].copy()
                             tgt[2] = rz[l_idx] + self.step_h
-                        else:                   # El resto se queda quieto anclado
+                        else:
                             tgt = self._site_now[l_idx].copy()
 
-                    elif self._state_idx == 3:  # PHASE_LOWER
-                        if name == 'FL':        # FL baja al suelo
+                    elif self._state_idx == 3:  # PHASE_LOWER — FL aterriza
+                        if name == 'FL':
                             tgt = peter_targets[name].copy()
+                        else:
+                            tgt = self._site_now[l_idx].copy()
+
+                    elif self._state_idx == 4:  # PHASE_LIFT FR
+                        tgt = self._site_now[l_idx].copy()
+                        if name == 'FR':
+                            tgt[2] += self.step_h
+
+                    elif self._state_idx == 5:  # PHASE_BODY — FR en aire, resto a Right-Y
+                        if name == 'FR':
+                            tgt = self._site_now[l_idx].copy()
+                        elif name == 'RR':
+                            tgt = self._get_peter_target('RR', self.SIDE_m, 0.0, rz[l_idx])
+                        elif name == 'FL':
+                            tgt = self._get_peter_target('FL', self.DIAG_m, self.DIAG_m, rz[l_idx])
+                        elif name == 'RL':
+                            tgt = self._get_peter_target('RL', self.DIAG_m, self.DIAG_m, rz[l_idx])
+
+                    elif self._state_idx == 6:  # PHASE_MOVE — FR vuela a Right-Y
+                        if name == 'FR':
+                            tgt = self._get_peter_target('FR', self.SIDE_m, 0.0, rz[l_idx] + self.step_h)
+                        else:
+                            tgt = self._site_now[l_idx].copy()
+
+                    elif self._state_idx == 7:  # PHASE_LOWER — FR aterriza → Right-Y
+                        if name == 'FR':
+                            tgt = self._get_peter_target('FR', self.SIDE_m, 0.0, rz[l_idx])
                         else:
                             tgt = self._site_now[l_idx].copy()
 
@@ -390,6 +426,23 @@ class GaitV2:
                 if name == swing_leg and phase in (PHASE_LIFT, PHASE_MOVE):
                     target_z += self.step_h
                 self._site_expect[l_idx] = [target_x, target_y, target_z]
+
+    def _snap_to_right_y_rest(self, dx: float, dy: float):
+        """Snappea site_now/expect a RIGHT_Y exacto y calcula site_rest para
+        que los targets del estado 7 (LIFT FR) coincidan con site_now.
+        Usa _get_peter_target (coords absolutas) para evitar drift numérico."""
+        offsets_s7 = _STATE_TABLE[7][2]  # [FL, FR, RL, RR] = [1, 1, -1, 1]
+        for l_idx, name in enumerate(LEG_NAMES):
+            rz = self._site_now[l_idx][2]
+            if name in ('FR', 'RR'):
+                right_y = self._get_peter_target(name, self.SIDE_m, 0.0, rz)
+            else:
+                right_y = self._get_peter_target(name, self.DIAG_m, self.DIAG_m, rz)
+            self._site_now[l_idx]    = right_y.copy()
+            self._site_expect[l_idx] = right_y.copy()
+            self._site_rest[l_idx, 0] = right_y[0] - offsets_s7[l_idx] * dx
+            self._site_rest[l_idx, 1] = right_y[1] - offsets_s7[l_idx] * dy
+            self._site_rest[l_idx, 2] = right_y[2]
 
     def _rotate_xy(self, pos: np.ndarray, angle: float) -> np.ndarray:
         c, s = np.cos(angle), np.sin(angle)
