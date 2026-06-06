@@ -364,7 +364,7 @@ class NetworkPublisher(Node):
         else:
             self.ang_s = 90*(self.lidar[4,1]<0.3)
 
-        self.ang_s = 90 #Descomentar para probar terreno inclinado
+        # self.ang_s = 90 #Descomentar para probar terreno inclinado
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
