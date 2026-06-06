@@ -425,7 +425,7 @@ class TrialEvaluator:
         """
         neurons = snap['neurons']
         x17 = neurons[17] if len(neurons) > 17 else 0.0
-        tresponse_active = snap['tcall'] > 0.0
+        tresponse_active = snap['tresponse'] > 0.0
         cond = (x17 > X17_THRESHOLD) and tresponse_active
 
         if cond:
