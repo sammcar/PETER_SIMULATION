@@ -21,7 +21,7 @@ experiment_suites:
       world_name: "single_stimulus"
       stimulus_type: "blue"
       stimulus_x: 4.0
-      stimulus_y: -2.0
+      stimulus_y: 0.0
       timeout_s: 40.0
       random_perturbation: false
       variance_sigma: 0.15
