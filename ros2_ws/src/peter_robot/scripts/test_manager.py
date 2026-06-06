@@ -416,21 +416,23 @@ class TrialEvaluator:
         self, snap: Dict[str, Any], current_sim_s: float
     ) -> Optional[Verdict]:
         """
-        Familias A1 y B: X17 > 0.8 Y Tresponse > 0 mantenidos 2 s continuos.
+        Familias A1 y B: X17 > X17_THRESHOLD mantenidos 2 s continuos.
         """
         neurons = snap['neurons']
         x17 = neurons[17] if len(neurons) > 17 else 0.0
-        tresponse_active = snap['tresponse'] != 0.0
-        cond = (x17 > X17_THRESHOLD) and tresponse_active
+        
+        # Eliminamos la exigencia de Tresponse, ya que esa métrica 
+        # es exclusiva de los terrenos de la Familia C.
+        cond = (x17 > X17_THRESHOLD)
 
         if cond:
             if self._success_hold_start is None:
                 self._success_hold_start = current_sim_s
             elif (current_sim_s - self._success_hold_start) >= SUCCESS_HOLD_S:
-                log.info(f'[SUCCESS] X17={x17:.3f}, Tresponse={snap["tresponse"]:.3f}')
+                log.info(f'[SUCCESS] Objetivo alcanzado! X17={x17:.3f}')
                 return Verdict.SUCCESS
         else:
-            self._success_hold_start = None  # Reiniciar contador si se pierde la condición
+            self._success_hold_start = None
 
         return None
 
