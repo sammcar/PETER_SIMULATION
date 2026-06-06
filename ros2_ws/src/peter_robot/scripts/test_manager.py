@@ -769,23 +769,21 @@ class TestManager:
         launch_file: str,
         extra_args: List[str],
     ) -> subprocess.Popen:
-        """
-        Arranca la simulación con subprocess.Popen en un nuevo grupo de procesos
-        para poder enviar SIGINT/SIGKILL al grupo completo.
-        """
+        """..."""
+        # Redirigimos TODO el output a un log para evitar el congelamiento del PIPE
         cmd_str = (
             f'{self._ros_setup} && '
             f'ros2 launch peter_robot {launch_file} '
             + ' '.join(extra_args)
+            + ' > ~/sim_output.log 2>&1'
         )
         log.info(f'[LAUNCH] {cmd_str}')
         proc = subprocess.Popen(
             cmd_str,
             shell=True,
             executable='/bin/bash',
-            preexec_fn=os.setsid,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            preexec_fn=os.setsid
+            # Se eliminan las líneas de stdout y stderr
         )
         return proc
 

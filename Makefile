@@ -144,3 +144,14 @@ clean-container-results: ## Elimina todos los resultados del contenedor
 
 run-experiments: ## Lanza el orquestador automático de experimentos dentro del contenedor
 	@make -f $(MK) run-experiments $(PASSTHROUGH)
+
+kill-sim: ## Mata todos los procesos zombis de Gazebo y ROS 2 dentro del contenedor
+	@echo "[kill-sim] Limpiando procesos huérfanos de simulación..."
+	@docker exec -it $(CONTAINER) pkill -9 -f ign || true
+	@docker exec -it $(CONTAINER) pkill -9 -f ruby || true
+	@docker exec -it $(CONTAINER) pkill -9 -f ros2 || true
+	@echo "[kill-sim] ✓ Contenedor Peter esterilizado y listo."
+
+tail-sim: ## Muestra los logs de la simulación en tiempo real (red neuronal, prints, etc.)
+	@echo "[tail-sim] Conectando al flujo de logs en vivo... (Ctrl+C para salir)"
+	@docker exec -it $(CONTAINER) tail -f /root/sim_output.log
