@@ -38,6 +38,7 @@ from ver_def.gait_v2  import (
     GAIT_LEFT, GAIT_RIGHT,
     GAIT_FWD_LEFT, GAIT_FWD_RIGHT,
     GAIT_BCK_LEFT, GAIT_BCK_RIGHT,
+    GAIT_TURN_LEFT, GAIT_TURN_RIGHT,
     PHASE_IDLE, PHASE_BODY, PHASE_RETURN,
     LEG_NAMES,
 )
@@ -94,15 +95,11 @@ PHASE_COLORS = {
 
 # ── Mapeo teclado → dirección (igual que teleop del Arduino) ──────────
 KEY_DIR = {
-    'i': GAIT_FORWARD,    'up':    GAIT_FORWARD,
-    ',': GAIT_BACKWARD,   'down':  GAIT_BACKWARD,
-    'j': GAIT_LEFT,       'left':  GAIT_LEFT,
-    'l': GAIT_RIGHT,      'right': GAIT_RIGHT,
-    'u': GAIT_FWD_LEFT,
-    'o': GAIT_FWD_RIGHT,
-    'm': GAIT_BCK_LEFT,
-    '.': GAIT_BCK_RIGHT,
-    'k': GAIT_STOP,       ' ':     GAIT_STOP,
+    'i': GAIT_FORWARD,    'up':   GAIT_FORWARD,
+    ',': GAIT_BACKWARD,   'down': GAIT_BACKWARD,
+    'u': GAIT_TURN_LEFT,
+    'o': GAIT_TURN_RIGHT,
+    'k': GAIT_STOP,       ' ':    GAIT_STOP,
 }
 
 
@@ -187,15 +184,17 @@ def animate_v2(robot: SpiderQuadruped, gait: GaitV2) -> FuncAnimation:
     # ── Sliders ───────────────────────────────────────────────────────
     fig.text(0.13, 0.335, '── Marcha ──',
              ha='center', color='#AAC8FF', fontsize=9, fontweight='bold')
-    sl_slen  = Slider(fig.add_axes([0.04, 0.270, 0.18, 0.023], **sl_kw),
+    sl_slen  = Slider(fig.add_axes([0.04, 0.280, 0.18, 0.023], **sl_kw),
                       'Paso [cm]', 1., 8., valinit=gait.step_len*100,  color='#5599DD')
-    sl_sh    = Slider(fig.add_axes([0.04, 0.220, 0.18, 0.023], **sl_kw),
+    sl_sh    = Slider(fig.add_axes([0.04, 0.240, 0.18, 0.023], **sl_kw),
                       'Alt  [cm]', 1., 7., valinit=gait.step_h*100,    color='#5599DD')
-    sl_lspd  = Slider(fig.add_axes([0.04, 0.170, 0.18, 0.023], **sl_kw),
+    sl_lspd  = Slider(fig.add_axes([0.04, 0.200, 0.18, 0.023], **sl_kw),
                       'VelPata',   1., 20., valinit=gait.leg_speed*1000, color='#4A6FA5')
-    sl_bspd  = Slider(fig.add_axes([0.04, 0.120, 0.18, 0.023], **sl_kw),
+    sl_bspd  = Slider(fig.add_axes([0.04, 0.160, 0.18, 0.023], **sl_kw),
                       'VelCuerpo', 1., 15., valinit=gait.body_speed*1000, color='#4A6FA5')
-    for sl in (sl_slen, sl_sh, sl_lspd, sl_bspd):
+    sl_turn  = Slider(fig.add_axes([0.04, 0.120, 0.18, 0.023], **sl_kw),
+                      'Giro [°]',  2., 45., valinit=np.degrees(gait.turn_step), color='#AA55CC')
+    for sl in (sl_slen, sl_sh, sl_lspd, sl_bspd, sl_turn):
         sl.label.set_color('#C8D8FF'); sl.valtext.set_color('#C8D8FF')
 
     fig.text(0.13, 0.095, '(VelPata/Cuerpo en mm/iter)',
@@ -211,37 +210,28 @@ def animate_v2(robot: SpiderQuadruped, gait: GaitV2) -> FuncAnimation:
         btn.label.set_color('#C8D8FF'); btn.label.set_fontsize(9)
 
     # ── D-pad de dirección — mismas teclas que el Arduino ────────────
-    fig.text(0.50, 0.340, '── Dirección  (i/j/k/l/u/o/m/.) ──',
+    fig.text(0.50, 0.340, '── Dirección  (i/j/k/l/u/o/m/. / q-e giro) ──',
              ha='center', color='#88AACC', fontsize=9, fontweight='bold')
 
     _dir_kw = dict(color='#1A3050', hovercolor='#3A6090')
     _stp_kw = dict(color='#3A2020', hovercolor='#6A4040')
     _dia_kw = dict(color='#0E2030', hovercolor='#2A5060')
+    _trn_kw = dict(color='#1A1050', hovercolor='#3A3080')
 
-    # Diagonal izquierda / derecha (fila superior)
-    btn_fu = Button(fig.add_axes([0.32, 0.280, 0.09, 0.030], facecolor='#0E2030'),
-                    'u: ↖ Del+Izq', **_dia_kw)
-    btn_fo = Button(fig.add_axes([0.55, 0.280, 0.09, 0.030], facecolor='#0E2030'),
-                    'o: ↗ Del+Der', **_dia_kw)
+    # Fila giro
+    btn_fu  = Button(fig.add_axes([0.32, 0.280, 0.10, 0.025], facecolor='#1A1050'),
+                     'u: ↺ Gir.Izq', **_trn_kw)
+    btn_fo  = Button(fig.add_axes([0.55, 0.280, 0.10, 0.025], facecolor='#1A1050'),
+                     'o: ↻ Gir.Der', **_trn_kw)
     # Fila central
-    btn_fwd = Button(fig.add_axes([0.42, 0.280, 0.10, 0.030], facecolor='#1A3050'),
+    btn_fwd = Button(fig.add_axes([0.40, 0.255, 0.14, 0.025], facecolor='#1A3050'),
                      'i: ▲ Adelante', **_dir_kw)
-    btn_lft = Button(fig.add_axes([0.32, 0.240, 0.09, 0.030], facecolor='#1A3050'),
-                     'j: ◄ Izq',     **_dir_kw)
-    btn_stp = Button(fig.add_axes([0.42, 0.240, 0.10, 0.030], facecolor='#3A2020'),
-                     'k: ■ STOP',    **_stp_kw)
-    btn_rgt = Button(fig.add_axes([0.53, 0.240, 0.09, 0.030], facecolor='#1A3050'),
-                     'l: ► Der',     **_dir_kw)
-    # Diagonal izquierda / derecha (fila inferior)
-    btn_bm = Button(fig.add_axes([0.32, 0.200, 0.09, 0.030], facecolor='#0E2030'),
-                    'm: ↙ At+Izq', **_dia_kw)
-    btn_bwd = Button(fig.add_axes([0.42, 0.200, 0.10, 0.030], facecolor='#1A3050'),
-                     ',: ▼ Atrás',  **_dir_kw)
-    btn_bp = Button(fig.add_axes([0.55, 0.200, 0.09, 0.030], facecolor='#0E2030'),
-                    '.: ↘ At+Der', **_dia_kw)
+    btn_stp = Button(fig.add_axes([0.40, 0.228, 0.14, 0.025], facecolor='#3A2020'),
+                     'k: ■ STOP',     **_stp_kw)
+    btn_bwd = Button(fig.add_axes([0.40, 0.201, 0.14, 0.025], facecolor='#1A3050'),
+                     ',: ▼ Atrás',    **_dir_kw)
 
-    for btn in (btn_fwd, btn_bwd, btn_lft, btn_rgt, btn_stp,
-                btn_fu, btn_fo, btn_bm, btn_bp):
+    for btn in (btn_fwd, btn_bwd, btn_stp, btn_fu, btn_fo):
         btn.label.set_color('#C8D8FF'); btn.label.set_fontsize(8)
 
     # ── Frame de animación ────────────────────────────────────────────
@@ -255,9 +245,11 @@ def animate_v2(robot: SpiderQuadruped, gait: GaitV2) -> FuncAnimation:
             if gait.current_swing != prev_swing and gait.phase in (PHASE_BODY,):
                 _steps[0] += 1
 
-        bp     = gait.body_pos.copy()
-        cx     = bp[0]
-        R_body = np.eye(3)
+        bp  = gait.body_pos.copy()
+        cx  = bp[0]
+        yaw = gait.body_yaw
+        c, s = np.cos(yaw), np.sin(yaw)
+        R_body = np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
 
         # Cuerpo
         _draw_body(ax, robot.p, R=R_body, t=bp)
@@ -295,7 +287,7 @@ def animate_v2(robot: SpiderQuadruped, gait: GaitV2) -> FuncAnimation:
         fig.suptitle(
             f"gait_v2  │  {estado}  │  Swing: {sw_name}  │  "
             f"Dir: {gait.direction}  │  Pasos: {_steps[0]}  │  "
-            f"X: {bp[0]*100:+.1f} cm",
+            f"X: {bp[0]*100:+.1f} cm  │  Yaw: {np.degrees(gait.body_yaw):+.1f}°",
             color=col, fontsize=12, fontweight='bold', y=0.97)
 
         # Tabla de ángulos articulares
@@ -328,6 +320,7 @@ def animate_v2(robot: SpiderQuadruped, gait: GaitV2) -> FuncAnimation:
         gait.step_h       = sl_sh.val   / 100.
         gait.leg_speed    = sl_lspd.val / 1000.
         gait.body_speed   = sl_bspd.val / 1000.
+        gait.turn_step    = np.radians(sl_turn.val)
 
     def on_pause(_):
         _paused[0] = not _paused[0]
@@ -344,20 +337,16 @@ def animate_v2(robot: SpiderQuadruped, gait: GaitV2) -> FuncAnimation:
         if d is not None:
             gait.set_dir(d)
 
-    for sl in (sl_slen, sl_sh, sl_lspd, sl_bspd):
+    for sl in (sl_slen, sl_sh, sl_lspd, sl_bspd, sl_turn):
         sl.on_changed(on_slider)
     btn_pause.on_clicked(on_pause)
     btn_reset.on_clicked(on_reset)
 
     btn_fwd.on_clicked(lambda _: gait.set_dir(GAIT_FORWARD))
     btn_bwd.on_clicked(lambda _: gait.set_dir(GAIT_BACKWARD))
-    btn_lft.on_clicked(lambda _: gait.set_dir(GAIT_LEFT))
-    btn_rgt.on_clicked(lambda _: gait.set_dir(GAIT_RIGHT))
     btn_stp.on_clicked(lambda _: gait.set_dir(GAIT_STOP))
-    btn_fu.on_clicked(lambda _: gait.set_dir(GAIT_FWD_LEFT))
-    btn_fo.on_clicked(lambda _: gait.set_dir(GAIT_FWD_RIGHT))
-    btn_bm.on_clicked(lambda _: gait.set_dir(GAIT_BCK_LEFT))
-    btn_bp.on_clicked(lambda _: gait.set_dir(GAIT_BCK_RIGHT))
+    btn_fu.on_clicked(lambda _: gait.set_dir(GAIT_TURN_LEFT))
+    btn_fo.on_clicked(lambda _: gait.set_dir(GAIT_TURN_RIGHT))
 
     fig.canvas.mpl_connect('key_press_event', on_key)
 
@@ -385,6 +374,7 @@ if __name__ == '__main__':
                    step_h       = 0.030,   # reducido: patas ya cerca del límite
                    leg_speed    = 0.006,   # LEG_SPEED
                    body_speed   = 0.003,   # BODY_SPEED
-                   reach_tol    = 0.002)   # REACH_TOL
+                   reach_tol    = 0.002,   # REACH_TOL
+                   turn_step    = 0.20)    # ~11.5° por medio ciclo de giro
 
     animate_v2(robot, gait)

@@ -1,12 +1,12 @@
 """
 gait_v2.py — Puerto Python adaptado al patrón "Y Acostada" (Peter Controller)
 ════════════════════════════════════════════════════════════════════
-Replica la lógica de peter_controller.py mediante una máquina de
-estados de offset (14 pasos). Calcula el step_len geométricamente 
-para garantizar simetría perfecta al transicionar entre poses.
+Replica la lógica de peter_controller.py incluyendo su matemática
+exacta para los objetivos de giro (TURN_X, TURN_Y).
 """
 
 import numpy as np
+import math
 from ver_def.robot_kinematics import SpiderQuadruped
 
 # ── Constantes de dirección ───────────────────────────────────────────
@@ -22,7 +22,6 @@ GAIT_BCK_RIGHT = 'BCK_RIGHT'
 
 LEG_NAMES = ['FL', 'FR', 'RL', 'RR']
 
-# ── Fases Originales (Para compatibilidad con el simulador) ───────────
 PHASE_IDLE   = 'IDLE'
 PHASE_LIFT   = 'LIFT'
 PHASE_MOVE   = 'MOVE'
@@ -30,52 +29,69 @@ PHASE_LOWER  = 'LOWER'
 PHASE_BODY   = 'BODY'
 PHASE_RETURN = 'RETURN'
 
-# ── Tabla de Estados Estáticos (Ciclo Completo Cerrado) ───────────────
 _STATE_TABLE = [
-    (PHASE_LIFT,  'FL', [ 0,  0,  0,  0]),  # 0: Inicia ciclo FL (desde Left Y)
-    (PHASE_MOVE,  'FL', [ 2,  0,  0,  0]),  # 1: Avanza FL (+2)
-    (PHASE_LOWER, 'FL', [ 2,  0,  0,  0]),  # 2: Baja FL
-    (PHASE_BODY,  'RR', [ 1, -1, -1, -1]),  # 3: Chasis avanza (patas -1). Cambio a RR para conteo de paso
-    (PHASE_LIFT,  'RR', [ 1, -1, -1, -1]),  # 4: Inicia RR
-    (PHASE_MOVE,  'RR', [ 1, -1, -1,  1]),  # 5: Avanza RR (+2)
-    (PHASE_LOWER, 'RR', [ 1, -1, -1,  1]),  # 6: Baja RR -> ¡Aquí se alcanza la pose 'Right Y' estable!
-    
-    (PHASE_LIFT,  'FR', [ 1, -1, -1,  1]),  # 7: Inicia ciclo FR (desde Right Y)
-    (PHASE_MOVE,  'FR', [ 1,  1, -1,  1]),  # 8: Avanza FR (+2)
-    (PHASE_LOWER, 'FR', [ 1,  1, -1,  1]),  # 9: Baja FR
-    (PHASE_BODY,  'RL', [ 0,  0, -2,  0]),  # 10: Chasis avanza (patas -1). Cambio a RL para conteo de paso
-    (PHASE_LIFT,  'RL', [ 0,  0, -2,  0]),  # 11: Inicia RL
-    (PHASE_MOVE,  'RL', [ 0,  0,  0,  0]),  # 12: Avanza RL (+2)
-    (PHASE_LOWER, 'RL', [ 0,  0,  0,  0]),  # 13: Baja RL -> ¡Aquí se alcanza la pose 'Left Y' estable!
+    (PHASE_LIFT,  'FL', [ 0,  0,  0,  0]),  
+    (PHASE_MOVE,  'FL', [ 2,  0,  0,  0]),  
+    (PHASE_LOWER, 'FL', [ 2,  0,  0,  0]),  
+    (PHASE_BODY,  'RR', [ 1, -1, -1, -1]),  
+    (PHASE_LIFT,  'RR', [ 1, -1, -1, -1]),  
+    (PHASE_MOVE,  'RR', [ 1, -1, -1,  1]),  
+    (PHASE_LOWER, 'RR', [ 1, -1, -1,  1]),  
+    (PHASE_LIFT,  'FR', [ 1, -1, -1,  1]),  
+    (PHASE_MOVE,  'FR', [ 1,  1, -1,  1]),  
+    (PHASE_LOWER, 'FR', [ 1,  1, -1,  1]),  
+    (PHASE_BODY,  'RL', [ 0,  0, -2,  0]),  
+    (PHASE_LIFT,  'RL', [ 0,  0, -2,  0]),  
+    (PHASE_MOVE,  'RL', [ 0,  0,  0,  0]),  
+    (PHASE_LOWER, 'RL', [ 0,  0,  0,  0]),  
 ]
 
-# ── Tabla de Estados para Marcha Atrás ───────────────────────────────
-# La pata más adelantada en la dirección de retroceso oscila primero.
-# Desde Left Y: RL (lateral trasera) → FR. Desde Right Y: RR → FL.
-# Los offsets funcionan igual que en _STATE_TABLE pero con step_dx < 0,
-# por lo que un offset +2 mueve la pata 2*|step_dx| hacia atrás.
 _STATE_TABLE_BWD = [
-    # Desde Left Y (estado estable): RL primero
-    (PHASE_LIFT,  'RL', [ 0,  0,  0,  0]),  # B0: RL levanta desde reposo
-    (PHASE_MOVE,  'RL', [ 0,  0,  2,  0]),  # B1: RL retrocede (+2 * step_dx)
-    (PHASE_LOWER, 'RL', [ 0,  0,  2,  0]),  # B2: RL baja
-    (PHASE_BODY,  'FR', [-1, -1,  1, -1]),  # B3: cuerpo retrocede; cambio a FR
-    (PHASE_LIFT,  'FR', [-1, -1,  1, -1]),  # B4: FR levanta
-    (PHASE_MOVE,  'FR', [-1,  1,  1, -1]),  # B5: FR retrocede
-    (PHASE_LOWER, 'FR', [-1,  1,  1, -1]),  # B6: FR baja -> pose 'Right Y' estable
-
-    # Desde Right Y (estado estable): RR primero
-    (PHASE_LIFT,  'RR', [-1,  1,  1, -1]),  # B7: RR levanta
-    (PHASE_MOVE,  'RR', [-1,  1,  1,  1]),  # B8: RR retrocede
-    (PHASE_LOWER, 'RR', [-1,  1,  1,  1]),  # B9: RR baja
-    (PHASE_BODY,  'FL', [-2,  0,  0,  0]),  # B10: cuerpo retrocede; cambio a FL
-    (PHASE_LIFT,  'FL', [-2,  0,  0,  0]),  # B11: FL levanta
-    (PHASE_MOVE,  'FL', [ 0,  0,  0,  0]),  # B12: FL retrocede
-    (PHASE_LOWER, 'FL', [ 0,  0,  0,  0]),  # B13: FL baja -> pose 'Left Y' estable
+    (PHASE_LIFT,  'RL', [ 0,  0,  0,  0]),  
+    (PHASE_MOVE,  'RL', [ 0,  0,  2,  0]),  
+    (PHASE_LOWER, 'RL', [ 0,  0,  2,  0]),  
+    (PHASE_BODY,  'FR', [-1, -1,  1, -1]),  
+    (PHASE_LIFT,  'FR', [-1, -1,  1, -1]),  
+    (PHASE_MOVE,  'FR', [-1,  1,  1, -1]),  
+    (PHASE_LOWER, 'FR', [-1,  1,  1, -1]),  
+    (PHASE_LIFT,  'RR', [-1,  1,  1, -1]),  
+    (PHASE_MOVE,  'RR', [-1,  1,  1,  1]),  
+    (PHASE_LOWER, 'RR', [-1,  1,  1,  1]),  
+    (PHASE_BODY,  'FL', [-2,  0,  0,  0]),  
+    (PHASE_LIFT,  'FL', [-2,  0,  0,  0]),  
+    (PHASE_MOVE,  'FL', [ 0,  0,  0,  0]),  
+    (PHASE_LOWER, 'FL', [ 0,  0,  0,  0]),  
 ]
 
 _BWD_DIRS = {GAIT_BACKWARD, GAIT_BCK_LEFT, GAIT_BCK_RIGHT}
 
+GAIT_TURN_LEFT  = 'TURN_LEFT'
+GAIT_TURN_RIGHT = 'TURN_RIGHT'
+
+_TURN_DIRS = {GAIT_TURN_LEFT, GAIT_TURN_RIGHT}
+
+# Secuencia de 4 pasos de prueba
+_STATE_TABLE_TURN_R = [
+    (PHASE_LIFT,  'FL'),  # 0: Levantar FL
+    (PHASE_BODY,  'FL'),  # 1: Acomodar cuerpo a coordenadas exactas peter_controller
+    (PHASE_MOVE,  'FL'),  # 2: Mover FL a su coordenada target peter_controller
+    (PHASE_LOWER, 'FL'),  # 3: Bajar FL y detener
+]
+
+_STATE_TABLE_TURN_L = [
+    (PHASE_LIFT,  'RL', False),
+    (PHASE_MOVE,  'RL', True),
+    (PHASE_LOWER, 'RL', True),
+    (PHASE_LIFT,  'RR', True),
+    (PHASE_MOVE,  'RR', False),
+    (PHASE_LOWER, 'RR', False),
+    (PHASE_LIFT,  'FR', False),
+    (PHASE_MOVE,  'FR', True),
+    (PHASE_LOWER, 'FR', True),
+    (PHASE_LIFT,  'FL', True),
+    (PHASE_MOVE,  'FL', False),
+    (PHASE_LOWER, 'FL', False),
+]
 
 class GaitV2:
     def __init__(self, robot: SpiderQuadruped,
@@ -84,7 +100,8 @@ class GaitV2:
                  step_h:       float = 0.035,
                  leg_speed:    float = 0.006,
                  body_speed:   float = 0.003,
-                 reach_tol:    float = 0.002):
+                 reach_tol:    float = 0.002,
+                 turn_step:    float = 0.20):
         self.robot        = robot
         self.step_len     = step_len
         self.step_len_lat = step_len_lat
@@ -92,6 +109,7 @@ class GaitV2:
         self.leg_speed    = leg_speed
         self.body_speed   = body_speed
         self.reach_tol    = reach_tol
+        self.turn_step    = turn_step
 
         self._site_now    = np.zeros((4, 3))
         self._site_expect = np.zeros((4, 3))
@@ -99,34 +117,64 @@ class GaitV2:
 
         self._phase         = PHASE_IDLE
         self._current_swing = 'FL'
-        
-        # Estructura de control asíncrono
+
         self._dir           = GAIT_STOP
         self._next_dir      = GAIT_STOP
-        
+
         self._step_dx       = 0.0
         self._step_dy       = 0.0
-        self._state_idx     = 13  # Inicializa por defecto asentado en Left Y Home
+        self._state_idx     = 13  
 
-        self.body_pos = np.zeros(3)
+        self.body_pos       = np.zeros(3)
+        self.body_yaw       = 0.0        
+        self._stable_pose   = 'LEFT_Y'  
+        self._last_was_turn = False      
+        
+        # Calcula constantes geométricas de Peter Controller
+        self._calc_peter_turn_constants()
         self._gait_init()
 
+    def _calc_peter_turn_constants(self):
+        """Replica exacta de la matemática de peter_controller.py pero en metros."""
+        L_A = 0.045
+        L_C = 0.0685
+        L_SIDE = 0.120  # Distancia lateral base_link
+        DIAG = math.sqrt(((L_A + L_C) ** 2) / 2)
+
+        T_A = math.sqrt((2 * DIAG + L_SIDE) ** 2 + DIAG ** 2)
+        T_B = 2 * DIAG + L_SIDE
+        T_C = math.sqrt((2 * DIAG + L_SIDE) ** 2 + (DIAG + L_SIDE) ** 2)
+        T_ALPHA = math.acos((T_A ** 2 + T_B ** 2 - T_C ** 2) / (2 * T_A * T_B))
+
+        self.TURN_X1 = (T_A - L_SIDE) / 2
+        self.TURN_Y1 = DIAG / 2
+        self.TURN_X0 = self.TURN_X1 - T_B * math.cos(T_ALPHA)
+        self.TURN_Y0 = T_B * math.sin(T_ALPHA) - self.TURN_Y1 - L_SIDE
+
+    def _get_peter_target(self, name, local_x, local_y, z):
+        """Convierte coordenadas locales de Peter a Frame del Cuerpo según _foot_body_xy()"""
+        hx, hy, _ = self.robot.legs[name].body_offset
+        # Según peter_controller: Y es "Forward" y X es "Outward"
+        if name == 'FR':
+            return np.array([hx + local_y, hy - local_x, z])
+        elif name == 'FL':
+            return np.array([hx + local_y, hy + local_x, z])
+        elif name == 'RR':
+            return np.array([hx - local_y, hy - local_x, z])
+        elif name == 'RL':
+            return np.array([hx - local_y, hy + local_x, z])
+
     def _gait_init(self):
-        """Captura la pose inicial definida (Y acostada) en site_rest."""
         for i, name in enumerate(LEG_NAMES):
             rest = self.robot.legs[name].get_rest_foot_body()
             self._site_rest[i]   = rest.copy()
             self._site_now[i]    = rest.copy()
             self._site_expect[i] = rest.copy()
 
-        # ── SOLUCIÓN DE SIMETRÍA ──
-        # Se calcula la distancia exacta requerida en el eje X entre la pata
-        # lateral (FL=0) y la diagonal (FR=1) para garantizar un espejo perfecto.
-        # Esto anula la variable manual del slider y obedece a la geometría pura.
         distancia_x_geometrica = abs(self._site_rest[1][0] - self._site_rest[0][0])
         self.step_len = distancia_x_geometrica
 
-        self._state_idx = 13  # Estado inicial estable de reposo
+        self._state_idx = 13  
         self._apply_ik_all()
         self._phase = PHASE_IDLE
 
@@ -137,9 +185,10 @@ class GaitV2:
         self._next_dir      = GAIT_STOP
         self._state_idx     = 13
         self.body_pos       = np.zeros(3)
+        self.body_yaw       = 0.0
+        self._stable_pose   = 'LEFT_Y'
+        self._last_was_turn = False
         self._gait_init()
-
-    # ── Interfaces expuestas para el simulador ────────────────────────
 
     @property
     def phase(self) -> str:
@@ -153,20 +202,23 @@ class GaitV2:
     def direction(self) -> str:
         return self._next_dir
 
-    # ── Control de Transiciones Síncronas (Puntos de Inflexión) ───────
-
     def set_dir(self, direction: str):
-        """Almacena el comando objetivo. Reasigna el ciclo inmediatamente si está en IDLE."""
         self._next_dir = direction
 
         if self._phase == PHASE_IDLE and direction != GAIT_STOP:
-            self._dir = direction
-            # Reanudación inteligente según la "Y" actual donde se detuvo.
-            # La tabla correcta (FWD o BWD) se elige en _update_state_machine.
-            if self._state_idx == 6:
-                self._state_idx = 7   # Right Y: FWD→FR primero, BWD→RR primero
+            self._dir    = direction
+            if direction == GAIT_TURN_RIGHT:
+                self._state_idx = 0
             else:
-                self._state_idx = 0   # Left Y:  FWD→FL primero, BWD→RL primero
+                is_turn      = direction in _TURN_DIRS
+                at_right_y   = (self._stable_pose == 'RIGHT_Y')
+
+                if at_right_y and self._last_was_turn and is_turn:
+                    self._state_idx = 6   
+                elif at_right_y and not self._last_was_turn and not is_turn:
+                    self._state_idx = 7   
+                else:
+                    self._state_idx = 0
             self._update_state_machine()
 
     def update(self) -> dict:
@@ -182,65 +234,167 @@ class GaitV2:
             self._apply_ik_all()
             return self._foot_dict()
 
-        # Ejecución normal del ciclo cinemático
+        is_turn = self._dir in _TURN_DIRS
+
+        if is_turn:
+            speed = self.body_speed if self._phase in (PHASE_BODY, PHASE_MOVE) else self.leg_speed
+        else:
+            speed = self.body_speed if self._phase == PHASE_BODY else self.leg_speed
+
         prev = self._site_now.copy()
-        speed = self.body_speed if self._phase == PHASE_BODY else self.leg_speed
         done = self._tick_toward_expect(speed)
 
-        if self._phase == PHASE_BODY:
+        if not is_turn and self._phase == PHASE_BODY:
             self._accumulate_body(prev)
+        elif is_turn and self._phase in (PHASE_BODY, PHASE_MOVE):
+            self._accumulate_turn(prev)
 
         if done:
-            # EVALUACIÓN EN LOS DOS PUNTOS ESTABLES (Cierre de Medio Ciclo o Ciclo Completo)
-            if self._state_idx == 6:  # Llegamos a la pose 'Right Y'
-                self._dir = self._next_dir
-                if self._dir == GAIT_STOP:
-                    self._phase = PHASE_IDLE
-                else:
-                    self._state_idx = 7
+            # Forzar parada inmediata al completar la secuencia de prueba de giro derecho
+            if self._dir == GAIT_TURN_RIGHT and self._state_idx == 3:
+                self._stable_pose   = 'RIGHT_Y'
+                self._last_was_turn = True
+                self._dir           = GAIT_STOP
+                self._phase         = PHASE_IDLE
+                self._apply_ik_all()
+                return self._foot_dict()
+
+            right_cp = 5 if is_turn else 6
+            left_cp  = 11 if is_turn else 13
+
+            if self._state_idx == right_cp:
+                self._stable_pose   = 'RIGHT_Y'
+                self._last_was_turn = is_turn
+                new_dir = self._next_dir
+
+                if new_dir in _TURN_DIRS and not is_turn:
+                    self._state_idx = right_cp + 1
                     self._update_state_machine()
-                    
-            elif self._state_idx == 13:  # Llegamos a la pose 'Left Y'
+                elif is_turn and new_dir not in _TURN_DIRS:
+                    self._dir = new_dir
+                    if self._dir == GAIT_STOP:
+                        self._phase = PHASE_IDLE
+                    else:
+                        self._state_idx = 0
+                        self._update_state_machine()
+                else:
+                    self._dir = new_dir
+                    if self._dir == GAIT_STOP:
+                        self._phase = PHASE_IDLE
+                    else:
+                        self._state_idx = right_cp + 1
+                        self._update_state_machine()
+
+            elif self._state_idx == left_cp:
+                self._stable_pose   = 'LEFT_Y'
+                self._last_was_turn = is_turn
                 self._dir = self._next_dir
                 if self._dir == GAIT_STOP:
                     self._phase = PHASE_IDLE
                 else:
                     self._state_idx = 0
                     self._update_state_machine()
+
             else:
-                # Continuación natural de la secuencia intermedia
                 self._state_idx += 1
                 self._update_state_machine()
 
         self._apply_ik_all()
         return self._foot_dict()
 
-    # ── Máquina de estados interna y cálculo geométrico ───────────────
-
     def _update_state_machine(self):
-        """Calcula los targets basándose estrictamente en los offsets de las sub-fases."""
+        is_turn = self._dir in _TURN_DIRS
 
-        # Muestrear el vector de paso (dx, dy) únicamente al iniciar una nueva pierna lateral (0 o 7)
-        if self._state_idx in (0, 7):
-            self._step_dx, self._step_dy = self._dir_to_step(self._dir)
+        if is_turn:
+            if self._dir == GAIT_TURN_RIGHT:
+                phase, swing_leg = _STATE_TABLE_TURN_R[self._state_idx]
+                self._phase         = phase
+                self._current_swing = swing_leg
 
-        table = _STATE_TABLE_BWD if self._dir in _BWD_DIRS else _STATE_TABLE
-        phase, swing_leg, offsets = table[self._state_idx]
-        self._phase = phase
-        self._current_swing = swing_leg
+                rz = {l_idx: self._site_rest[l_idx][2] for l_idx in range(4)}
 
-        for l_idx, name in enumerate(LEG_NAMES):
-            rx, ry, rz = self._site_rest[l_idx]
-            
-            mult = offsets[l_idx]
-            target_x = rx + mult * self._step_dx
-            target_y = ry + mult * self._step_dy
-            target_z = rz
-            
-            if name == swing_leg and phase in (PHASE_LIFT, PHASE_MOVE):
-                target_z += self.step_h
+                # Calcular los objetivos exactos de peter_controller para este giro
+                peter_targets = {}
+                for l_idx, name in enumerate(LEG_NAMES):
+                    if name in ('FL', 'FR'): # Patas delanteras
+                        peter_targets[name] = self._get_peter_target(name, self.TURN_X0, self.TURN_Y0, rz[l_idx])
+                    else:                    # Patas traseras
+                        peter_targets[name] = self._get_peter_target(name, self.TURN_X1, self.TURN_Y1, rz[l_idx])
 
-            self._site_expect[l_idx] = [target_x, target_y, target_z]
+                for l_idx, name in enumerate(LEG_NAMES):
+                    if self._state_idx == 0:    # PHASE_LIFT FL
+                        tgt = self._site_now[l_idx].copy()
+                        if name == 'FL':
+                            tgt[2] += self.step_h
+
+                    elif self._state_idx == 1:  # PHASE_BODY
+                        if name == 'FL':        # FL se queda quieta en el aire
+                            tgt = self._site_now[l_idx].copy()
+                        else:                   # FR, RL, RR se mueven a coordenadas Peter
+                            tgt = peter_targets[name].copy()
+
+                    elif self._state_idx == 2:  # PHASE_MOVE
+                        if name == 'FL':        # FL viaja en el aire a coordenada Peter
+                            tgt = peter_targets[name].copy()
+                            tgt[2] = rz[l_idx] + self.step_h
+                        else:                   # El resto se queda quieto anclado
+                            tgt = self._site_now[l_idx].copy()
+
+                    elif self._state_idx == 3:  # PHASE_LOWER
+                        if name == 'FL':        # FL baja al suelo
+                            tgt = peter_targets[name].copy()
+                        else:
+                            tgt = self._site_now[l_idx].copy()
+
+                    self._site_expect[l_idx] = tgt
+            else:
+                # GAIT_TURN_LEFT (Mantiene comportamiento original/placeholder)
+                rot = -self.turn_step
+                table = _STATE_TABLE_TURN_L
+
+                phase, swing_leg, use_rotated = table[self._state_idx]
+                self._phase         = phase
+                self._current_swing = swing_leg
+
+                rz = {l_idx: self._site_rest[l_idx][2] for l_idx in range(4)}
+
+                for l_idx, name in enumerate(LEG_NAMES):
+                    if phase == PHASE_MOVE:
+                        if use_rotated:
+                            tgt = self._rotate_xy(self._site_rest[l_idx], rot)
+                        else:
+                            tgt = self._site_rest[l_idx].copy()
+                        tgt[2] = rz[l_idx] + self.step_h if name == swing_leg else rz[l_idx]
+                    else:
+                        tgt = self._site_now[l_idx].copy()
+                        if name == swing_leg:
+                            tgt[2] = rz[l_idx] + self.step_h if phase == PHASE_LIFT else rz[l_idx]
+                    self._site_expect[l_idx] = tgt
+
+        else:
+            # Marcha lineal (adelante / atrás / lateral) sin cambios
+            if self._state_idx in (0, 7):
+                self._step_dx, self._step_dy = self._dir_to_step(self._dir)
+
+            table = _STATE_TABLE_BWD if self._dir in _BWD_DIRS else _STATE_TABLE
+            phase, swing_leg, offsets = table[self._state_idx]
+            self._phase         = phase
+            self._current_swing = swing_leg
+
+            for l_idx, name in enumerate(LEG_NAMES):
+                rx, ry, rz = self._site_rest[l_idx]
+                mult     = offsets[l_idx]
+                target_x = rx + mult * self._step_dx
+                target_y = ry + mult * self._step_dy
+                target_z = rz
+                if name == swing_leg and phase in (PHASE_LIFT, PHASE_MOVE):
+                    target_z += self.step_h
+                self._site_expect[l_idx] = [target_x, target_y, target_z]
+
+    def _rotate_xy(self, pos: np.ndarray, angle: float) -> np.ndarray:
+        c, s = np.cos(angle), np.sin(angle)
+        x, y, z = pos[0], pos[1], pos[2]
+        return np.array([c*x - s*y, s*x + c*y, z])
 
     def _dir_to_step(self, direction: str):
         sl  = self.step_len
@@ -282,3 +436,17 @@ class GaitV2:
         mean_delta = delta.mean(axis=0)
         self.body_pos -= mean_delta
         self.body_pos[2] = 0.0
+
+    def _accumulate_turn(self, prev: np.ndarray):
+        angles = []
+        for i, name in enumerate(LEG_NAMES):
+            if name == self._current_swing:
+                continue
+            px, py = prev[i, 0], prev[i, 1]
+            cx, cy = self._site_now[i, 0], self._site_now[i, 1]
+            if px * px + py * py < 1e-8:
+                continue
+            angles.append(np.arctan2(px * cy - py * cx,
+                                     px * cx + py * cy))
+        if angles:
+            self.body_yaw -= np.mean(angles)
