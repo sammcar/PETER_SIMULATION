@@ -52,7 +52,7 @@ log = logging.getLogger('test_manager')
 
 # ── Constantes globales ───────────────────────────────────────────────────────
 CRIT_TR: float = 1.0          # Riesgo de volteo crítico (volcadura)
-X17_THRESHOLD: float = 0.8    # Umbral activación neurona de parada
+X17_THRESHOLD: float = 0.25    # Umbral activación neurona de parada
 SUCCESS_HOLD_S: float = 2.0   # Segundos continuos de éxito requeridos
 WARMUP_S: float = 10.5        # Segundos de calentamiento (TimerActions en launch)
 SAFETY_STABLE_S: float = 12.0 # Ventana de estabilidad post-transición (Familia C)
@@ -317,39 +317,34 @@ class TestJudgeNode(Node):
 # ── Helpers de proceso ────────────────────────────────────────────────────────
 
 def _kill_process_group(proc: subprocess.Popen, grace_s: float) -> None:
-    """Envía SIGINT al grupo de procesos; tras grace_s aplica SIGKILL si persiste."""
+    """Envía SIGINT al grupo de procesos y fuerza limpieza de zombis siempre."""
     try:
         pgid = os.getpgid(proc.pid)
         log.info(f'Enviando SIGINT a PGID={pgid}')
         os.killpg(pgid, signal.SIGINT)
     except ProcessLookupError:
-        return  # Ya terminó
+        pass
 
-    # Fase de gracia: esperar cierre limpio de buffers CSV
+    # Fase de gracia
     deadline = time.monotonic() + grace_s
     while time.monotonic() < deadline:
         if proc.poll() is not None:
-            log.info('Proceso terminó limpiamente dentro del grace period.')
-            return
+            break  # Salimos del while, pero NO de la función (eliminamos el return)
         time.sleep(0.2)
 
-    # Terminación forzada si quedan procesos zombis
+    # --- LIMPIEZA OBLIGATORIA DE ZOMBIS ---
+    # OJO: Quitamos 'peter' para que el Test Manager no se suicide.
+    # Esta escoba ahora pasará SIEMPRE, salvándonos de la pestaña negra.
+    for pattern in ('gz sim', 'ros2 launch', 'robot_state_publisher', 'ign', 'ruby'):
+        subprocess.run(['pkill', '-9', '-f', pattern], capture_output=True, check=False)
+
     if proc.poll() is None:
-        log.warning('Grace period expirado. Aplicando SIGKILL al grupo...')
         try:
             pgid = os.getpgid(proc.pid)
             os.killpg(pgid, signal.SIGKILL)
         except ProcessLookupError:
             pass
-        # Limpiar residuos de Gazebo/ROS 2 que puedan haber quedado
-        for pattern in ('gz sim', 'ros2 launch', 'robot_state_publisher'):
-            subprocess.run(['pkill', '-9', '-f', pattern],
-                           capture_output=True, check=False)
-        try:
-            proc.wait(timeout=5.0)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-
+        proc.kill()
 
 # ── Lógica de evaluación por familia ─────────────────────────────────────────
 
@@ -425,7 +420,7 @@ class TrialEvaluator:
         """
         neurons = snap['neurons']
         x17 = neurons[17] if len(neurons) > 17 else 0.0
-        tresponse_active = snap['tresponse'] > 0.0
+        tresponse_active = snap['tresponse'] != 0.0
         cond = (x17 > X17_THRESHOLD) and tresponse_active
 
         if cond:

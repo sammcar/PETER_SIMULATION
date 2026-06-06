@@ -57,6 +57,7 @@ setup(
             'RobustnessMetric = src.robustnessListener:main',
             "RMSENode = src.RMSE_node:main",
             'test_manager = scripts.test_manager:main',
+            'metrics_recorder = src.metrics_recorder:main',
         ],
     },
 )
