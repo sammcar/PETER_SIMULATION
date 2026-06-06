@@ -132,10 +132,10 @@ docker-logs: ## Muestra las últimas 50 líneas de log del contenedor
 
 
 build: check-container ## Compila el workspace dentro del contenedor
-	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build --symlink-install"
+	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build"
 
 rebuild: check-container ## Limpia y recompila el workspace dentro del contenedor
-	$(DC) "cd $(WS) && rm -rf build install log && $(ROS_SOURCE) && colcon build --symlink-install"
+	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build"
 
 clean: ## Limpia build/, install/ y log/ del workspace dentro del contenedor
 	$(DC) "rm -rf $(WS)/build $(WS)/install $(WS)/log"
