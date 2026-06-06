@@ -16,20 +16,9 @@ class MetricsRecorder(Node):
         super().__init__('metrics_recorder')
 
         # --------------------------------------------------
-        # Ruta de salida
+        # Ruta de salida (Estática en el HOME para el Test Manager)
         # --------------------------------------------------
-        output_dir = os.path.expanduser(
-            '~/docker_simulation_ws/PETER_SIMULATION/ros2_ws/src/peter_robot/docs/resultados/pruebas'
-        )
-
-        os.makedirs(output_dir, exist_ok=True)
-
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-        self.csv_path = os.path.join(
-            output_dir,
-            f'metrics_{timestamp}.csv'
-        )
+        self.csv_path = os.path.join(os.path.expanduser('~'), 'unified_metrics.csv')
 
         self.csv_file = open(self.csv_path, 'w', newline='')
         self.csv_writer = csv.writer(self.csv_file)

@@ -115,6 +115,7 @@ class TestJudgeNode(Node):
         self._neuron_activity: List[float] = [0.0] * 20
 
         # /Metrics: [Tresponse, Tswitch, roll_rms, pitch_rms, noise_idx]
+        self._tcall: float = 0.0
         self._tresponse: float = 0.0
         self._tswitch: float = 0.0
         self._roll_rms: float = 0.0
@@ -194,10 +195,11 @@ class TestJudgeNode(Node):
         # Layout: [Tresponse, Tswitch, roll_rms, pitch_rms, noise_idx]
         with self._lock:
             if len(msg.data) >= 4:
-                self._tresponse = msg.data[0]
-                self._tswitch   = msg.data[1]
-                self._roll_rms  = msg.data[2]
-                self._pitch_rms = msg.data[3]
+                self._tcall       = msg.data[0]
+                self._tresponse   = msg.data[0] # Mapeado por retrocompatibilidad
+                self._tswitch     = msg.data[1]
+                self._roll_rms    = msg.data[2]
+                self._pitch_rms   = msg.data[3]
                 if len(msg.data) >= 5:
                     self._noise_idx = int(msg.data[4])
 
@@ -423,7 +425,7 @@ class TrialEvaluator:
         """
         neurons = snap['neurons']
         x17 = neurons[17] if len(neurons) > 17 else 0.0
-        tresponse_active = snap['tresponse'] > 0.0
+        tresponse_active = snap['tcall'] > 0.0
         cond = (x17 > X17_THRESHOLD) and tresponse_active
 
         if cond:
@@ -551,12 +553,13 @@ def _collect_artifacts(
     """
     Mueve los artefactos generados por la simulación al directorio de resultados:
       - stability_log.csv (~/stability_log.csv)
+      - unified_metrics.csv (~/unified_metrics.csv de metrics_recorder)
       - metrics.csv  (~/peter_experiments/<exp>_<ts>/metrics.csv, el más reciente)
     Además, escribe un resumen JSON de la iteración.
     """
     trial_dir.mkdir(parents=True, exist_ok=True)
 
-    # stability_log.csv
+    # 1. stability_log.csv
     if STABILITY_LOG_SRC.exists():
         dst = trial_dir / 'stability_log.csv'
         shutil.move(str(STABILITY_LOG_SRC), str(dst))
@@ -564,7 +567,16 @@ def _collect_artifacts(
     else:
         log.debug('  stability_log.csv no encontrado (modo sin cuadrúpedo)')
 
-    # metrics.csv del neural_recorder (directorio más reciente en ~/peter_experiments)
+    # 2. unified_metrics.csv (Nodo de telemetría unificada de tu compañero)
+    unified_metrics_src = Path.home() / 'unified_metrics.csv'
+    if unified_metrics_src.exists():
+        dst = trial_dir / 'unified_metrics.csv'
+        shutil.move(str(unified_metrics_src), str(dst))
+        log.info(f'  → unified_metrics.csv → {dst}')
+    else:
+        log.debug('  unified_metrics.csv no encontrado')
+
+    # 3. metrics.csv del neural_recorder (directorio más reciente en ~/peter_experiments)
     exp_base = Path.home() / 'peter_experiments'
     if exp_base.exists():
         candidates = sorted(
@@ -575,9 +587,9 @@ def _collect_artifacts(
         for candidate in candidates:
             csv_src = candidate / 'metrics.csv'
             if csv_src.exists():
-                dst = trial_dir / 'metrics.csv'
+                dst = trial_dir / 'metrics_raw.csv'
                 shutil.move(str(csv_src), str(dst))
-                log.info(f'  → metrics.csv → {dst}')
+                log.info(f'  → metrics_raw.csv → {dst}')
                 # Limpiar el directorio vacío resultante
                 try:
                     candidate.rmdir()
@@ -683,7 +695,6 @@ def _build_launch_args(
             args += [f'{coord}:={c_str}']
 
     # Ruido sensorial (índice inyectado a red_neuronal vía parámetro)
-    # La red neuronal expone el parámetro 'nl' (noise level index)
     args += [f'noise_level_idx:={noise_idx}']
 
     return args, seed_info
@@ -772,7 +783,6 @@ class TestManager:
             cmd_str,
             shell=True,
             executable='/bin/bash',
-            # Nuevo grupo de procesos → permite killpg
             preexec_fn=os.setsid,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -823,7 +833,6 @@ class TestManager:
         evaluator = TrialEvaluator(suite_name=suite_name, timeout_s=timeout_s)
 
         # Capturar el tiempo de simulación al inicio de RUNNING
-        # Reintentar hasta 5 s si /clock todavía no ha llegado
         sim_start_s: float = 0.0
         for _ in range(50):
             candidate = self._judge_node.get_sim_time_s()
@@ -897,7 +906,6 @@ class TestManager:
 
                 trial_global_idx = 0
                 for rep in range(repetitions):
-                    # Ciclo de inyección de ruido: itera sobre niveles disponibles
                     noise_idx = noise_levels[rep % len(noise_levels)]
 
                     trial_global_idx += 1
@@ -910,18 +918,15 @@ class TestManager:
                         suite_cfg, trial_global_idx, noise_idx
                     )
 
-                    # Asegurar que el proceso está terminado antes de teardown
                     if proc.poll() is None:
                         try:
                             proc.wait(timeout=3.0)
                         except subprocess.TimeoutExpired:
                             proc.kill()
 
-                    # Obtener snapshot final para el resumen
                     snap_final = self._judge_node.snapshot()
                     self._teardown(suite_name, trial_global_idx, verdict, seed_info, snap_final)
 
-                    # Breve pausa entre iteraciones para que Gazebo libere recursos
                     log.info('Pausa entre iteraciones (3 s)...')
                     time.sleep(3.0)
 
@@ -935,13 +940,11 @@ class TestManager:
 # ── Punto de entrada del script ───────────────────────────────────────────────
 
 def main() -> None:
-    # Resolver ruta de configuración: argumento o ruta canónica del paquete
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
     else:
-        # Ruta canónica dentro del workspace de ROS 2
         config_path = os.path.join(
-            os.path.expanduser('~/PETER_SIMULATION/ros2_ws'),
+            os.path.expanduser('/ros2_ws'),
             'src', 'peter_robot', 'config', 'experiments_config.yaml',
         )
 
