@@ -498,7 +498,10 @@ class GaitV2:
                 self._site_expect[l_idx] = [target_x, target_y, target_z]
 
     def _snap_to_right_y_rest(self, dx: float, dy: float):
-        offsets_s7 = _STATE_TABLE[7][2]  
+        # Elegir dinámicamente la tabla según la dirección
+        table = _STATE_TABLE_BWD if self._dir in _BWD_DIRS else _STATE_TABLE
+        offsets_s7 = table[7][2]  
+
         for l_idx, name in enumerate(LEG_NAMES):
             rz = self._site_now[l_idx][2]
             right_y = self._get_peter_target(name, self.SIDE_m, 0.0, rz) if name in ('FR', 'RR') else self._get_peter_target(name, self.DIAG_m, self.DIAG_m, rz)
@@ -509,7 +512,10 @@ class GaitV2:
             self._site_rest[l_idx, 2] = right_y[2]
 
     def _snap_to_left_y_rest(self, dx: float, dy: float):
-        offsets_s0 = _STATE_TABLE[0][2] 
+        # Elegir dinámicamente la tabla según la dirección
+        table = _STATE_TABLE_BWD if self._dir in _BWD_DIRS else _STATE_TABLE
+        offsets_s0 = table[0][2] 
+
         for l_idx, name in enumerate(LEG_NAMES):
             rz = self._site_now[l_idx][2]
             left_y = self._get_peter_target(name, self.SIDE_m, 0.0, rz) if name in ('FL', 'RL') else self._get_peter_target(name, self.DIAG_m, self.DIAG_m, rz)
