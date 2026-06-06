@@ -131,9 +131,9 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 2.9 #PARA CASO PLANO-RUGOSO-PLANO
-        #self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
+        #self.Usigma_az = 2.9 #PARA CASO PLANO-RUGOSO-PLANO
         #self.Upitch = 5 #Umbral pitch INCLINADO
+        self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
         self.Upitch = 20 
         self.Uroll = 270 #Umbral roll
 
