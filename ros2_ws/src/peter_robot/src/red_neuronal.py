@@ -203,7 +203,6 @@ class NetworkPublisher(Node):
         self.declare_parameter('nl', 0) #Noise level default
 
         self.ACTIVE_NOISE_LEVEL_IDX = (self.get_parameter('nl').get_parameter_value().integer_value) #Parametro noise level ros2 run peter_robot red_neuronal --ros-args -p nl:=0
-        self.ACTIVE_NOISE_LEVEL_IDX = 2   # ← MODIFICAR ANTES DE CADA PRUEBA (0 = No ruido)
 
         # Semilla reproducible (None = aleatoria)
         self.NoiseSeed = 42

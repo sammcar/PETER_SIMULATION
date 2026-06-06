@@ -54,6 +54,7 @@ setup(
             'neural_recorder = src.neural_recorder:main',
             'peter_stability_monitor = src.peter_stability_monitor:main',
             'RobustnessMetric = src.robustnessListener:main',
+            'metrics_recorder = src.metrics_recorder:main',
             "RMSENode = src.RMSE_node:main"
         ],
     },
