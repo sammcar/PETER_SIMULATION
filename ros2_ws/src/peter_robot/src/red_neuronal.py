@@ -411,62 +411,24 @@ class NetworkPublisher(Node):
         print("G: ", str(G))
         print("B: ", str(B)) 
 
-
-
+        # ── LOG CON CORRECCIÓN CRÍTICA DE CONDICIÓN DE CARRERA (maxstd) ──
         print(
                         f"GpeR: {self.Gpe[0,1]}\n"
                         f"GpeG: {self.Gpe[1,1]}\n"
                         f"GpeB: {self.Gpe[2,1]}\n"
                         f"ang_p: {self.ang_p}\n"
                         f"ang_s: {self.ang_s}\n"
-                        # f"3: {self.z[3,1]}\n"
-                        # f"4: {self.z[4,1]}\n"
-                        # f"5: {self.z[5,1]}\n"
-                        # f"6: {self.z[6,1]}\n"
-                        # f"7: {self.z[7,1]}\n"
-                        # f"8: {self.z[8,1]}\n"
-                        # f"9: {self.z[9,1]}\n"
-                        # f"10: {self.z[10,1]}\n"
-                        # f"11: {self.z[11,1]}\n"
-                        # f"12: {self.z[12,1]}\n"
-                        # f"13: {self.z[13,1]}\n"
-                        # f"14: {self.z[14,1]}\n"
-                        # f"15: {self.z[15,1]}\n"
-                        # f"16: {self.z[16,1]}\n"
-                        # f"17: {self.z[17,1]}\n"
-                        # f"0: {self.z[0,1]}\n"
-                        # f"1: {self.z[1,1]}\n"
-                        # f"2: {self.z[2,1]}\n"
                         f"roll: {self.roll}\n"
                         f"pitch: {self.pitch}\n"
                         f"STD total: {self.accel_std:.3f}\n"
                         f"IGNOREIMU: {self.ignore_imu}\n"
                         f"Tresponse: {self.Tresponse} s \n"
                         f"Tswitch: {self.Tswitch} s \n"
-                        f"maxstd {np.max(self.maxstd)}\n"
+                        f"maxstd {np.max(self.maxstd) if self.maxstd else 0.0}\n"
                         f"time {time.time() - self.starttime}"
                         )
         
         if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
-        
-        # print("cmd_ang: ", str(cmd_ang))
-        # print("cmd_lineal: ", str(cmd_lineal))
-        # print("cmd_lateral: ", str(cmd_lateral))
-
-        #print("lidar frente")
-        #print("lidar atras: ", str(self.lidar[1,0]))
-        #print("lidar izquierda: ", str(self.lidar[2,0]))
-        #print("lidar derecha:", str(self.lidar[3,0]))
-        #print("lidar 4:", str(self.lidar[4,0]))
-
-        # Imprimir los 16 valores de Response
-        #for i, val in enumerate(self.Response[:, 0]):
-        #    print(f"Response {i}: {val}")
-
-        # Imprimir los 16 valores de Aux
-        #for i, val in enumerate(self.Aux[:, 0]):
-        #    print(f"Aux {i}: {val}")
-
 
         cmd_ang = self.limit(cmd_ang, 1)
         cmd_lineal = self.limit(cmd_lineal, 5)
