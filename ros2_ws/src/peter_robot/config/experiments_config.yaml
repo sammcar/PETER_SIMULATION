@@ -4,8 +4,8 @@
 # Generado conforme a la especificación de las Fases 2–5 del proyecto.
 
 global_settings:
-  workspace_path: "~/PETER_SIMULATION/ros2_ws"
-  output_base_dir: "~/PETER_SIMULATION/Findings"
+  workspace_path: "/ros2_ws"                                 # <--- CORREGIDO (Ruta nativa en el contenedor)
+  output_base_dir: "/ros2_ws/src/peter_robot/docs/resultados" # <--- RECOMENDADO (Para que caiga directo en tu carpeta montada)
   grace_period_teardown_s: 5.0
 
 experiment_suites:
