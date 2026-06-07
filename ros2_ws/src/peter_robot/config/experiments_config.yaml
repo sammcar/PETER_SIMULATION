@@ -69,14 +69,14 @@ experiment_suites:
     dynamic_parameters:
       world_name: "multiple_stimuli"
       spawn_green: true
-      green_x: -0.20
+      green_x: 0.0
       green_y: -0.8
       spawn_red: true
-      red_x: 1.5
-      red_y: 1.25
+      red_x: 2.5
+      red_y: 1.625
       spawn_blue: true
       blue_x: 3.0
-      blue_y: -1.75
+      blue_y: -1.5
       timeout_s: 150.0
       random_perturbation: false
 
