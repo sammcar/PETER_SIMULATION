@@ -73,10 +73,10 @@ experiment_suites:
       green_y: -1.0
       spawn_red: true
       red_x: 1.5
-      red_y: 2.0
+      red_y: 1.0
       spawn_blue: true
       blue_x: 5.0
-      blue_y: -2.5
+      blue_y: -1.5
       timeout_s: 130.0
       random_perturbation: true
 

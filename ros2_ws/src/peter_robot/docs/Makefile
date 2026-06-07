@@ -21,7 +21,14 @@ STIM_X      ?= 4.0
 STIM_Y      ?= 0.0
 SPAWN_RED   ?= true
 SPAWN_BLUE  ?= true
-SPAWN_GREEN ?= false
+SPAWN_GREEN ?= true
+WORLD_NAME  ?= multiple_stimuli
+RED_X       ?= 4.0
+RED_Y       ?= 2.0
+BLUE_X      ?= 4.0
+BLUE_Y      ?= -2.0
+GREEN_X     ?= 3.0
+GREEN_Y     ?= 0.0
 
 DC = docker exec -it $(CONTAINER) bash -c
 
@@ -164,10 +171,13 @@ sim-single-red: ## Simulación single estímulo rojo
 sim-single-green: ## Simulación single estímulo verde
 	$(MAKE) sim-single STIM=green STIM_X=3.0 STIM_Y=0.0
 
-sim-multi: check-install ## Lanza simulación con múltiples estímulos
+sim-multi: check-install ## Lanza simulación con múltiples estímulos parametrizados
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 launch peter_robot multiple_stimuli.launch.py \
-	         spawn_red:=$(SPAWN_RED) spawn_blue:=$(SPAWN_BLUE) spawn_green:=$(SPAWN_GREEN)"
+	         world_name:=$(WORLD_NAME) \
+	         spawn_red:=$(SPAWN_RED) red_x:=$(RED_X) red_y:=$(RED_Y) \
+	         spawn_blue:=$(SPAWN_BLUE) blue_x:=$(BLUE_X) blue_y:=$(BLUE_Y) \
+	         spawn_green:=$(SPAWN_GREEN) green_x:=$(GREEN_X) green_y:=$(GREEN_Y)"
 
 sim-multi-conflict: ## Rojo + azul
 	$(MAKE) sim-multi SPAWN_RED=true SPAWN_BLUE=true SPAWN_GREEN=false
