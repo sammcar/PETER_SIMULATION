@@ -39,7 +39,7 @@ log = logging.getLogger('test_manager')
 
 # ── Constantes globales ───────────────────────────────────────────────────────
 CRIT_TR: float = 1.0
-TIPOVER_HOLD_S: float = 1.0          
+TIPOVER_HOLD_S: float = 3.0          
 X17_THRESHOLD: float = 0.2    # Umbral activación neurona de parada
 SUCCESS_HOLD_S: float = 2.0   
 WARMUP_S: float = 10.5        
@@ -134,8 +134,15 @@ class TestJudgeNode(Node):
         on_ground = [msg.poses[i].orientation.w > 0.5 for i in range(4)]
         grounded  = [feet_all[i] for i in range(4) if on_ground[i]]
         com       = (-msg.poses[4].position.y, msg.poses[4].position.x)
-        if len(grounded) != 3: return
-        tr = self._compute_tr(grounded, com)
+        
+        # Corrección del valor congelado
+        if len(grounded) == 4:
+            tr = 0.0  # Recuperó el balance de las 4 patas: máxima estabilidad
+        elif len(grounded) == 3:
+            tr = self._compute_tr(grounded, com)
+        else:
+            return  # Cayendo o saltando: mantiene el último valor para la ventana de tiempo
+            
         with self._lock: self._tr = tr
 
     def _compute_tr(self, feet3: List[tuple[float, float]], com: tuple[float, float]) -> float:
