@@ -38,7 +38,8 @@ logging.basicConfig(
 log = logging.getLogger('test_manager')
 
 # ── Constantes globales ───────────────────────────────────────────────────────
-CRIT_TR: float = 1.0          
+CRIT_TR: float = 1.0
+TIPOVER_HOLD_S: float = 1.0          
 X17_THRESHOLD: float = 0.2    # Umbral activación neurona de parada
 SUCCESS_HOLD_S: float = 2.0   
 WARMUP_S: float = 10.5        
@@ -228,6 +229,7 @@ class TrialEvaluator:
         self._success_hold_start: Optional[float] = None  
         self._mode_switched: bool = False
         self._post_switch_start: Optional[float] = None   
+        self._tipover_start_s: Optional[float] = None
 
     def evaluate(self, snap: Dict[str, Any], sim_start_s: float, warmup_done: bool) -> Optional[Verdict]:
         if not warmup_done: return None
@@ -238,9 +240,16 @@ class TrialEvaluator:
             log.warning(f'[TIMEOUT] {elapsed:.1f}s >= {self.timeout_s}s')
             return Verdict.FAILURE_TIMEOUT
 
+        # --- LÓGICA DE TIPOVER CON HISTÉRESIS TEMPORAL ---
         if snap['tr'] >= CRIT_TR:
-            log.warning(f'[TIPOVER] TR={snap["tr"]:.3f} >= {CRIT_TR}')
-            return Verdict.FAILURE_TIPOVER
+            if self._tipover_start_s is None:
+                self._tipover_start_s = current_sim_s
+            elif (current_sim_s - self._tipover_start_s) >= TIPOVER_HOLD_S:
+                log.warning(f'[TIPOVER] TR={snap["tr"]:.3f} >= {CRIT_TR} por {TIPOVER_HOLD_S}s continuos')
+                return Verdict.FAILURE_TIPOVER
+        else:
+            self._tipover_start_s = None  # Resetea si el robot recupera el equilibrio
+        # -------------------------------------------------
 
         if self.suite_name in SUITE_APPETITIVE: return self._eval_appetitive(snap, current_sim_s)
         if self.suite_name in SUITE_EVASIVE: return self._eval_evasive(snap, current_sim_s)
@@ -295,7 +304,6 @@ class TrialEvaluator:
             self._post_switch_start = current_sim_s
 
         if self._mode_switched and self._post_switch_start is not None:
-            if snap['tr'] >= CRIT_TR: return Verdict.FAILURE_TIPOVER
             if (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S: return Verdict.SUCCESS
         return None
 
@@ -309,7 +317,6 @@ class TrialEvaluator:
             self._post_switch_start = current_sim_s
 
         if self._mode_switched and self._post_switch_start is not None:
-            if snap['tr'] >= CRIT_TR: return Verdict.FAILURE_TIPOVER
             if (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S: return Verdict.SUCCESS
         return None
 
