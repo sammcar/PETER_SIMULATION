@@ -16,14 +16,14 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   - suite_name: "familia_a_apetitivo"
     launch_file: "single_stimulus.launch.py"
-    repetitions: 30
+    repetitions: 15
     dynamic_parameters:
       world_name: "single_stimulus"
       stimulus_type: "blue"
       stimulus_x: 4.0
       stimulus_y: -2.0
-      timeout_s: 40.0
-      random_perturbation: false
+      timeout_s: 45.0
+      random_perturbation: true
       variance_sigma: 0.15
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -32,14 +32,14 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   - suite_name: "familia_a_obstaculo"
     launch_file: "single_stimulus.launch.py"
-    repetitions: 20
+    repetitions: 15
     dynamic_parameters:
       world_name: "single_stimulus"
       stimulus_type: "green"
-      stimulus_x: 3.0
-      stimulus_y: 0.0
-      timeout_s: 45.0
-      random_perturbation: false
+      stimulus_x: 0.5
+      stimulus_y: -0.75
+      timeout_s: 60.0
+      random_perturbation: true
       variance_sigma: 0.15
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -48,14 +48,14 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   - suite_name: "familia_a_aversivo"
     launch_file: "single_stimulus.launch.py"
-    repetitions: 20
+    repetitions: 15
     dynamic_parameters:
       world_name: "single_stimulus"
       stimulus_type: "red"
-      stimulus_x: 4.0
-      stimulus_y: 0.0
+      stimulus_x: 2.0
+      stimulus_y: -2.0
       timeout_s: 40.0
-      random_perturbation: false
+      random_perturbation: true
       variance_sigma: 0.15
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   - suite_name: "familia_b_compleja"
     launch_file: "multiple_stimuli.launch.py"
-    repetitions: 20
+    repetitions: 15
     dynamic_parameters:
       world_name: "multiple_stimuli"
       spawn_green: true
@@ -78,7 +78,7 @@ experiment_suites:
       blue_x: 8.0
       blue_y: -2.5
       timeout_s: 130.0
-      random_perturbation: false
+      random_perturbation: true
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C1 — Transición a Terreno Irregular
