@@ -266,14 +266,19 @@ class TrialEvaluator:
         neurons = snap['neurons']
         x14_active = (neurons[14] > 0.3) if len(neurons) > 14 else False
         mode_switched = x14_active or (snap['mode'] in ('H', 'C'))
-        stimulus_gone = (snap['bb_red_area'] < 1.0) and (snap['bb_green_area'] < 1.0)
+        
+        # ── CAMBIO: Se ajustan las llaves a los nombres correctos del snapshot ──
+        stimulus_gone = (snap['bb_red'] < 1.0) and (snap['bb_green'] < 1.0)
+        
         tr_safe       = snap['tr'] < CRIT_TR
-        tresponse_ok  = snap['tresponse'] != 0.0
-
-        if mode_switched and stimulus_gone and tr_safe and tresponse_ok:
+        
+        # También eliminamos tresponse_ok, por la misma razón que en la apetitiva
+        # (es una métrica exclusiva de la Familia C de terreno rugoso).
+        if mode_switched and stimulus_gone and tr_safe:
             if self._success_hold_start is None:
                 self._success_hold_start = current_sim_s
             elif (current_sim_s - self._success_hold_start) >= SUCCESS_HOLD_S:
+                log.info(f'[SUCCESS] Evasión completada exitosamente.')
                 return Verdict.SUCCESS
         else:
             self._success_hold_start = None

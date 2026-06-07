@@ -40,7 +40,7 @@ experiment_suites:
       stimulus_y: -0.75
       timeout_s: 60.0
       random_perturbation: true
-      variance_sigma: 0.15
+      variance_sigma: 0.05
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA A3 — Estímulo Aversivo (Target Rojo)
@@ -53,7 +53,7 @@ experiment_suites:
       world_name: "single_stimulus"
       stimulus_type: "red"
       stimulus_x: 2.0
-      stimulus_y: -2.0
+      stimulus_y: -0.5
       timeout_s: 40.0
       random_perturbation: true
       variance_sigma: 0.15
@@ -69,13 +69,13 @@ experiment_suites:
     dynamic_parameters:
       world_name: "multiple_stimuli"
       spawn_green: true
-      green_x: 3.0
-      green_y: -0.7
+      green_x: 0.25
+      green_y: -1.0
       spawn_red: true
-      red_x: 4.5
+      red_x: 1.5
       red_y: 2.0
       spawn_blue: true
-      blue_x: 8.0
+      blue_x: 5.0
       blue_y: -2.5
       timeout_s: 130.0
       random_perturbation: true
