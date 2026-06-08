@@ -417,51 +417,56 @@ def main(args=None):
     ros_thread = threading.Thread(target=executor.spin, daemon=True)
     ros_thread.start()
 
-    fig = plt.figure(figsize=(14, 8))
-    fig.suptitle('PETER Quadruped — Static Stability Analysis',
-                 fontsize=12, fontweight='bold')
+    # fig = plt.figure(figsize=(14, 8))
+    # fig.suptitle('PETER Quadruped — Static Stability Analysis',
+    #              fontsize=12, fontweight='bold')
 
-    ax_poly = fig.add_subplot(2, 2, 1)
-    ax_ts   = fig.add_subplot(2, 2, 2)
-    ax_area = fig.add_subplot(2, 2, 3)
-    ax_hist = fig.add_subplot(2, 2, 4)
+    # ax_poly = fig.add_subplot(2, 2, 1)
+    # ax_ts   = fig.add_subplot(2, 2, 2)
+    # ax_area = fig.add_subplot(2, 2, 3)
+    # ax_hist = fig.add_subplot(2, 2, 4)
 
-    _setup_polygon_ax(ax_poly)
-    ln_smn, ln_tr = _setup_ts_ax(ax_ts)
-    ln_area       = _setup_area_ax(ax_area)
-    _draw_histogram(ax_hist, [])
+    # _setup_polygon_ax(ax_poly)
+    # ln_smn, ln_tr = _setup_ts_ax(ax_ts)
+    # ln_area       = _setup_area_ax(ax_area)
+    # _draw_histogram(ax_hist, [])
 
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    # fig.tight_layout(rect=[0, 0, 1, 0.95])
 
-    def animate(_frame):
-        with node.lock:
-            pose   = node._latest_pose
-            sm_res = node._latest_sm
-            ht     = list(node._ht)
-            hsmn   = list(node._hsmn)
-            htr    = list(node._htr)
-            harea  = list(node._harea)
+    # def animate(_frame):
+    #     with node.lock:
+    #         pose   = node._latest_pose
+    #         sm_res = node._latest_sm
+    #         ht     = list(node._ht)
+    #         hsmn   = list(node._hsmn)
+    #         htr    = list(node._htr)
+    #         harea  = list(node._harea)
 
-        if pose is not None:
-            _draw_polygon(ax_poly, pose, sm_res)
+    #     if pose is not None:
+    #         _draw_polygon(ax_poly, pose, sm_res)
 
-        _update_ts(ax_ts, ln_smn, ln_tr, ht, hsmn, htr)
-        _update_area(ax_area, ln_area, ht, harea)
-        _draw_histogram(ax_hist, htr)
-        fig.tight_layout(rect=[0, 0, 1, 0.95])
+    #     _update_ts(ax_ts, ln_smn, ln_tr, ht, hsmn, htr)
+    #     _update_area(ax_area, ln_area, ht, harea)
+    #     _draw_histogram(ax_hist, htr)
+    #     fig.tight_layout(rect=[0, 0, 1, 0.95])
 
-    ani = FuncAnimation(fig, animate, interval=150, cache_frame_data=False)  # noqa: F841
+    # ani = FuncAnimation(fig, animate, interval=150, cache_frame_data=False)  # noqa: F841
 
-    try:
-        plt.show()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.print_stats()
-        node.save_csv()
-        executor.shutdown()
-        node.destroy_node()
-        rclpy.shutdown()
+    # try:
+    #     plt.show()
+    # except KeyboardInterrupt:
+    #     pass
+    # finally:
+        # node.print_stats()
+        # node.save_csv()
+        # executor.shutdown()
+        # node.destroy_node()
+        # rclpy.shutdown()
+    node.print_stats()
+    node.save_csv()
+    executor.shutdown()
+    node.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
