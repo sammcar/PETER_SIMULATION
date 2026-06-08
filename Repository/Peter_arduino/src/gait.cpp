@@ -49,30 +49,6 @@ static void dir_to_step(GaitDir dir, float &dx, float &dy) {
     dx = -sl;
     dy = 0;
     return;
-  case GAIT_LEFT:
-    dx = 0;
-    dy = sll;
-    return;
-  case GAIT_RIGHT:
-    dx = 0;
-    dy = -sll;
-    return;
-  case GAIT_FWD_LEFT:
-    dx = d;
-    dy = d;
-    return;
-  case GAIT_FWD_RIGHT:
-    dx = d;
-    dy = -d;
-    return;
-  case GAIT_BCK_LEFT:
-    dx = -d;
-    dy = d;
-    return;
-  case GAIT_BCK_RIGHT:
-    dx = -d;
-    dy = -d;
-    return;
   default:
     dx = 0;
     dy = 0;
@@ -366,6 +342,169 @@ void _update_state_machine() {
       get_peter_target(LEG_FL, SIDE_m, 0.0f, REST_Z, site_expect[LEG_FL]);
       break;
     }
+  } else if (current_dir == GAIT_TURN_RIGHT) {
+    switch (_state_idx) {
+    // --- PRIMERA MITAD (Left-Y -> Right-Y) --- FL lidera
+    case 0:
+      get_peter_target(LEG_FL, SIDE_m, 0.0f, REST_Z + STEP_H,
+                       site_expect[LEG_FL]);
+      break;
+    case 1:
+      get_peter_target(LEG_FL, TURN_X0, TURN_Y0, REST_Z + STEP_H,
+                       site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, TURN_X0, TURN_Y0, REST_Z, site_expect[LEG_FR]);
+      get_peter_target(LEG_RL, TURN_X1, TURN_Y1, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_RR, TURN_X1, TURN_Y1, REST_Z, site_expect[LEG_RR]);
+      break;
+    case 2:
+      get_peter_target(LEG_FL, TURN_X0, TURN_Y0, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, TURN_X0, TURN_Y0, REST_Z, site_expect[LEG_FR]);
+      get_peter_target(LEG_RL, TURN_X1, TURN_Y1, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_RR, TURN_X1, TURN_Y1, REST_Z, site_expect[LEG_RR]);
+      break;
+    case 3:
+      get_peter_target(LEG_FR, TURN_X0, TURN_Y0, REST_Z + STEP_H,
+                       site_expect[LEG_FR]);
+      break;
+    case 4:
+      get_peter_target(LEG_FR, SIDE_m, 0.0f, REST_Z + STEP_H,
+                       site_expect[LEG_FR]);
+      get_peter_target(LEG_FL, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_RL, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_RR, SIDE_m, 0.0f, REST_Z, site_expect[LEG_RR]);
+      break;
+    case 5: // LOWER FR -> Right-Y estable
+      get_peter_target(LEG_FR, SIDE_m, 0.0f, REST_Z, site_expect[LEG_FR]);
+      get_peter_target(LEG_FL, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_RL, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_RR, SIDE_m, 0.0f, REST_Z, site_expect[LEG_RR]);
+      break;
+
+    // --- SEGUNDA MITAD (Right-Y -> Left-Y) --- RR lidera
+    case 6:
+      get_peter_target(LEG_RR, SIDE_m, 0.0f, REST_Z + STEP_H,
+                       site_expect[LEG_RR]);
+      break;
+    case 7:
+      get_peter_target(LEG_RR, TURN_X0, TURN_Y0, REST_Z + STEP_H,
+                       site_expect[LEG_RR]);
+      get_peter_target(LEG_RL, TURN_X0, TURN_Y0, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_FL, TURN_X1, TURN_Y1, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, TURN_X1, TURN_Y1, REST_Z, site_expect[LEG_FR]);
+      break;
+    case 8:
+      get_peter_target(LEG_RR, TURN_X0, TURN_Y0, REST_Z, site_expect[LEG_RR]);
+      get_peter_target(LEG_RL, TURN_X0, TURN_Y0, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_FL, TURN_X1, TURN_Y1, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, TURN_X1, TURN_Y1, REST_Z, site_expect[LEG_FR]);
+      break;
+    case 9:
+      get_peter_target(LEG_RL, TURN_X0, TURN_Y0, REST_Z + STEP_H,
+                       site_expect[LEG_RL]);
+      break;
+    case 10:
+      get_peter_target(LEG_RL, SIDE_m, 0.0f, REST_Z + STEP_H,
+                       site_expect[LEG_RL]);
+      get_peter_target(LEG_RR, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_RR]);
+      get_peter_target(LEG_FL, SIDE_m, 0.0f, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_FR]);
+      break;
+    case 11: // LOWER RL -> Left-Y estable
+      get_peter_target(LEG_RL, SIDE_m, 0.0f, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_RR, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_RR]);
+      get_peter_target(LEG_FL, SIDE_m, 0.0f, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_FR]);
+      break;
+    }
+
+  } else if (current_dir == GAIT_TURN_LEFT) {
+    switch (_state_idx) {
+    // --- PRIMERA MITAD (Right-Y -> Left-Y) --- FR lidera
+    case 0:
+      get_peter_target(LEG_FR, SIDE_m, 0.0f, REST_Z + STEP_H,
+                       site_expect[LEG_FR]);
+      break;
+    case 1:
+      get_peter_target(LEG_FR, TURN_X0, TURN_Y0, REST_Z + STEP_H,
+                       site_expect[LEG_FR]); // CORREGIDO
+      get_peter_target(LEG_FL, TURN_X0, TURN_Y0, REST_Z,
+                       site_expect[LEG_FL]); // CORREGIDO
+      get_peter_target(LEG_RL, TURN_X1, TURN_Y1, REST_Z,
+                       site_expect[LEG_RL]); // CORREGIDO
+      get_peter_target(LEG_RR, TURN_X1, TURN_Y1, REST_Z,
+                       site_expect[LEG_RR]); // CORREGIDO
+      break;
+    case 2:
+      get_peter_target(LEG_FR, TURN_X0, TURN_Y0, REST_Z,
+                       site_expect[LEG_FR]); // CORREGIDO
+      get_peter_target(LEG_FL, TURN_X0, TURN_Y0, REST_Z,
+                       site_expect[LEG_FL]); // CORREGIDO
+      get_peter_target(LEG_RL, TURN_X1, TURN_Y1, REST_Z,
+                       site_expect[LEG_RL]); // CORREGIDO
+      get_peter_target(LEG_RR, TURN_X1, TURN_Y1, REST_Z,
+                       site_expect[LEG_RR]); // CORREGIDO
+      break;
+    case 3:
+      get_peter_target(LEG_FL, TURN_X0, TURN_Y0, REST_Z + STEP_H,
+                       site_expect[LEG_FL]);
+      break; // PARCHE: Levantar en su propia posición (X0)
+    case 4:
+      get_peter_target(LEG_FL, SIDE_m, 0.0f, REST_Z + STEP_H,
+                       site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_FR]);
+      get_peter_target(LEG_RL, SIDE_m, 0.0f, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_RR, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_RR]);
+      break;
+    case 5: // LOWER FL -> Left-Y estable
+      get_peter_target(LEG_FL, SIDE_m, 0.0f, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_FR]);
+      get_peter_target(LEG_RL, SIDE_m, 0.0f, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_RR, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_RR]);
+      break;
+
+    // --- SEGUNDA MITAD (Left-Y -> Right-Y) --- RL lidera
+    case 6:
+      get_peter_target(LEG_RL, SIDE_m, 0.0f, REST_Z + STEP_H,
+                       site_expect[LEG_RL]);
+      break;
+    case 7:
+      get_peter_target(LEG_RL, TURN_X0, TURN_Y0, REST_Z + STEP_H,
+                       site_expect[LEG_RL]); // CORREGIDO
+      get_peter_target(LEG_RR, TURN_X0, TURN_Y0, REST_Z,
+                       site_expect[LEG_RR]); // CORREGIDO
+      get_peter_target(LEG_FL, TURN_X1, TURN_Y1, REST_Z,
+                       site_expect[LEG_FL]); // CORREGIDO
+      get_peter_target(LEG_FR, TURN_X1, TURN_Y1, REST_Z,
+                       site_expect[LEG_FR]); // CORREGIDO
+      break;
+    case 8:
+      get_peter_target(LEG_RL, TURN_X0, TURN_Y0, REST_Z,
+                       site_expect[LEG_RL]); // CORREGIDO
+      get_peter_target(LEG_RR, TURN_X0, TURN_Y0, REST_Z,
+                       site_expect[LEG_RR]); // CORREGIDO
+      get_peter_target(LEG_FL, TURN_X1, TURN_Y1, REST_Z,
+                       site_expect[LEG_FL]); // CORREGIDO
+      get_peter_target(LEG_FR, TURN_X1, TURN_Y1, REST_Z,
+                       site_expect[LEG_FR]); // CORREGIDO
+      break;
+    case 9:
+      get_peter_target(LEG_RR, TURN_X0, TURN_Y0, REST_Z + STEP_H,
+                       site_expect[LEG_RR]);
+      break; // PARCHE: Levantar en su propia posición (X0)
+    case 10:
+      get_peter_target(LEG_RR, SIDE_m, 0.0f, REST_Z + STEP_H,
+                       site_expect[LEG_RR]);
+      get_peter_target(LEG_RL, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_FL, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, SIDE_m, 0.0f, REST_Z, site_expect[LEG_FR]);
+      break;
+    case 11: // LOWER RR -> Right-Y estable
+      get_peter_target(LEG_RR, SIDE_m, 0.0f, REST_Z, site_expect[LEG_RR]);
+      get_peter_target(LEG_RL, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_RL]);
+      get_peter_target(LEG_FL, DIAG_m, DIAG_m, REST_Z, site_expect[LEG_FL]);
+      get_peter_target(LEG_FR, SIDE_m, 0.0f, REST_Z, site_expect[LEG_FR]);
+      break;
+    }
   }
 }
 
@@ -462,30 +601,26 @@ void gait_set_dir(GaitDir dir) {
     return;
 
   _next_dir = dir;
-
-  if (dir == GAIT_STOP) {
+  if (dir == GAIT_STOP)
     return;
-  }
 
-  // Si estamos en reposo y piden arrancar (adelante o atrás)
-  if (!_is_moving && (dir == GAIT_FORWARD || dir == GAIT_BACKWARD)) {
+  if (!_is_moving && (dir == GAIT_FORWARD || dir == GAIT_BACKWARD ||
+                      dir == GAIT_TURN_LEFT || dir == GAIT_TURN_RIGHT)) {
     current_dir = dir;
     _is_moving = true;
+    bool is_turn = (dir == GAIT_TURN_LEFT || dir == GAIT_TURN_RIGHT);
 
     if (strcmp(_stable_pose, "RIGHT_Y") == 0) {
-      _state_idx = 7;
+      _state_idx = is_turn ? (dir == GAIT_TURN_RIGHT ? 6 : 0) : 7;
       snap_to_right_y();
     } else {
-      _state_idx = 0;
+      _state_idx = is_turn ? (dir == GAIT_TURN_RIGHT ? 0 : 6) : 0;
       _stable_pose = "LEFT_Y";
       snap_to_left_y();
     }
 
     _update_state_machine();
-    if (dir == GAIT_FORWARD)
-      Serial.println("\n>>> INICIANDO MARCHA CONTINUA ADELANTE <<<");
-    else
-      Serial.println("\n>>> INICIANDO MARCHA CONTINUA ATRAS <<<");
+    Serial.println("\n>>> INICIANDO MARCHA / GIRO <<<");
   }
 }
 
@@ -497,40 +632,77 @@ void gait_update(uint32_t now_ms) {
   if (!_is_moving)
     return;
 
-  float speed = (_state_idx == 3 || _state_idx == 10) ? BODY_SPEED : LEG_SPEED;
+  bool is_turn =
+      (current_dir == GAIT_TURN_LEFT || current_dir == GAIT_TURN_RIGHT);
+
+  // Ajuste de velocidad: Los giros usan BODY_SPEED en las fases 1, 4, 7, 10
+  float speed = LEG_SPEED;
+  if (is_turn) {
+    if (_state_idx == 1 || _state_idx == 4 || _state_idx == 7 ||
+        _state_idx == 10)
+      speed = BODY_SPEED;
+  } else {
+    if (_state_idx == 3 || _state_idx == 10)
+      speed = BODY_SPEED;
+  }
+
   bool done = tick_toward_expect(speed);
   apply_ik_all();
 
   if (done) {
-    // --- CHECKPOINTS DE ESTABILIDAD ---
-    if (_state_idx == 6) {
-      _stable_pose = "RIGHT_Y";
-      if (_next_dir == GAIT_STOP) {
-        current_dir = GAIT_STOP;
-        _is_moving = false;
-        Serial.println(">>> STOP SUAVE (Robot asentado en Right-Y) <<<");
-        return;
-      } else {
-        current_dir =
-            _next_dir; // <-- Permite cambio dinámico de dirección sin frenar
+    bool checkpoint_reached = false;
+
+    // Evaluar Checkpoints
+    if (is_turn) {
+      if (_state_idx == 5) {
+        _stable_pose = (current_dir == GAIT_TURN_RIGHT) ? "RIGHT_Y" : "LEFT_Y";
+        checkpoint_reached = true;
+      } else if (_state_idx == 11) {
+        _stable_pose = (current_dir == GAIT_TURN_RIGHT) ? "LEFT_Y" : "RIGHT_Y";
+        checkpoint_reached = true;
       }
-    } else if (_state_idx == 13) {
-      _stable_pose = "LEFT_Y";
-      if (_next_dir == GAIT_STOP) {
-        current_dir = GAIT_STOP;
-        _is_moving = false;
-        Serial.println(">>> STOP SUAVE (Robot asentado en Left-Y) <<<");
-        return;
-      } else {
-        current_dir =
-            _next_dir; // <-- Permite cambio dinámico de dirección sin frenar
+    } else {
+      if (_state_idx == 6) {
+        _stable_pose = "RIGHT_Y";
+        checkpoint_reached = true;
+      } else if (_state_idx == 13) {
+        _stable_pose = "LEFT_Y";
+        checkpoint_reached = true;
       }
     }
 
-    // --- TRANSICIÓN AL SIGUIENTE ESTADO ---
-    _state_idx++;
-    if (_state_idx > 13) {
-      _state_idx = 0;
+    // Procesar transición de checkpoint
+    if (checkpoint_reached) {
+      if (_next_dir == GAIT_STOP) {
+        current_dir = GAIT_STOP;
+        _is_moving = false;
+        Serial.printf(">>> STOP SUAVE (Asentado en %s) <<<\n", _stable_pose);
+        return;
+      } else if (_next_dir != current_dir) {
+        // PUENTE DINÁMICO: Cambiar modo de marcha al vuelo adaptando el índice
+        // a la pose física actual
+        current_dir = _next_dir;
+        bool next_is_turn =
+            (current_dir == GAIT_TURN_LEFT || current_dir == GAIT_TURN_RIGHT);
+
+        if (strcmp(_stable_pose, "RIGHT_Y") == 0) {
+          _state_idx =
+              next_is_turn ? (current_dir == GAIT_TURN_RIGHT ? 6 : 0) : 7;
+        } else {
+          _state_idx =
+              next_is_turn ? (current_dir == GAIT_TURN_RIGHT ? 0 : 6) : 0;
+        }
+      } else {
+        // Mismo comando continuo, incrementar con wrap respectivo
+        _state_idx++;
+        if (is_turn && _state_idx > 11)
+          _state_idx = 0;
+        else if (!is_turn && _state_idx > 13)
+          _state_idx = 0;
+      }
+    } else {
+      // Fases intermedias puras
+      _state_idx++;
     }
 
     _update_state_machine();

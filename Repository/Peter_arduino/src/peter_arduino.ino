@@ -98,18 +98,10 @@ static const char *dir_name(GaitDir d) {
     return "ADELANTE";
   case GAIT_BACKWARD:
     return "ATRAS";
-  case GAIT_LEFT:
-    return "IZQUIERDA";
-  case GAIT_RIGHT:
-    return "DERECHA";
-  case GAIT_FWD_LEFT:
-    return "ADELANTE+IZQ";
-  case GAIT_FWD_RIGHT:
-    return "ADELANTE+DER";
-  case GAIT_BCK_LEFT:
-    return "ATRAS+IZQ";
-  case GAIT_BCK_RIGHT:
-    return "ATRAS+DER";
+  case GAIT_TURN_LEFT:
+    return "GIRO IZQUIERDA";
+  case GAIT_TURN_RIGHT:
+    return "GIRO DERECHA";
   default:
     return "STOP";
   }
@@ -137,35 +129,14 @@ static void handle_teleop(char key) {
   case ',':
     dir = GAIT_BACKWARD;
     break;
-  case 'j':
-    dir = GAIT_LEFT;
+  case 'u':
+    dir = GAIT_TURN_LEFT;
     break;
-  case 'l':
-    dir = GAIT_RIGHT;
+  case 'o':
+    dir = GAIT_TURN_RIGHT;
     break;
   case 'k':
     dir = GAIT_STOP;
-    break;
-  case 'c':
-    Serial.print("IMU calibrando (antes: pitch=");
-    Serial.print(imu_get_pitch(), 1);
-    Serial.print("  roll=");
-    Serial.print(imu_get_roll(), 1);
-    Serial.println(")");
-    imu_calibrate();
-    Serial.println("IMU calibrado — nueva referencia = posicion actual");
-    return;
-  case 'u':
-    dir = GAIT_FWD_LEFT;
-    break;
-  case 'o':
-    dir = GAIT_FWD_RIGHT;
-    break;
-  case 'm':
-    dir = GAIT_BCK_LEFT;
-    break;
-  case '.':
-    dir = GAIT_BCK_RIGHT;
     break;
   default:
     return;

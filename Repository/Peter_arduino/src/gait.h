@@ -8,10 +8,8 @@ enum GaitDir {
   GAIT_BACKWARD,
   GAIT_LEFT,
   GAIT_RIGHT,
-  GAIT_FWD_LEFT,
-  GAIT_FWD_RIGHT,
-  GAIT_BCK_LEFT,
-  GAIT_BCK_RIGHT,
+  GAIT_TURN_LEFT, // Nuevo
+  GAIT_TURN_RIGHT // Nuevo
 };
 
 // Inicializa la marcha y lleva el robot a posición de reposo.
