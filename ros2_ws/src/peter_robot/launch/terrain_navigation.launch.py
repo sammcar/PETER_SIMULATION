@@ -2,24 +2,31 @@
 """
 terrain_navigation.launch.py
 Archivo de lanzamiento unificado para la evaluación en terrenos irregulares (Familia C1).
-Hereda la infraestructura de inicialización de modelo, puentes y controladores del
-entorno base de un solo estímulo, integrando el monitor de estabilidad.
+Sigue estrictamente la arquitectura base de inicialización, rutas de recursos y ganchos
+de ciclo de vida de single_stimulus.launch.py para garantizar estabilidad en Gazebo Sim.
 """
 
 import os
 import xacro
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction, OpaqueFunction
+from launch.actions import (
+    DeclareLaunchArgument,
+    IncludeLaunchDescription,
+    SetEnvironmentVariable,
+    TimerAction,
+    OpaqueFunction
+)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     PACKAGE_NAME = 'peter_robot'
     pkg_share = get_package_share_directory(PACKAGE_NAME)
 
-    # 1. Declaración exhaustiva de argumentos enviados por el test_manager
+    # 1. Argumentos de Lanzamiento exigidos por el test_manager
     args = [
         DeclareLaunchArgument('world_name', default_value='terrain'),
         DeclareLaunchArgument('noise_level_idx', default_value='0'),
@@ -30,16 +37,24 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_z', default_value='1.2'),
     ]
 
-    # 2. Carga y procesamiento del modelo cinemático (URDF/Xacro)
+    # 2. Configuración de Rutas de Recursos de Gazebo (Idéntico a single_stimulus)
+    # Esto evita el cierre prematuro de Gazebo al resolver las mallas del robot
+    set_model_path = SetEnvironmentVariable(
+        name='GZ_SIM_RESOURCE_PATH',
+        value=[
+            os.path.join(pkg_share, 'models'), ':',
+            os.path.join(pkg_share, 'urdf')
+        ]
+    )
+
+    # 3. Procesamiento del Modelo Cinemático (URDF/Xacro)
     xacro_path = os.path.join(pkg_share, 'urdf', 'robot.urdf.xacro')
     if not os.path.exists(xacro_path):
-        # Fallback de respaldo por consistencia de estructura de archivos
         xacro_path = os.path.join(pkg_share, 'urdf', 'peter_robot.urdf.xacro')
         
     robot_description_config = xacro.process_file(xacro_path)
     robot_description = {'robot_description': robot_description_config.toxml()}
 
-    # 3. Nodo del Publicador de Estado del Robot
     robot_state_pub = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -48,7 +63,7 @@ def generate_launch_description():
         parameters=[robot_description, {'use_sim_time': True}]
     )
 
-    # 4. Inclusión del entorno físico de simulación de Gazebo
+    # 4. Inclusión de Gazebo Base (Utiliza la lógica interna de gazebo.launch.py)
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             os.path.join(pkg_share, 'launch', 'gazebo.launch.py')
@@ -59,7 +74,7 @@ def generate_launch_description():
         }.items()
     )
 
-    # 5. Generación de la entidad del robot en Gazebo Sim
+    # 5. Entidad del Robot y Puentes de Comunicación
     spawn_robot = Node(
         package='ros_gz_sim',
         executable='create',
@@ -73,7 +88,6 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 6. Puentes de comunicación ROS 2 <-> Gazebo Transport
     ros_gz_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -89,15 +103,14 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 7. Controlador de Locomoción y Spawners de ROS 2 Control
-    peter_controller = Node(
-        package=PACKAGE_NAME,
-        executable='peter_controller',
-        name='peter_controller',
-        output='screen',
-        parameters=[{'use_sim_time': True}]
+    ros_gz_image_bridge = Node(
+        package='ros_gz_image',
+        executable='image_bridge',
+        arguments=['/camera/image_raw'],
+        output='screen'
     )
 
+    # 6. Controladores de Articulaciones de ROS 2 Control (Spawners de single_stimulus)
     load_joint_state = Node(
         package='controller_manager',
         executable='spawner',
@@ -112,7 +125,33 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 8. Red Neuronal de Selección de Marchas
+    load_head = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['head_segment_controller'],
+        output='screen',
+        condition=launch.conditions.IfCondition('false') # Desactivado si no hay segmento superior activo
+    ) if hasattr(os, 'launch') else None # Fallback seguro de importación
+
+    # Re-mapeo directo por compatibilidad con la firma funcional de spawners
+    load_head = Node(package='controller_manager', executable='spawner', arguments=['joint_state_broadcaster'], output='screen', name='head_spawner_bypass')
+
+    load_velocity = Node(
+        package='controller_manager',
+        executable='spawner',
+        arguments=['velocity_controller'],
+        output='screen'
+    )
+
+    # 7. Controlador Principal y Red Neuronal Basal
+    peter_controller = Node(
+        package=PACKAGE_NAME,
+        executable='peter_controller',
+        name='peter_controller',
+        output='screen',
+        parameters=[{'use_sim_time': True}]
+    )
+
     neural_network = Node(
         package=PACKAGE_NAME,
         executable='neural_network',
@@ -121,7 +160,7 @@ def generate_launch_description():
         parameters=[{'use_sim_time': True}]
     )
 
-    # 9. Infraestructura de Telemetría e Instrumentación (Fase Post-Warmup: 10.5 s)
+    # 8. Infraestructura de Telemetría e Instrumentación (Fase Post-Warmup: 10.5 s)
     telemetry_nodes = TimerAction(period=10.5, actions=[
         Node(
             package=PACKAGE_NAME,
@@ -140,6 +179,7 @@ def generate_launch_description():
             output='screen',
             parameters=[{'use_sim_time': True}]
         ),
+        # Monitor de Estabilidad Cinemática Habilitado para Terreno Irregular
         Node(
             package=PACKAGE_NAME,
             executable='peter_stability_monitor',
@@ -151,13 +191,16 @@ def generate_launch_description():
 
     return LaunchDescription(
         args + [
+            set_model_path,
             robot_state_pub,
             gazebo,
             spawn_robot,
             ros_gz_bridge,
-            peter_controller,
+            ros_gz_image_bridge,
             load_joint_state,
             load_forward,
+            load_velocity,
+            peter_controller,
             neural_network,
             telemetry_nodes
         ]
