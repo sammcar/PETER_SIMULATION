@@ -245,3 +245,8 @@ clean-container-results: ## Elimina TODOS los resultados del contenedor (pide co
 
 run-experiments: check-install ## Ejecuta el orquestador automático de experimentos dentro del contenedor
 	$(DC) "$(WS_SOURCE) && ROS_DOMAIN_ID=$(DOMAIN_ID) python3 $(WS)/src/peter_robot/scripts/test_manager.py $(WS)/src/peter_robot/config/experiments_config.yaml"
+
+sim-terrain: check-install ## Lanza simulación base de Gazebo en el entorno de terreno irregular (Familia C1)
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
+	       ros2 launch peter_robot gazebo.launch.py \
+	       world_name:=terrain"

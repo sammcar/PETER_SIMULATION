@@ -83,6 +83,19 @@ class JointPositionPublisher(Node):
         self.target_positions = [0.785,  0.53,   0.51,  -0.0,
                                 -0.53,  -0.51,  -0.785,  0.53,
                                 0.51,   -0.0,   -0.53,  -0.51]
+    
+    def iniciarHibrido(self):
+        """
+        Configura las posiciones articulares base iniciales para el modo Híbrido (H)
+        evitando transitorios bruscos y garantizando la extensión coordinada de las extremidades.
+        """
+        self.get_logger().info("[peter_controller] Inicializando articulaciones en postura Híbrida nativa...")
+        self.target_positions = [
+             0.0,  0.8,  2.30,  # CoxisRU, FemurRU, TibiaRU (Extremidad Delantera Derecha)
+             0.0, -0.8, -2.30,  # CoxisLU, FemurLU, TibiaLU (Extremidad Delantera Izquierda)
+             0.0,  0.9,  2.30,  # CoxisRD, FemurRD, TibiaRD (Extremidad Trasera Derecha)
+             0.0, -0.8, -2.30   # CoxisLD, FemurLD, TibiaLD (Extremidad Trasera Izquierda)
+        ]
 
     def __init__(self):
         super().__init__('joint_position_publisher')
@@ -118,10 +131,49 @@ class JointPositionPublisher(Node):
         self.joint_positions = [0.0] * 12  # 12 articulaciones
         self.joint_velocities = [0.0] * 4  # 4 ruedas
 
+        # # Variables
+        # self.increment = 0.1
+        # self.increment_velocity = 0.5
+        # self.state = 'C'
+        # self.linear_x = 0.0
+        # self.linear_y = 0.0
+        # self.angular_z = 0.0
+        # self.target_positions = [0.0] * 12
+        # self.target_velocities = [0.0] * 4
+        # self.leg_ok = False
+        # self.leg = 0
+
+        # # Control dirección Omnidireccional
+        # self.current_angle = 0.0  # Último ángulo roll del IMU 
+        # self.target_angle = None   # Ángulo objetivo cuando ω = 0, antes de ir en linea recta
+        # self.kp = 0.35  # Ganancia proporcional
+        # self.inicio = False
+
+        # # Publisher de trayectoria
+        # self.path_pub = self.create_publisher(Path, "/trajectory", 10)
+        # self.path_msg = Path()
+        # self.path_msg.header.frame_id = "odom"
+
+        # # Buffer y listener para transformaciones TF
+        # self.tf_buffer = tf2_ros.Buffer()
+        # self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        # self.tf_broadcaster = TransformBroadcaster(self)
+
+        # # Timer
+        # self.timer = self.create_timer(0.05, self.timer_callback)
+        # self.ticker = self.create_timer(0.02, self.ticker_callback)
+        # self.on_air = [False,False,False,False]
+        # self.machine = 0
+        # # Start the state machine execution
+        # self.past = 'C'
+        # self.iniciarCuadrupedo()
+        # self.run_state_machine()
+
         # Variables
         self.increment = 0.1
         self.increment_velocity = 0.5
-        self.state = 'C'
+        # CAMBIO 1: El estado inicial es ahora 'H'
+        self.state = 'H'  
         self.linear_x = 0.0
         self.linear_y = 0.0
         self.angular_z = 0.0
@@ -151,9 +203,14 @@ class JointPositionPublisher(Node):
         self.ticker = self.create_timer(0.02, self.ticker_callback)
         self.on_air = [False,False,False,False]
         self.machine = 0
+        self.cambio = 0
+        
         # Start the state machine execution
-        self.past = 'C'
-        self.iniciarCuadrupedo()
+        # CAMBIO 2: El estado pasado es ahora 'H'
+        self.past = 'H' 
+        
+        # CAMBIO 3: Iniciamos con las posturas del modo Híbrido
+        self.iniciarHibrido() 
         self.run_state_machine()
 
         # en __init__

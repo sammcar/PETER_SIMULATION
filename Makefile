@@ -145,6 +145,9 @@ clean-container-results: ## Elimina todos los resultados del contenedor
 run-experiments: ## Lanza el orquestador automático de experimentos dentro del contenedor
 	@make -f $(MK) run-experiments $(PASSTHROUGH)
 
+sim-terrain: ## Lanza la simulación base de Gazebo en el entorno de terreno irregular (Familia C1)
+	@make -f $(MK) sim-terrain $(PASSTHROUGH)
+
 kill-sim: ## Mata todos los procesos zombis de Gazebo y ROS 2 dentro del contenedor
 	@echo "[kill-sim] Limpiando procesos huérfanos de simulación..."
 	@docker exec -it $(CONTAINER) pkill -9 -f ign || true
