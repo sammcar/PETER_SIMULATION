@@ -219,6 +219,16 @@ class JointPositionPublisher(Node):
         self.seq_started = None
         self.atol = 1e-2            # tolerancia para "llegó"
 
+        # Inicialización de posiciones de envío efectivas para el suavizado
+        self.effective_positions = [0.0] * 12
+        
+        # Velocidad de interpolación: máximo cambio en radianes por ciclo del ticker (0.02 s)
+        # Un valor de 0.04 rad/ciclo equivale a ~2.0 rad/s, permitiendo una transición suave en ~1.0 - 1.5s
+        self.max_angular_step = 0.04 
+        
+        # Bandera para identificar si es el primer ciclo de inicialización
+        self.first_run = True
+
     def joints_at_targets(self):
         # Evita fallos si aún no hay targets inicializados
         if not hasattr(self, "target_positions") or not hasattr(self, "joint_positions"):
