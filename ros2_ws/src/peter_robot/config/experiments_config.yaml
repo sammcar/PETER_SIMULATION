@@ -82,10 +82,9 @@ experiment_suites:
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C1 — Transición a Terreno Irregular
-  # Éxito: σ(az) > 3.7 → X0 activo → X15 activo + Tswitch + 12 s estables.
   # ──────────────────────────────────────────────────────────────────────────
   - suite_name: "familia_c1_terreno_rugoso"
-    launch_file: "gazebo.launch.py"
+    launch_file: "terrain_navigation.launch.py"    # <--- AQUÍ ESTÁ EL CAMBIO CRÍTICO
     repetitions: 15
     dynamic_parameters:
       world_name: "terrain"

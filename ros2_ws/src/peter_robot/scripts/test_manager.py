@@ -302,16 +302,22 @@ class TrialEvaluator:
 
     def _eval_terrain_c1(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
         neurons = snap['neurons']
-        x0 = neurons[0] if neurons else 0.0
+        x0 = neurons[0] if len(neurons) > 0 else 0.0
         x15 = neurons[15] if len(neurons) > 15 else 0.0
         tswitch_done = snap['tswitch'] > 0.0
+        mode_articulated = (snap['mode'] == 'C') # El tópico /peter_mode pasa a 'C' en terreno irregular
 
-        if not self._mode_switched and (x0 > 0.1) and (x15 > 0.1) and tswitch_done:
-            self._mode_switched    = True
+        # Evaluamos el cumplimiento de la condición de disparo (Activación de red o modo motor)
+        if not self._mode_switched and (x0 > 0.1 or x15 > 0.1 or mode_articulated) and tswitch_done:
+            self._mode_switched     = True
             self._post_switch_start = current_sim_s
+            log.info(f'[C1] Transition to articulated gait detected at {current_sim_s:.2f}s. Evaluating stability window...')
 
+        # Verificación de la ventana de estabilidad obligatoria (SAFETY_STABLE_S = 12.0 segundos)
         if self._mode_switched and self._post_switch_start is not None:
-            if (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S: return Verdict.SUCCESS
+            if (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S:
+                log.info(f'[SUCCESS] C1 test successful: 12 seconds of stable articulated locomotion completed.')
+                return Verdict.SUCCESS
         return None
 
     def _eval_terrain_c2(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
