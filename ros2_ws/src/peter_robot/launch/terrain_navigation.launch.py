@@ -2,10 +2,11 @@
 """
 terrain_navigation.launch.py
 Archivo de lanzamiento unificado para la evaluación en terrenos irregulares (Familia C1).
-Copia exacta de la infraestructura funcional de single_stimulus.launch.py.
+Incorpora auto-descubrimiento del archivo URDF/Xacro para evitar crashes.
 """
 
 import os
+import glob
 import xacro
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -34,7 +35,7 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_z', default_value='1.2'),
     ]
 
-    # 2. Rutas de recursos para Gazebo Sim (Evita que las mallas sean invisibles)
+    # 2. Rutas de recursos para Gazebo Sim
     set_model_path = SetEnvironmentVariable(
         name='GZ_SIM_RESOURCE_PATH',
         value=[
@@ -43,11 +44,23 @@ def generate_launch_description():
         ]
     )
 
-    # 3. Procesamiento del Modelo Cinemático
-    xacro_path = os.path.join(pkg_share, 'urdf', 'robot.urdf.xacro')
-    if not os.path.exists(xacro_path):
-        xacro_path = os.path.join(pkg_share, 'urdf', 'peter_robot.urdf.xacro')
+    # 3. AUTO-DESCUBRIMIENTO DEL MODELO CINEMÁTICO (Evita el XacroException)
+    urdf_dir = os.path.join(pkg_share, 'urdf')
+    xacro_files = glob.glob(os.path.join(urdf_dir, '*.xacro'))
+    
+    # Fallback en caso de que el xacro esté en un paquete "description"
+    if not xacro_files:
+        try:
+            desc_share = get_package_share_directory('peter_description')
+            xacro_files = glob.glob(os.path.join(desc_share, 'urdf', '*.xacro'))
+        except Exception:
+            pass
+            
+    if not xacro_files:
+        raise FileNotFoundError(f"¡CRÍTICO! No se encontró el archivo .xacro del robot en {urdf_dir}.")
         
+    xacro_path = xacro_files[0]  # Toma automáticamente el archivo correcto
+    
     robot_description_config = xacro.process_file(xacro_path)
     robot_description = {'robot_description': robot_description_config.toxml()}
 
@@ -129,7 +142,7 @@ def generate_launch_description():
         parameters=[{'use_sim_time': True}]
     )
 
-    # 8. Instrumentación y Estabilidad
+    # 8. Instrumentación y Estabilidad (10.5 segundos post-warmup)
     telemetry_nodes = TimerAction(period=10.5, actions=[
         Node(package=PACKAGE_NAME, executable='neural_recorder', name='neural_recorder', output='screen', 
              parameters=[{'experiment_type': 'terrain_navigation', 'use_sim_time': True}]),
