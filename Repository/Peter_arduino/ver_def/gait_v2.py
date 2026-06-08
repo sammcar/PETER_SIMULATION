@@ -352,7 +352,7 @@ class GaitV2:
 
         self._apply_ik_all()
         return self._foot_dict()
-
+    
     def _update_state_machine(self):
         is_turn = self._dir in _TURN_DIRS
 
@@ -360,7 +360,6 @@ class GaitV2:
             rz = {l_idx: self._site_rest[l_idx][2] for l_idx in range(4)}
             
             # Coordenadas intermedias de Peter Controller 
-            # X0,Y0 se asigna al par de patas (delanteras o traseras) que lidera el movimiento
             peter_targets = {}
             for l_idx, name in enumerate(LEG_NAMES):
                 if self._state_idx < 6: # Primera mitad (Lideran FL/FR)
@@ -378,13 +377,11 @@ class GaitV2:
             right_y_rest = np.zeros((4, 3))
             left_y_rest  = np.zeros((4, 3))
             for l_idx, name in enumerate(LEG_NAMES):
-                # Right-Y absolutes (FR/RR = Laterales, FL/RL = Diagonales)
                 if name in ('FR', 'RR'):
                     right_y_rest[l_idx] = self._get_peter_target(name, self.SIDE_m, 0.0, rz[l_idx])
                 else:
                     right_y_rest[l_idx] = self._get_peter_target(name, self.DIAG_m, self.DIAG_m, rz[l_idx])
                 
-                # Left-Y absolutes (FL/RL = Laterales, FR/RR = Diagonales)
                 if name in ('FL', 'RL'):
                     left_y_rest[l_idx] = self._get_peter_target(name, self.SIDE_m, 0.0, rz[l_idx])
                 else:
@@ -397,7 +394,6 @@ class GaitV2:
                 self._current_swing = swing_leg
 
                 for l_idx, name in enumerate(LEG_NAMES):
-                    # --- Mitad 1: Left-Y -> Right-Y (Inicia FL) ---
                     if self._state_idx == 0:    
                         tgt = self._site_now[l_idx].copy()
                         if name == 'FL': tgt[2] += self.step_h
@@ -414,8 +410,6 @@ class GaitV2:
                         if name == 'FR': tgt[2] += self.step_h
                     elif self._state_idx == 5:  
                         tgt = right_y_rest[l_idx].copy()
-
-                    # --- Mitad 2: Right-Y -> Left-Y (Inicia RR) ---
                     elif self._state_idx == 6:    
                         tgt = self._site_now[l_idx].copy()
                         if name == 'RR': tgt[2] += self.step_h
@@ -441,7 +435,6 @@ class GaitV2:
                 self._current_swing = swing_leg
 
                 for l_idx, name in enumerate(LEG_NAMES):
-                    # --- Mitad 1: Right-Y -> Left-Y (Inicia FR) ---
                     if self._state_idx == 0:    
                         tgt = self._site_now[l_idx].copy()
                         if name == 'FR': tgt[2] += self.step_h
@@ -458,8 +451,6 @@ class GaitV2:
                         if name == 'FL': tgt[2] += self.step_h
                     elif self._state_idx == 5:  
                         tgt = left_y_rest[l_idx].copy()
-                        
-                    # --- Mitad 2: Left-Y -> Right-Y (Inicia RL) ---
                     elif self._state_idx == 6:    
                         tgt = self._site_now[l_idx].copy()
                         if name == 'RL': tgt[2] += self.step_h
@@ -479,23 +470,166 @@ class GaitV2:
 
                     self._site_expect[l_idx] = tgt
         else:
-            if self._state_idx in (0, 7):
-                self._step_dx, self._step_dy = self._dir_to_step(self._dir)
-
-            table = _STATE_TABLE_BWD if self._dir in _BWD_DIRS else _STATE_TABLE
-            phase, swing_leg, offsets = table[self._state_idx]
-            self._phase         = phase
-            self._current_swing = swing_leg
+            # ─────────────────────────────────────────────────────────────────
+            # NUEVA LÓGICA DE MARCHA LINEAL CON COORDENADAS ABSOLUTAS
+            # ─────────────────────────────────────────────────────────────────
+            rz = {l_idx: self._site_rest[l_idx][2] for l_idx in range(4)}
+            right_y = {}
+            left_y = {}
+            reach = {}
 
             for l_idx, name in enumerate(LEG_NAMES):
-                rx, ry, rz = self._site_rest[l_idx]
-                mult     = offsets[l_idx]
-                target_x = rx + mult * self._step_dx
-                target_y = ry + mult * self._step_dy
-                target_z = rz
-                if name == swing_leg and phase in (PHASE_LIFT, PHASE_MOVE):
-                    target_z += self.step_h
-                self._site_expect[l_idx] = [target_x, target_y, target_z]
+                # Poses de descanso simétricas absolutas
+                if name in ('FR', 'RR'): right_y[name] = self._get_peter_target(name, self.SIDE_m, 0.0, rz[l_idx])
+                else:                    right_y[name] = self._get_peter_target(name, self.DIAG_m, self.DIAG_m, rz[l_idx])
+                
+                if name in ('FL', 'RL'): left_y[name]  = self._get_peter_target(name, self.SIDE_m, 0.0, rz[l_idx])
+                else:                    left_y[name]  = self._get_peter_target(name, self.DIAG_m, self.DIAG_m, rz[l_idx])
+
+                # Objetivo de extensión máxima (reach) para dar el paso de longitud correcta sin forzar IK
+                reach[name] = self._get_peter_target(name, self.DIAG_m, 2 * self.DIAG_m, rz[l_idx])
+
+            if self._dir in (GAIT_FORWARD, GAIT_BACKWARD):
+                table = _STATE_TABLE_BWD if self._dir == GAIT_BACKWARD else _STATE_TABLE
+                phase, swing_leg, _ = table[self._state_idx]
+                self._phase         = phase
+                self._current_swing = swing_leg
+
+                if self._dir == GAIT_FORWARD:
+                    for l_idx, name in enumerate(LEG_NAMES):
+                        # Mitad 1: Desde Left-Y a Right-Y
+                        if self._state_idx == 0:    # LIFT FL
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FL': tgt[2] += self.step_h
+                        elif self._state_idx == 1:  # MOVE FL -> Avanza a extensión máxima
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FL':
+                                tgt = reach['FL'].copy()
+                                tgt[2] += self.step_h
+                        elif self._state_idx == 2:  # LOWER FL
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FL': tgt = reach['FL'].copy()
+                        elif self._state_idx == 3:  # BODY -> El cuerpo avanza
+                            if name == 'RR': tgt = reach['RR'].copy() # RR se queda rezagada
+                            else:            tgt = right_y[name].copy()
+                        elif self._state_idx == 4:  # LIFT RR
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RR': tgt[2] += self.step_h
+                        elif self._state_idx == 5:  # MOVE RR -> Recupera RR a Right-Y
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RR':
+                                tgt = right_y[name].copy()
+                                tgt[2] += self.step_h
+                        elif self._state_idx == 6:  # LOWER RR -> Alcanza Right-Y perfecto
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RR': tgt = right_y[name].copy()
+                        
+                        # Mitad 2: Desde Right-Y a Left-Y
+                        elif self._state_idx == 7:  # LIFT FR
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FR': tgt[2] += self.step_h
+                        elif self._state_idx == 8:  # MOVE FR -> Avanza FR a extensión máxima
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FR':
+                                tgt = reach['FR'].copy()
+                                tgt[2] += self.step_h
+                        elif self._state_idx == 9:  # LOWER FR
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FR': tgt = reach['FR'].copy()
+                        elif self._state_idx == 10: # BODY -> El cuerpo avanza
+                            if name == 'RL': tgt = reach['RL'].copy() # RL se queda rezagada
+                            else:            tgt = left_y[name].copy()
+                        elif self._state_idx == 11: # LIFT RL
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RL': tgt[2] += self.step_h
+                        elif self._state_idx == 12: # MOVE RL -> Recupera RL a Left-Y
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RL':
+                                tgt = left_y[name].copy()
+                                tgt[2] += self.step_h
+                        elif self._state_idx == 13: # LOWER RL -> Alcanza Left-Y perfecto
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RL': tgt = left_y[name].copy()
+                        
+                        self._site_expect[l_idx] = tgt
+
+                elif self._dir == GAIT_BACKWARD:
+                    for l_idx, name in enumerate(LEG_NAMES):
+                        # Mitad 1: Desde Left-Y a Right-Y (Inicia RL para retroceder)
+                        if self._state_idx == 0:    # LIFT RL
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RL': tgt[2] += self.step_h
+                        elif self._state_idx == 1:  # MOVE RL -> Retrocede RL a extensión trasera
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RL':
+                                tgt = reach['RL'].copy()
+                                tgt[2] += self.step_h
+                        elif self._state_idx == 2:  # LOWER RL
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RL': tgt = reach['RL'].copy()
+                        elif self._state_idx == 3:  # BODY -> El cuerpo retrocede
+                            if name == 'FR': tgt = reach['FR'].copy() # FR se queda rezagada adelante
+                            else:            tgt = right_y[name].copy()
+                        elif self._state_idx == 4:  # LIFT FR
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FR': tgt[2] += self.step_h
+                        elif self._state_idx == 5:  # MOVE FR -> Recupera FR a Right-Y
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FR':
+                                tgt = right_y[name].copy()
+                                tgt[2] += self.step_h
+                        elif self._state_idx == 6:  # LOWER FR -> Alcanza Right-Y perfecto
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FR': tgt = right_y[name].copy()
+
+                        # Mitad 2: Desde Right-Y a Left-Y
+                        elif self._state_idx == 7:  # LIFT RR
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RR': tgt[2] += self.step_h
+                        elif self._state_idx == 8:  # MOVE RR -> Retrocede RR a extensión trasera
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RR':
+                                tgt = reach['RR'].copy()
+                                tgt[2] += self.step_h
+                        elif self._state_idx == 9:  # LOWER RR
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'RR': tgt = reach['RR'].copy()
+                        elif self._state_idx == 10: # BODY -> El cuerpo retrocede
+                            if name == 'FL': tgt = reach['FL'].copy() # FL se queda rezagada adelante
+                            else:            tgt = left_y[name].copy()
+                        elif self._state_idx == 11: # LIFT FL
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FL': tgt[2] += self.step_h
+                        elif self._state_idx == 12: # MOVE FL -> Recupera FL a Left-Y
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FL':
+                                tgt = left_y[name].copy()
+                                tgt[2] += self.step_h
+                        elif self._state_idx == 13: # LOWER FL -> Alcanza Left-Y perfecto
+                            tgt = self._site_now[l_idx].copy()
+                            if name == 'FL': tgt = left_y[name].copy()
+                        
+                        self._site_expect[l_idx] = tgt
+            
+            else:
+                # Sistema relativo antiguo de respaldo (solo para strafe o diagonales)
+                if self._state_idx in (0, 7):
+                    self._step_dx, self._step_dy = self._dir_to_step(self._dir)
+
+                table = _STATE_TABLE_BWD if self._dir in _BWD_DIRS else _STATE_TABLE
+                phase, swing_leg, offsets = table[self._state_idx]
+                self._phase         = phase
+                self._current_swing = swing_leg
+
+                for l_idx, name in enumerate(LEG_NAMES):
+                    rx, ry, rz = self._site_rest[l_idx]
+                    mult     = offsets[l_idx]
+                    target_x = rx + mult * self._step_dx
+                    target_y = ry + mult * self._step_dy
+                    target_z = rz
+                    if name == swing_leg and phase in (PHASE_LIFT, PHASE_MOVE):
+                        target_z += self.step_h
+                    self._site_expect[l_idx] = [target_x, target_y, target_z]
 
     def _snap_to_right_y_rest(self, dx: float, dy: float):
         # Elegir dinámicamente la tabla según la dirección

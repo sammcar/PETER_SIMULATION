@@ -24,12 +24,12 @@
 #define L_TIBIA 0.123f
 #define REST_X                                                                 \
   0.00f // mínimo seguro: 0.10f (θ_tibia=-90°); con 0.00f el servo clipa
-#define REST_Z -0.100f
+#define REST_Z -0.120f
 
 // ── Parámetros de marcha crawl ─────────────────────────────────────────
 #define STEP_LEN 0.040f     // metros — longitud de paso adelante/atrás
 #define STEP_LEN_LAT 0.020f // metros — paso lateral
-#define STEP_H 0.035f       // metros — altura de elevación del pie
+#define STEP_H 0.060f       // metros — altura de elevación del pie
 
 #define LEG_SPEED                                                              \
   0.006f // metros por iteración del loop — velocidad de la pata en vuelo
@@ -57,6 +57,17 @@
 #define IMU_MAX_TILT                                                           \
   25.0f // grados máximos de inclinación antes de detener la marcha por
         // seguridad
+
+// ── Geometría Absoluta (Peter Controller) ──────────────────────────────
+#define SIDE_m 0.1105f   // Alcance lateral (r_total validado en Python)
+#define DIAG_m 0.078135f // Proyección a 45° (SIDE_m * 0.707106)
+
+// Constantes precalculadas para los giros in-place (Turn)
+// Derivadas de las ecuaciones de _calc_peter_turn_constants()
+#define TURN_X1 0.08588f
+#define TURN_Y1 0.04013f
+#define TURN_X0 0.00872f
+#define TURN_Y0 0.10956f
 
 // ── Calibración de servos ──────────────────────────────────────────────
 // Fórmula:  ang_efectivo = sign * angulo_deg - offset
