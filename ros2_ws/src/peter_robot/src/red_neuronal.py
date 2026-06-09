@@ -136,10 +136,10 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        #self.Usigma_az = 3.9 #PARA CASO PLANO-RUGOSO-PLANO
-        # self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
-        self.Upitch = 2.0 #Umbral pitch INCLINADO
-        self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
+        self.Usigma_az = 3.9 #PARA CASO PLANO-RUGOSO-PLANO
+        self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
+        # self.Upitch = 2.0 #Umbral pitch INCLINADO
+        # self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -337,8 +337,8 @@ class NetworkPublisher(Node):
         self.lidar[4,1] = self.lidar[4, 0] + (self.dt / self.tau) * (-self.lidar[4, 0]*1.1 + max(0, (np.sum(self.Aux[:,0]))))
 
 
-        # R = self.areaBoundingBoxR/500
-        R = 3.652 #Descomentar para probar inclinacion
+        R = self.areaBoundingBoxR/500
+        # R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
         G = 0
@@ -361,16 +361,16 @@ class NetworkPublisher(Node):
         self.StR[1, 1] = np.clip((self.StR[1, 0] + (1/self.TaoSTR)*(-self.StR[1, 0] + self.StN[1,0])),0, None)
         self.StR[2, 1] = np.clip((self.StR[2, 0] + (1/self.TaoSTR)*(-self.StR[2, 0] + self.StN[2,0])),0, None)
 
-        # if self.Gpe[0,1] > 1.5 and R > 0.5:
-        #     self.ang_s = self.posR
-        # # elif self.Gpe[1,1] > 0.5 and G > 0.5:
-        # #     self.ang_s = 180*(self.lidar[2,1] > 0.1) + 90*(self.lidar[0,1] > 0.1) + self.ang_s*(self.lidar[4,1]<0.1)
-        # elif self.Gpe[2,1] > 1.5 and B > 0.5:
-        #     self.ang_s = self.posB
-        # else:
-        #     self.ang_s = 90*(self.lidar[4,1]<0.3)
+        if self.Gpe[0,1] > 1.5 and R > 0.5:
+            self.ang_s = self.posR
+        # elif self.Gpe[1,1] > 0.5 and G > 0.5:
+        #     self.ang_s = 180*(self.lidar[2,1] > 0.1) + 90*(self.lidar[0,1] > 0.1) + self.ang_s*(self.lidar[4,1]<0.1)
+        elif self.Gpe[2,1] > 1.5 and B > 0.5:
+            self.ang_s = self.posB
+        else:
+            self.ang_s = 90*(self.lidar[4,1]<0.3)
 
-        self.ang_s = 90 #Descomentar para probar terreno inclinado
+        # self.ang_s = 90 #Descomentar para probar terreno inclinado
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
@@ -505,41 +505,41 @@ class NetworkPublisher(Node):
             self.publish_twist(linear_x=tw_lin, linear_y=tw_lat, angular_z=tw_ang)
             # ------------------------------------------------------------------------------
 
-            # # modos
-            # if self.z[15,1] > 0.5:
-            #     self.publish_mode('C'); #print("Cuadrupedo")
-            # elif self.z[16,1] > 0.5:
-            #     self.publish_mode('H'); #print("Móvil H")
-            # elif self.z[14,1] > 0.5:
-            #     self.publish_mode('X'); #print("Móvil X")
+            # modos
+            if self.z[15,1] > 0.5:
+                self.publish_mode('C'); #print("Cuadrupedo")
+            elif self.z[16,1] > 0.5:
+                self.publish_mode('H'); #print("Móvil H")
+            elif self.z[14,1] > 0.5:
+                self.publish_mode('X'); #print("Móvil X")
 
 
-            # Obtener valores actuales
-            z15 = self.z[15,1] # Activación C
-            z16 = self.z[16,1] # Activación H
-            z14 = self.z[14,1] # Activación X
+            # # Obtener valores actuales
+            # z15 = self.z[15,1] # Activación C
+            # z16 = self.z[16,1] # Activación H
+            # z14 = self.z[14,1] # Activación X
             
-            current_time = time.time()
-            time_since_last_change = current_time - self.last_mode_change_time
+            # current_time = time.time()
+            # time_since_last_change = current_time - self.last_mode_change_time
             
-            # Lógica de decisión con Histéresis
-            new_mode = self.current_mode 
+            # # Lógica de decisión con Histéresis
+            # new_mode = self.current_mode 
             
-            # Condición de activación para H (más sensible)
-            if z16 > 0.4: 
-                new_mode = 'H'
-            # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
-            elif z15 > 0.6 and time_since_last_change > self.min_dwell_time:
-                new_mode = 'C'
-            elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
-                new_mode = 'X'
+            # # Condición de activación para H (más sensible)
+            # if z16 > 0.4: 
+            #     new_mode = 'H'
+            # # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
+            # elif z15 > 0.6 and time_since_last_change > self.min_dwell_time:
+            #     new_mode = 'C'
+            # elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
+            #     new_mode = 'X'
 
-            # Ejecutar cambio solo si el modo es realmente diferente
-            if new_mode != self.current_mode:
-                self.publish_mode(new_mode)
-                self.current_mode = new_mode
-                self.last_mode_change_time = current_time
-                self.get_logger().info(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
+            # # Ejecutar cambio solo si el modo es realmente diferente
+            # if new_mode != self.current_mode:
+            #     self.publish_mode(new_mode)
+            #     self.current_mode = new_mode
+            #     self.last_mode_change_time = current_time
+            #     self.get_logger().info(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
 
             self.publish_data()
             self.publish_imu()
