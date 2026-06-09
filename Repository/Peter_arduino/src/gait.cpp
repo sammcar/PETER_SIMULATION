@@ -156,44 +156,42 @@ static void _trans_spider_to_X() {
 }
 
 static void _trans_H_to_spider() {
-  // Paso 1: FR+RR ajustan coxa a diagonal (Z no cambia, están en el suelo)
-  float rhoriz =
-      L_COXA + L_FEMUR + sqrtf(L_TIBIA * L_TIBIA - FOLD_X_Z * FOLD_X_Z);
-  float rdiag = rhoriz * 0.70711f;
-  float sx = BODY_LEN / 2.0f + rdiag;
-  float sy = BODY_WID / 2.0f + rdiag;
-  site_expect[LEG_FR][0] = +sx;
-  site_expect[LEG_FR][1] = -sy;
-  site_expect[LEG_FR][2] = FOLD_H_Z;
-  site_expect[LEG_RR][0] = -sx;
-  site_expect[LEG_RR][1] = -sy;
-  site_expect[LEG_RR][2] = FOLD_H_Z;
-  _animate_to_expect(BODY_SPEED);
-
-  // Paso 2: Todas a LEFT_Y xy, Z sin cambio (arrastre sobre ruedas)
-  _expect_left_y_at_z(FOLD_H_Z);
-  _animate_to_expect(BODY_SPEED);
-
-  // Paso 3: Subir Z al reposo (levanta el chasis)
-  for (uint8_t l = 0; l < 4; l++)
-    site_expect[l][2] = REST_Z;
+  float z_transit = REST_Z + STEP_H;
+  // Paso 1: levantar todas las patas en su XY actual (rápido)
+  for (uint8_t l = 0; l < 4; l++) {
+    site_expect[l][0] = site_now[l][0];
+    site_expect[l][1] = site_now[l][1];
+    site_expect[l][2] = z_transit;
+  }
+  _animate_to_expect(LEG_SPEED);
+  // Paso 2: mover a LEFT_Y XY manteniendo la altura
+  get_peter_target(LEG_FL, SIDE_m, 0.0f, z_transit, site_expect[LEG_FL]);
+  get_peter_target(LEG_FR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_FR]);
+  get_peter_target(LEG_RL, SIDE_m, 0.0f, z_transit, site_expect[LEG_RL]);
+  get_peter_target(LEG_RR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_RR]);
+  _animate_to_expect(LEG_SPEED);
+  // Paso 3: bajar a REST_Z
+  for (uint8_t l = 0; l < 4; l++) site_expect[l][2] = REST_Z;
   _animate_to_expect(BODY_SPEED);
 }
 
 static void _trans_X_to_spider() {
-  // Paso 1: FL+RL cierran a LEFT_Y lateral (Z no cambia)
-  get_peter_target(LEG_FL, SIDE_m, 0.0f, FOLD_X_Z, site_expect[LEG_FL]);
-  get_peter_target(LEG_RL, SIDE_m, 0.0f, FOLD_X_Z, site_expect[LEG_RL]);
-  _animate_to_expect(BODY_SPEED);
-
-  // Paso 2: FR+RR arrastran a LEFT_Y diagonal (Z no cambia)
-  get_peter_target(LEG_FR, DIAG_m, DIAG_m, FOLD_X_Z, site_expect[LEG_FR]);
-  get_peter_target(LEG_RR, DIAG_m, DIAG_m, FOLD_X_Z, site_expect[LEG_RR]);
-  _animate_to_expect(BODY_SPEED);
-
-  // Paso 3: Subir Z al reposo (levanta el chasis)
-  for (uint8_t l = 0; l < 4; l++)
-    site_expect[l][2] = REST_Z;
+  float z_transit = REST_Z + STEP_H;
+  // Paso 1: levantar todas las patas en su XY actual (rápido)
+  for (uint8_t l = 0; l < 4; l++) {
+    site_expect[l][0] = site_now[l][0];
+    site_expect[l][1] = site_now[l][1];
+    site_expect[l][2] = z_transit;
+  }
+  _animate_to_expect(LEG_SPEED);
+  // Paso 2: mover a LEFT_Y XY manteniendo la altura
+  get_peter_target(LEG_FL, SIDE_m, 0.0f, z_transit, site_expect[LEG_FL]);
+  get_peter_target(LEG_FR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_FR]);
+  get_peter_target(LEG_RL, SIDE_m, 0.0f, z_transit, site_expect[LEG_RL]);
+  get_peter_target(LEG_RR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_RR]);
+  _animate_to_expect(LEG_SPEED);
+  // Paso 3: bajar a REST_Z
+  for (uint8_t l = 0; l < 4; l++) site_expect[l][2] = REST_Z;
   _animate_to_expect(BODY_SPEED);
 }
 
