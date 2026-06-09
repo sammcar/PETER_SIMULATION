@@ -207,12 +207,12 @@ static void handle_teleop(char key) {
     case 'u':
     case 'm':
     case 'j':
-      motor_set(-Vt, -Vt, +Vt, +Vt);
+      motor_set(+Vt, +Vt, +Vt, +Vt);  // giro izq: lado der adelante, lado izq atrás
       break;
     case 'o':
     case '.':
     case 'l':
-      motor_set(+Vt, +Vt, -Vt, -Vt);
+      motor_set(-Vt, -Vt, -Vt, -Vt);  // giro der: lado der atrás, lado izq adelante
       break;
     case 'k':
       motors_stop();
