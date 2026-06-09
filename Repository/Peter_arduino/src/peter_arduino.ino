@@ -166,7 +166,23 @@ static void handle_teleop(char key) {
   case '2': motor_set(0, 100, 0, 0); Serial.println("TEST FL (pines 3,4)");  return;
   case '3': motor_set(0, 0, 100, 0); Serial.println("TEST RR (pines 10,9)"); return;
   case '4': motor_set(0, 0, 0, 100); Serial.println("TEST RL (pines 6,5)");  return;
-  case '0': motors_stop();           Serial.println("TEST STOP");                 return;
+  case '0': motors_stop();           Serial.println("TEST STOP");             return;
+  // DEBUG RR: reinicia canales LEDC de todos los pines de motores y reintenta RR
+  case '5': {
+    motors_init();
+    motor_set(0, 0, 100, 0);
+    Serial.println("DEBUG RR: motors_init() + TEST RR");
+    return;
+  }
+  // DEBUG RR: imprime los valores que llegarían a cada pin para RR
+  case '6': {
+    Serial.printf("DEBUG pines RR: M4_DIR=%d  pinA=10 pinB=9\n", M4_DIR);
+    Serial.printf("  motor_set(0,0,100,0) -> speed = M4_DIR*100 = %d\n", M4_DIR * 100);
+    Serial.printf("  speed<0 -> analogWrite(10,0) + analogWrite(9,%d)\n", -(M4_DIR * 100));
+    motor_set(0, 0, 100, 0);
+    Serial.println("  ...ejecutado.");
+    return;
+  }
   }
 
   // 2. Control de movimiento dependiendo del modo actual

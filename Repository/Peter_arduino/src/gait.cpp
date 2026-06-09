@@ -92,19 +92,23 @@ static void _expect_x_pos(uint8_t leg) {
 static void _expect_all_h() {
   float rhoriz =
       L_COXA + L_FEMUR + sqrtf(L_TIBIA * L_TIBIA - FOLD_H_Z * FOLD_H_Z);
-  float sx = BODY_LEN / 2.0f;
-  float sy = BODY_WID / 2.0f + rhoriz;
-  site_expect[LEG_FL][0] = +sx;
-  site_expect[LEG_FL][1] = +sy;
+  // 5° toward diagonal: front legs spread forward, rear legs spread backward
+  const float spread = 5.0f * (float)M_PI / 180.0f;
+  float rx = rhoriz * sinf(spread);
+  float ry = rhoriz * cosf(spread);
+  float hx = BODY_LEN / 2.0f;
+  float hy = BODY_WID / 2.0f;
+  site_expect[LEG_FL][0] = +(hx + rx);
+  site_expect[LEG_FL][1] = +(hy + ry);
   site_expect[LEG_FL][2] = FOLD_H_Z;
-  site_expect[LEG_FR][0] = +sx;
-  site_expect[LEG_FR][1] = -sy;
+  site_expect[LEG_FR][0] = +(hx + rx);
+  site_expect[LEG_FR][1] = -(hy + ry);
   site_expect[LEG_FR][2] = FOLD_H_Z;
-  site_expect[LEG_RL][0] = -sx;
-  site_expect[LEG_RL][1] = +sy;
+  site_expect[LEG_RL][0] = -(hx + rx);
+  site_expect[LEG_RL][1] = +(hy + ry);
   site_expect[LEG_RL][2] = FOLD_H_Z;
-  site_expect[LEG_RR][0] = -sx;
-  site_expect[LEG_RR][1] = -sy;
+  site_expect[LEG_RR][0] = -(hx + rx);
+  site_expect[LEG_RR][1] = -(hy + ry);
   site_expect[LEG_RR][2] = FOLD_H_Z;
 }
 
@@ -244,6 +248,7 @@ void gait_set_mode(RobotMode target_mode) {
     _trans_X_to_H();
 
   _robot_mode = target_mode;
+  motors_stop(); // Re-afirma canales LEDC tras la animación de servos
 
   if (target_mode == MODE_SPIDER) {
     _stable_pose = "LEFT_Y";
