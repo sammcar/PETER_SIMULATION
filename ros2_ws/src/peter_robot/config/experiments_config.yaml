@@ -83,20 +83,20 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C1 — Transición a Terreno Irregular
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_c1_terreno_rugoso"
-    launch_file: "terrain_navigation.launch.py"    # <--- AQUÍ ESTÁ EL CAMBIO CRÍTICO
-    repetitions: 15
-    dynamic_parameters:
-      world_name: "terrain"
-      timeout_s: 120.0
-      random_perturbation: false
+  # - suite_name: "familia_c1_terreno_rugoso"
+  #   launch_file: "terrain_navigation.launch.py"    # <--- AQUÍ ESTÁ EL CAMBIO CRÍTICO
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     world_name: "terrain"
+  #     timeout_s: 120.0
+  #     random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C2 — Prueba de Pendiente Inclinada
   # Éxito: pitch > 5° → X1 activo → modo móvil H + Tswitch + 12 s estables.
   # ──────────────────────────────────────────────────────────────────────────
   - suite_name: "familia_c2_pendiente"
-    launch_file: "gazebo.launch.py"
+    launch_file: "slope_navigation.launch.py"
     repetitions: 15
     dynamic_parameters:
       world_name: "terrain"
