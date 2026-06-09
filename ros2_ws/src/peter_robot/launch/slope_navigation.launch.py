@@ -73,6 +73,7 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_x', default_value='4.0'),
         DeclareLaunchArgument('robot_y', default_value='0.0'),
         DeclareLaunchArgument('robot_z', default_value='1.5'),
+        DeclareLaunchArgument('robot_yaw', default_value='3.14159265'), # <--- NUEVO: 180 grados en radianes (Yaw)
     ]
 
     resolve_world = OpaqueFunction(function=_resolve_world)
@@ -112,6 +113,7 @@ def generate_launch_description():
             '-x', LaunchConfiguration('robot_x'),
             '-y', LaunchConfiguration('robot_y'),
             '-z', LaunchConfiguration('robot_z'),
+            '-Y', LaunchConfiguration('robot_yaw'),
         ],
         output='screen',
     )
