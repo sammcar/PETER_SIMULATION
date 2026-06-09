@@ -25,55 +25,9 @@ static bool _is_moving = false;
 static RobotMode _robot_mode = MODE_SPIDER;
 
 RobotMode gait_get_mode() { return _robot_mode; }
-
-// Mueve las patas a la posición lateral (Vehículo H)
-static void _set_fold_h_expect() {
-  // Con fémur horizontal, la extensión se deriva geométricamente de FOLD_H_Z
-  float rhoriz =
-      L_COXA + L_FEMUR + sqrtf(L_TIBIA * L_TIBIA - FOLD_H_Z * FOLD_H_Z);
-  float sx = BODY_LEN / 2.0f;
-  float sy = BODY_WID / 2.0f + rhoriz;
-
-  site_expect[LEG_FL][0] = +sx;
-  site_expect[LEG_FL][1] = +sy;
-  site_expect[LEG_FL][2] = FOLD_H_Z;
-  site_expect[LEG_FR][0] = +sx;
-  site_expect[LEG_FR][1] = -sy;
-  site_expect[LEG_FR][2] = FOLD_H_Z;
-  site_expect[LEG_RL][0] = -sx;
-  site_expect[LEG_RL][1] = +sy;
-  site_expect[LEG_RL][2] = FOLD_H_Z;
-  site_expect[LEG_RR][0] = -sx;
-  site_expect[LEG_RR][1] = -sy;
-  site_expect[LEG_RR][2] = FOLD_H_Z;
-}
-
-// Mueve las patas a la posición diagonal (Omni X)
-static void _set_fold_x_expect() {
-  // Mismo r_horiz que H, pero distribuido en diagonal → multiplicar por
-  // cos(45°)
-  float rhoriz =
-      L_COXA + L_FEMUR + sqrtf(L_TIBIA * L_TIBIA - FOLD_X_Z * FOLD_X_Z);
-  float rdiag = rhoriz * 0.70711f;
-  float sx = BODY_LEN / 2.0f + rdiag;
-  float sy = BODY_WID / 2.0f + rdiag;
-
-  site_expect[LEG_FL][0] = +sx;
-  site_expect[LEG_FL][1] = +sy;
-  site_expect[LEG_FL][2] = FOLD_X_Z;
-  site_expect[LEG_FR][0] = +sx;
-  site_expect[LEG_FR][1] = -sy;
-  site_expect[LEG_FR][2] = FOLD_X_Z;
-  site_expect[LEG_RL][0] = -sx;
-  site_expect[LEG_RL][1] = +sy;
-  site_expect[LEG_RL][2] = FOLD_X_Z;
-  site_expect[LEG_RR][0] = -sx;
-  site_expect[LEG_RR][1] = -sy;
-  site_expect[LEG_RR][2] = FOLD_X_Z;
-}
-
-// (Temporal para la prueba de la Etapa 2. Luego lo reemplazaremos con la
-// máquina de transiciones de la Etapa 3)
+// ── Forward declarations ───────────────────────────────────────────────
+static void get_peter_target(uint8_t leg, float local_x, float local_y,
+                             float local_z, float out[3]);
 
 extern void mover(uint8_t leg, uint8_t joint, float angulo_deg);
 
@@ -109,19 +63,196 @@ static void apply_ik_all() {
   }
 }
 
-void gait_set_mode(RobotMode mode) {
-  _robot_mode = mode;
-  if (mode == MODE_VEHICLE) {
-    _set_fold_h_expect();
-  } else if (mode == MODE_OMNI) {
-    _set_fold_x_expect();
-  } else {
-    return;
+// Función auxiliar bloqueante para animar las transiciones
+static void _animate_to_expect(float speed) {
+  while (!tick_toward_expect(speed)) {
+    apply_ik_all();
+    delay(TICK_INTERVAL_MS);
   }
-  // Snap inmediato: copiar expect a now y aplicar IK
+  apply_ik_all(); // Un último pulso para asegurar precisión
+}
+
+// ── Helpers de posición para transiciones ──────────────────────────────
+
+// Calcula posición X-mode para un leg y la pone en site_expect
+static void _expect_x_pos(uint8_t leg) {
+  float rhoriz =
+      L_COXA + L_FEMUR + sqrtf(L_TIBIA * L_TIBIA - FOLD_X_Z * FOLD_X_Z);
+  float rdiag = rhoriz * 0.70711f;
+  float sx = BODY_LEN / 2.0f + rdiag;
+  float sy = BODY_WID / 2.0f + rdiag;
+  float hy = (leg == LEG_FL || leg == LEG_RL) ? +sy : -sy;
+  float hx = (leg == LEG_FL || leg == LEG_FR) ? +sx : -sx;
+  site_expect[leg][0] = hx;
+  site_expect[leg][1] = hy;
+  site_expect[leg][2] = FOLD_X_Z;
+}
+
+// Pone las 4 patas en H-mode
+static void _expect_all_h() {
+  float rhoriz =
+      L_COXA + L_FEMUR + sqrtf(L_TIBIA * L_TIBIA - FOLD_H_Z * FOLD_H_Z);
+  float sx = BODY_LEN / 2.0f;
+  float sy = BODY_WID / 2.0f + rhoriz;
+  site_expect[LEG_FL][0] = +sx;
+  site_expect[LEG_FL][1] = +sy;
+  site_expect[LEG_FL][2] = FOLD_H_Z;
+  site_expect[LEG_FR][0] = +sx;
+  site_expect[LEG_FR][1] = -sy;
+  site_expect[LEG_FR][2] = FOLD_H_Z;
+  site_expect[LEG_RL][0] = -sx;
+  site_expect[LEG_RL][1] = +sy;
+  site_expect[LEG_RL][2] = FOLD_H_Z;
+  site_expect[LEG_RR][0] = -sx;
+  site_expect[LEG_RR][1] = -sy;
+  site_expect[LEG_RR][2] = FOLD_H_Z;
+}
+
+// Pone las 4 patas en X-mode
+static void _expect_all_x() {
+  _expect_x_pos(LEG_FL);
+  _expect_x_pos(LEG_FR);
+  _expect_x_pos(LEG_RL);
+  _expect_x_pos(LEG_RR);
+}
+
+// Pone las 4 patas en LEFT_Y x,y pero con z personalizado
+static void _expect_left_y_at_z(float z) {
+  get_peter_target(LEG_FL, SIDE_m, 0.0f, z, site_expect[LEG_FL]);
+  get_peter_target(LEG_FR, DIAG_m, DIAG_m, z, site_expect[LEG_FR]);
+  get_peter_target(LEG_RL, SIDE_m, 0.0f, z, site_expect[LEG_RL]);
+  get_peter_target(LEG_RR, DIAG_m, DIAG_m, z, site_expect[LEG_RR]);
+}
+
+// ── Animaciones de transición ──────────────────────────────────────────
+
+// ── Animaciones de transición ──────────────────────────────────────────
+
+static void _trans_spider_to_H() {
+  bool left_y = (strcmp(_stable_pose, "LEFT_Y") == 0);
+
+  // Paso 1: patas diagonales → X-mode (camino directo, dentro del workspace)
+  if (left_y) { _expect_x_pos(LEG_FR); _expect_x_pos(LEG_RR); }
+  else         { _expect_x_pos(LEG_FL); _expect_x_pos(LEG_RL); }
+  _animate_to_expect(BODY_SPEED);
+
+  // Paso 2: todas → H-mode (FL/RL desde REST_Z, FR/RR rotan coxa — simultáneo)
+  _expect_all_h();
+  _animate_to_expect(BODY_SPEED);
+}
+
+static void _trans_spider_to_X() {
+  bool left_y = (strcmp(_stable_pose, "LEFT_Y") == 0);
+
+  // Paso 1: patas diagonales → X-mode (camino directo, dentro del workspace)
+  if (left_y) { _expect_x_pos(LEG_FR); _expect_x_pos(LEG_RR); }
+  else         { _expect_x_pos(LEG_FL); _expect_x_pos(LEG_RL); }
+  _animate_to_expect(BODY_SPEED);
+
+  // Paso 2: patas laterales → X-mode (camino directo)
+  if (left_y) { _expect_x_pos(LEG_FL); _expect_x_pos(LEG_RL); }
+  else         { _expect_x_pos(LEG_FR); _expect_x_pos(LEG_RR); }
+  _animate_to_expect(BODY_SPEED);
+}
+
+static void _trans_H_to_spider() {
+  // Paso 1: FR+RR ajustan coxa a diagonal (Z no cambia, están en el suelo)
+  float rhoriz =
+      L_COXA + L_FEMUR + sqrtf(L_TIBIA * L_TIBIA - FOLD_X_Z * FOLD_X_Z);
+  float rdiag = rhoriz * 0.70711f;
+  float sx = BODY_LEN / 2.0f + rdiag;
+  float sy = BODY_WID / 2.0f + rdiag;
+  site_expect[LEG_FR][0] = +sx;
+  site_expect[LEG_FR][1] = -sy;
+  site_expect[LEG_FR][2] = FOLD_H_Z;
+  site_expect[LEG_RR][0] = -sx;
+  site_expect[LEG_RR][1] = -sy;
+  site_expect[LEG_RR][2] = FOLD_H_Z;
+  _animate_to_expect(BODY_SPEED);
+
+  // Paso 2: Todas a LEFT_Y xy, Z sin cambio (arrastre sobre ruedas)
+  _expect_left_y_at_z(FOLD_H_Z);
+  _animate_to_expect(BODY_SPEED);
+
+  // Paso 3: Subir Z al reposo (levanta el chasis)
   for (uint8_t l = 0; l < 4; l++)
-    memcpy(site_now[l], site_expect[l], sizeof(float[3]));
-  apply_ik_all();
+    site_expect[l][2] = REST_Z;
+  _animate_to_expect(BODY_SPEED);
+}
+
+static void _trans_X_to_spider() {
+  // Paso 1: FL+RL cierran a LEFT_Y lateral (Z no cambia)
+  get_peter_target(LEG_FL, SIDE_m, 0.0f, FOLD_X_Z, site_expect[LEG_FL]);
+  get_peter_target(LEG_RL, SIDE_m, 0.0f, FOLD_X_Z, site_expect[LEG_RL]);
+  _animate_to_expect(BODY_SPEED);
+
+  // Paso 2: FR+RR arrastran a LEFT_Y diagonal (Z no cambia)
+  get_peter_target(LEG_FR, DIAG_m, DIAG_m, FOLD_X_Z, site_expect[LEG_FR]);
+  get_peter_target(LEG_RR, DIAG_m, DIAG_m, FOLD_X_Z, site_expect[LEG_RR]);
+  _animate_to_expect(BODY_SPEED);
+
+  // Paso 3: Subir Z al reposo (levanta el chasis)
+  for (uint8_t l = 0; l < 4; l++)
+    site_expect[l][2] = REST_Z;
+  _animate_to_expect(BODY_SPEED);
+}
+
+static void _trans_H_to_X() {
+  _expect_all_x();
+  // Están a la misma altura o casi (ambas FOLD_*_Z), basta un paso
+  _animate_to_expect(BODY_SPEED);
+}
+
+static void _trans_X_to_H() {
+  _expect_all_h();
+  _animate_to_expect(BODY_SPEED);
+}
+
+// ── Control Principal de Modos ─────────────────────────────────────────
+
+// ── Control Principal de Modos ─────────────────────────────────────────
+
+void gait_set_mode(RobotMode target_mode) {
+  if (_robot_mode == target_mode)
+    return;
+
+  // Esperar checkpoint si estamos en marcha cuadrúpedo
+  if (_robot_mode == MODE_SPIDER && _is_moving) {
+    _next_dir = GAIT_STOP;
+    while (_is_moving) {
+      gait_update(millis());
+      delay(TICK_INTERVAL_MS);
+    }
+  }
+
+  current_dir = GAIT_STOP;
+  _is_moving = false;
+  motors_stop();
+
+  RobotMode from = _robot_mode;
+
+  // Delegar a las rutinas seguras de transición divididas
+  if (from == MODE_SPIDER && target_mode == MODE_VEHICLE)
+    _trans_spider_to_H();
+  else if (from == MODE_SPIDER && target_mode == MODE_OMNI)
+    _trans_spider_to_X();
+  else if (from == MODE_VEHICLE && target_mode == MODE_SPIDER)
+    _trans_H_to_spider();
+  else if (from == MODE_OMNI && target_mode == MODE_SPIDER)
+    _trans_X_to_spider();
+  else if (from == MODE_VEHICLE && target_mode == MODE_OMNI)
+    _trans_H_to_X();
+  else if (from == MODE_OMNI && target_mode == MODE_VEHICLE)
+    _trans_X_to_H();
+
+  _robot_mode = target_mode;
+
+  if (target_mode == MODE_SPIDER) {
+    _stable_pose = "LEFT_Y";
+    for (uint8_t l = 0; l < 4; l++) {
+      memcpy(site_rest[l], site_expect[l], sizeof(float[3]));
+    }
+  }
 }
 
 // Mapea coordenadas locales de Peter a coordenadas de marco del cuerpo (Body

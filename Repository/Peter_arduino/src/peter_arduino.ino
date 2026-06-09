@@ -103,40 +103,135 @@ static const char *dir_name(GaitDir d) {
 }
 
 // Interpreta un carácter de teleop y ajusta la dirección de marcha.
+
+static float _speed = 1.0f; // Multiplicador linear
+static float _turn = 1.0f;  // Multiplicador angular
+
+void omni_drive(float vx, float vy, float wz) {
+  int m1 = (int)((1.15f * vx + wz + vy) * MOTOR_BASE_SPEED * _speed);
+  int m2 = (int)((-1.15f * vx + wz + vy) * MOTOR_BASE_SPEED * _speed);
+  int m3 = (int)((1.15f * vx + wz - vy) * MOTOR_BASE_SPEED * _speed);
+  int m4 = (int)((-1.15f * vx + wz - vy) * MOTOR_BASE_SPEED * _speed);
+  motor_set(constrain(m1, -255, 255), constrain(m2, -255, 255),
+            constrain(m3, -255, 255), constrain(m4, -255, 255));
+}
+
 static void handle_teleop(char key) {
-  GaitDir dir;
+  // 1. Teclas globales: Control de velocidad y Cambio de modos
   switch (key) {
-  case 'i':
-    dir = GAIT_FORWARD;
-    break;
-  case ',':
-    dir = GAIT_BACKWARD;
-    break;
-  case 'u':
-    dir = GAIT_TURN_LEFT;
-    break;
-  case 'o':
-    dir = GAIT_TURN_RIGHT;
-    break;
-  case 'k':
-    dir = GAIT_STOP;
-    break;
-  case 'f':
+  case 'z':
     gait_set_mode(MODE_VEHICLE);
-    Serial.println("TEST: Asumiendo pose Vehiculo (H)...");
+    Serial.println("MODO: VEHICLE");
     return;
-  case 'g':
+  case 'x':
     gait_set_mode(MODE_OMNI);
-    Serial.println("TEST: Asumiendo pose Omni (X)...");
+    Serial.println("MODO: OMNI");
     return;
-  default:
+  case 'c':
+    gait_set_mode(MODE_SPIDER);
+    Serial.println("MODO: SPIDER");
+    return;
+
+  case 'q':
+    _speed *= 1.1f;
+    _turn *= 1.1f;
+    Serial.println("+Speed Global");
+    return;
+  case 'a':
+    _speed *= 0.9f;
+    _turn *= 0.9f;
+    Serial.println("-Speed Global");
+    return;
+  case 'w':
+    _speed *= 1.1f;
+    Serial.println("+Linear Speed");
+    return;
+  case 's':
+    _speed *= 0.9f;
+    Serial.println("-Linear Speed");
+    return;
+  case 'e':
+    _turn *= 1.1f;
+    Serial.println("+Turn Speed");
+    return;
+  case 'd':
+    _turn *= 0.9f;
+    Serial.println("-Turn Speed");
     return;
   }
-  gait_set_dir(dir);
-  Serial.print("CMD=");
-  Serial.print(key);
-  Serial.print(" DIR=");
-  Serial.println(dir_name(dir));
+
+  // 2. Control de movimiento dependiendo del modo actual
+  RobotMode mode = gait_get_mode();
+
+  if (mode == MODE_SPIDER) {
+    switch (key) {
+    case 'i':
+      gait_set_dir(GAIT_FORWARD);
+      break;
+    case ',':
+      gait_set_dir(GAIT_BACKWARD);
+      break;
+    case 'u':
+    case 'm':
+      gait_set_dir(GAIT_TURN_LEFT);
+      break;
+    case 'o':
+    case '.':
+      gait_set_dir(GAIT_TURN_RIGHT);
+      break;
+    case 'k':
+      gait_set_dir(GAIT_STOP);
+      break;
+    }
+  } else if (mode == MODE_VEHICLE) {
+    int V = (int)(MOTOR_BASE_SPEED * _speed);
+    int Vt = (int)(MOTOR_BASE_SPEED * _turn);
+    switch (key) {
+    case 'i':
+      motor_set(+V, -V, +V, -V);
+      break;
+    case ',':
+      motor_set(-V, +V, -V, +V);
+      break;
+    case 'u':
+    case 'm':
+      motor_set(-Vt, -Vt, +Vt, +Vt);
+      break;
+    case 'o':
+    case '.':
+      motor_set(+Vt, +Vt, -Vt, -Vt);
+      break;
+    case 'k':
+      motors_stop();
+      break;
+    }
+  } else if (mode == MODE_OMNI) {
+    switch (key) {
+    case 'i':
+      omni_drive(+1.0f, 0.0f, 0.0f);
+      break;
+    case ',':
+      omni_drive(-1.0f, 0.0f, 0.0f);
+      break;
+    case 'j':
+      omni_drive(0.0f, +1.0f, 0.0f);
+      break;
+    case 'l':
+      omni_drive(0.0f, -1.0f, 0.0f);
+      break;
+    case 'u':
+    case 'm':
+      omni_drive(0.0f, 0.0f, +1.0f);
+      break;
+    case 'o':
+    case '.':
+      omni_drive(0.0f, 0.0f, -1.0f);
+      break;
+    case 'k':
+      motors_stop();
+      break;
+    }
+  }
 }
 
 // Interpreta "leg,joint,angulo" — mismo formato que joint_mapper.py
