@@ -1,4 +1,4 @@
-# Blender 5.1.1 MTL File: 'mapa_gazebo.blend'
+# Blender 5.1.2 MTL File: 'mapa_gazebo.blend1'
 # www.blender.org
 
 newmtl /home/alejo/mapa_gazebo.mtl
@@ -9,7 +9,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl /home/alejo/mapa_gazebo.mtl.001
 Ns 250.000000
@@ -19,7 +19,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.001
 Ns 250.000000
@@ -29,7 +29,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.002
 Ns 250.000000
@@ -39,7 +39,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.003
 Ns 250.000000
@@ -49,7 +49,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.004
 Ns 250.000000
@@ -59,7 +59,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.005
 Ns 250.000000
@@ -69,7 +69,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.006
 Ns 250.000000
@@ -79,7 +79,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.007
 Ns 250.000000
@@ -89,7 +89,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.008
 Ns 250.000000
@@ -99,7 +99,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.009
 Ns 250.000000
@@ -109,7 +109,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
 
 newmtl Material.010
 Ns 250.000000
@@ -119,4 +119,4 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-
+map_Kd Paper/Docker_harmonic/docker_simulator/PETER_SIMULATION/ros2_ws/src/peter_robot/models/map/materials/textures/texture.png
