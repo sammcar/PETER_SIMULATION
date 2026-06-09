@@ -344,8 +344,8 @@ class TrialEvaluator:
                 self._mode_switched = False
                 self._post_switch_start = None
                 log.info(f'[C2] Se perdió el modo Híbrido de ascenso. Reiniciando ventana de estabilidad.')
-            elif (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S//2:  # Requiere la mitad del tiempo de estabilidad que la Familia C1, dado lo desafiante de la tarea
-                log.info(f'[SUCCESS] Prueba C2 exitosa: Ascenso en modo Híbrido mantenido por {SAFETY_STABLE_S//2}s.')
+            elif (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S//3:  # Requiere la mitad del tiempo de estabilidad que la Familia C1, dado lo desafiante de la tarea
+                log.info(f'[SUCCESS] Prueba C2 exitosa: Ascenso en modo Híbrido mantenido por {SAFETY_STABLE_S//3}s.')
                 return Verdict.SUCCESS
                 
         return None

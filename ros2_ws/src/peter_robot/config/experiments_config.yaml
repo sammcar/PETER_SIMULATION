@@ -84,7 +84,7 @@ experiment_suites:
   # FAMILIA C1 — Transición a Terreno Irregular
   # ──────────────────────────────────────────────────────────────────────────
   # - suite_name: "familia_c1_terreno_rugoso"
-  #   launch_file: "terrain_navigation.launch.py"    # <--- AQUÍ ESTÁ EL CAMBIO CRÍTICO
+  #   launch_file: "terrain_navigation.launch.py"  
   #   repetitions: 15
   #   dynamic_parameters:
   #     world_name: "terrain"

@@ -70,8 +70,8 @@ def generate_launch_description():
         DeclareLaunchArgument('world_name', default_value='terrain'),
         DeclareLaunchArgument('noise_level_idx', default_value='0'),
         DeclareLaunchArgument('trial_index', default_value='0'),
-        DeclareLaunchArgument('robot_x', default_value='4.0'),
-        DeclareLaunchArgument('robot_y', default_value='0.0'),
+        DeclareLaunchArgument('robot_x', default_value='4.3'),
+        DeclareLaunchArgument('robot_y', default_value='-1.0'),
         DeclareLaunchArgument('robot_z', default_value='1.5'),
         DeclareLaunchArgument('robot_yaw', default_value='3.14159265'), # <--- NUEVO: 180 grados en radianes (Yaw)
     ]
