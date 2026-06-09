@@ -36,7 +36,7 @@ class NetworkPublisher(Node):
         self.metrics_pub = self.create_publisher(Float32MultiArray, '/Metrics', 10) #Tiempo de respuesta, delay de cambio, amplitud de oscilación, noise
 
         # Modo Inicial
-        self.current_mode = 'H' #Original en C
+        self.current_mode = 'C' #Original en C
 
         # Intensidad de estimulo
         self.areaBoundingBoxR = 0.0
@@ -66,6 +66,11 @@ class NetworkPublisher(Node):
         # Timer para llamar la función de control cada segundo
         #self.timer = self.create_timer(0.2, self.run_network) #original
         self.timer = self.create_timer(0.15, self.run_network)
+
+        ## HISTÉRESIS PARA CAMBIO DE MODO
+        self.min_dwell_time = 3.0          # Tiempo mínimo (segundos) que debe permanecer en un modo
+        self.last_mode_change_time = 0.0   # Timestamp del último cambio
+        self.hysteresis_threshold = 0.35   # Umbral más bajo para mantenerse en H (evita el "flickering")
 
 
     def initctes(self):
@@ -132,9 +137,9 @@ class NetworkPublisher(Node):
         self.TaoSTR = 1 # Tao Ganglios
 
         #self.Usigma_az = 3.9 #PARA CASO PLANO-RUGOSO-PLANO
-        #self.Upitch = 5 #Umbral pitch INCLINADO
-        self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
-        self.Upitch = 20 
+        # self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
+        self.Upitch = 2.0 #Umbral pitch INCLINADO
+        self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -500,13 +505,41 @@ class NetworkPublisher(Node):
             self.publish_twist(linear_x=tw_lin, linear_y=tw_lat, angular_z=tw_ang)
             # ------------------------------------------------------------------------------
 
-            # modos
-            if self.z[15,1] > 0.5:
-                self.publish_mode('C'); #print("Cuadrupedo")
-            elif self.z[16,1] > 0.5:
-                self.publish_mode('H'); #print("Móvil H")
-            elif self.z[14,1] > 0.5:
-                self.publish_mode('X'); #print("Móvil X")
+            # # modos
+            # if self.z[15,1] > 0.5:
+            #     self.publish_mode('C'); #print("Cuadrupedo")
+            # elif self.z[16,1] > 0.5:
+            #     self.publish_mode('H'); #print("Móvil H")
+            # elif self.z[14,1] > 0.5:
+            #     self.publish_mode('X'); #print("Móvil X")
+
+
+            # Obtener valores actuales
+            z15 = self.z[15,1] # Activación C
+            z16 = self.z[16,1] # Activación H
+            z14 = self.z[14,1] # Activación X
+            
+            current_time = time.time()
+            time_since_last_change = current_time - self.last_mode_change_time
+            
+            # Lógica de decisión con Histéresis
+            new_mode = self.current_mode 
+            
+            # Condición de activación para H (más sensible)
+            if z16 > 0.4: 
+                new_mode = 'H'
+            # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
+            elif z15 > 0.6 and time_since_last_change > self.min_dwell_time:
+                new_mode = 'C'
+            elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
+                new_mode = 'X'
+
+            # Ejecutar cambio solo si el modo es realmente diferente
+            if new_mode != self.current_mode:
+                self.publish_mode(new_mode)
+                self.current_mode = new_mode
+                self.last_mode_change_time = current_time
+                self.get_logger().info(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
 
             self.publish_data()
             self.publish_imu()

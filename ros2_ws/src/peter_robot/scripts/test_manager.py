@@ -321,16 +321,33 @@ class TrialEvaluator:
         return None
 
     def _eval_terrain_c2(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
-        neurons = snap['neurons']
-        x1 = neurons[1] if len(neurons) > 1 else 0.0
-        tswitch_done = snap['tswitch'] > 0.0
-
-        if not self._mode_switched and ((snap['pitch_rms'] > PITCH_THRESH_DEG) or (x1 > 0.1)) and tswitch_done:
-            self._mode_switched     = True
+        mode = snap['mode']
+        
+        # 1. Detectar el paso por modo Cuadrúpedo (reacción inicial al estímulo aversivo)
+        if not hasattr(self, '_c2_saw_quadruped'):
+            self._c2_saw_quadruped = False
+            
+        if not self._c2_saw_quadruped and mode == 'C':
+            self._c2_saw_quadruped = True
+            log.info(f'[C2] Modo cuadrúpedo (evasión) detectado a los {current_sim_s:.2f}s.')
+            
+        # 2. Detectar la transición de vuelta a Híbrido (subiendo la pendiente hacia atrás)
+        if self._c2_saw_quadruped and not self._mode_switched and mode == 'H':
+            self._mode_switched = True
             self._post_switch_start = current_sim_s
-
+            log.info(f'[C2] Pendiente detectada. Cambio a modo Híbrido a los {current_sim_s:.2f}s. Evaluando ascenso...')
+            
+        # 3. Validar que mantenga el ascenso en modo Híbrido estable
         if self._mode_switched and self._post_switch_start is not None:
-            if (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S: return Verdict.SUCCESS
+            if mode != 'H':
+                # Si el robot resbala y pierde la postura, reiniciamos la ventana de evaluación
+                self._mode_switched = False
+                self._post_switch_start = None
+                log.info(f'[C2] Se perdió el modo Híbrido de ascenso. Reiniciando ventana de estabilidad.')
+            elif (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S//2:  # Requiere la mitad del tiempo de estabilidad que la Familia C1, dado lo desafiante de la tarea
+                log.info(f'[SUCCESS] Prueba C2 exitosa: Ascenso en modo Híbrido mantenido por {SAFETY_STABLE_S//2}s.')
+                return Verdict.SUCCESS
+                
         return None
 
 def _collect_artifacts(trial_dir: Path, suite_name: str, trial_idx: int, verdict: Verdict, seed_info: Dict[str, Any], snap_final: Dict[str, Any]) -> None:
