@@ -7,10 +7,10 @@
 #define M1_B 4
 #define M2_A 6   // físico: RL
 #define M2_B 5
-#define M3_A 11  // físico: FR
-#define M3_B 12
-#define M4_A 10  // físico: RR
-#define M4_B 9
+#define M3_A 10  // físico: FR
+#define M3_B 9
+#define M4_A 11  // físico: RR
+#define M4_B 12
 
 static void _drive(uint8_t pinA, uint8_t pinB, int speed) {
   if (speed > 0) {

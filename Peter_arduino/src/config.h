@@ -98,6 +98,6 @@ enum RobotMode { MODE_SPIDER = 0, MODE_VEHICLE, MODE_OMNI };
 // ── Dirección física por motor (+1 = normal, -1 = invertido) ─────────
 // Cambiar a -1 para invertir un motor sin tocar la lógica de control.
 #define M1_DIR -1 // pines 3,4  – físicamente FL (Frontal Izquierda)
-#define M2_DIR  1 // pines 6,5  – físicamente RL (Trasera Izquierda)
-#define M3_DIR -1 // pines 11,12 – físicamente FR (Frontal Derecha)
-#define M4_DIR -1 // pines 10,9  – físicamente RR (Trasera Derecha)
+#define M2_DIR 1  // pines 6,5  – físicamente RL (Trasera Izquierda)
+#define M3_DIR 1  // pines 10,9  – físicamente FR (Frontal Derecha)
+#define M4_DIR -1 // pines 11,12 – físicamente RR (Trasera Derecha)
