@@ -60,17 +60,3 @@ bool leg_ik(int leg, float fx, float fy, float fz, float q_out[3]) {
     return true;
 }
 
-// ── Posición de reposo ─────────────────────────────────────────────────
-// Puerto de SpiderLeg::get_rest_foot_body() en robot_kinematics.py
-void leg_rest_pos(int leg, float out[3]) {
-    float a = COXA_ANGLE[leg];
-    float c = cosf(a), s = sinf(a);
-    // En frame de la pata: [L_coxa + rest_x, 0, rest_z]
-    float px = L_COXA + REST_X;
-    float py = 0.0f;
-    float pz = REST_Z;
-    // R_leg2body = R_body2leg^T: columnas [c,-s,0],[s,c,0],[0,0,1]
-    out[0] = c * px - s * py + LEG_OFFSET[leg][0];
-    out[1] = s * px + c * py + LEG_OFFSET[leg][1];
-    out[2] = pz + LEG_OFFSET[leg][2];
-}

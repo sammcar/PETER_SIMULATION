@@ -81,3 +81,16 @@ struct ServoCalib {
 };
 
 extern const ServoCalib CALIB[4][3];
+
+// ── Modo de robot ──────────────────────────────────────────────────────
+enum RobotMode { MODE_SPIDER = 0, MODE_VEHICLE, MODE_OMNI };
+
+// ── Profundidad del pie en modos de conducción ─────────────────────────
+// Aumentar magnitud (ej. -0.100) → cuerpo más alto. Reducir → cuerpo más bajo.
+// La extensión horizontal se calcula dinámicamente usando Pitágoras en la
+// tibia.
+#define FOLD_H_Z -0.005f // Altura para Modo H (Vehículo - ruedas laterales)
+#define FOLD_X_Z -0.005f // Altura para Modo X (Omni - ruedas diagonales)
+
+// ── Velocidad base de motores ─────────────────────────────────────────
+#define MOTOR_BASE_SPEED 180 // 0-255

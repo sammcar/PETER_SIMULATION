@@ -1,15 +1,17 @@
 #pragma once
 #include <stdint.h>
 
-// Direcciones de movimiento (igual que teleop_twist_keyboard de ROS 2)
+#include "config.h" // Necesario para exponer RobotMode
+
+void gait_set_mode(RobotMode mode);
+RobotMode gait_get_mode();
+
 enum GaitDir {
   GAIT_STOP = 0,
   GAIT_FORWARD,
   GAIT_BACKWARD,
-  GAIT_LEFT,
-  GAIT_RIGHT,
-  GAIT_TURN_LEFT, // Nuevo
-  GAIT_TURN_RIGHT // Nuevo
+  GAIT_TURN_LEFT,
+  GAIT_TURN_RIGHT
 };
 
 // Inicializa la marcha y lleva el robot a posición de reposo.
@@ -23,11 +25,3 @@ void gait_set_dir(GaitDir dir);
 // Debe llamarse desde loop() con millis().
 // Actualiza la máquina de estados de la marcha y mueve los servos.
 void gait_update(uint32_t now_ms);
-
-// Lee la posición actual del pie de una pata (frame cuerpo, metros).
-void gait_get_foot_pos(int leg, float out[3]);
-
-void snap_to_left_y();
-void snap_to_right_y();
-void gait_step_once();
-void print_gait_state();

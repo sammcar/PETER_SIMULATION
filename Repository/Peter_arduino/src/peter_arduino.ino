@@ -1,19 +1,13 @@
 /*
  * peter_arduino.ino — Controlador principal del robot cuadrúpedo Peter
  * ════════════════════════════════════════════════════════════════════════
- * Marcha crawl diagonal-wave con compensación de centro de masa e IMU.
+ * Marcha diagonal-wave con giros in-place.
  *
  * Teclas de movimiento (un solo carácter por serial):
  *
- *      u    i    o
- *      j    k    l
- *      m    ,    .
- *
- *   i = Adelante        , = Atrás          k = Stop (retorno a reposo)
- *   j = Strafe izq      l = Strafe der
- *   u = Adelante+izq    o = Adelante+der
- *   m = Atrás+izq       . = Atrás+der
- *   c = Calibrar IMU
+ *   i = Adelante        , = Atrás
+ *   u = Giro izquierda  o = Giro derecha
+ *   k = Stop (retorno suave a reposo)
  *
  * Comando de articulación directa (detiene la marcha):
  *   leg,joint,angulo    ej: 0,1,30  → pata FL, fémur, 30°
@@ -27,6 +21,7 @@
 #include "gait.h"
 #include "imu.h"
 #include "kinematics.h"
+#include "motors.h"
 
 // ── Calibración de servos ──────────────────────────────────────────────
 // Fórmula:  ang_ef = sign * ang - offset  → mapea a [min_us, max_us]
@@ -111,18 +106,6 @@ static const char *dir_name(GaitDir d) {
 static void handle_teleop(char key) {
   GaitDir dir;
   switch (key) {
-  case 'n':
-    gait_step_once();
-    return;
-  case 'p':
-    print_gait_state();
-    return;
-  case 'y':
-    snap_to_left_y();
-    return;
-  case 'r':
-    snap_to_right_y();
-    return;
   case 'i':
     dir = GAIT_FORWARD;
     break;
@@ -138,6 +121,14 @@ static void handle_teleop(char key) {
   case 'k':
     dir = GAIT_STOP;
     break;
+  case 'f':
+    gait_set_mode(MODE_VEHICLE);
+    Serial.println("TEST: Asumiendo pose Vehiculo (H)...");
+    return;
+  case 'g':
+    gait_set_mode(MODE_OMNI);
+    Serial.println("TEST: Asumiendo pose Omni (X)...");
+    return;
   default:
     return;
   }
@@ -237,10 +228,14 @@ void setup() {
 
   gait_init(); // IK hacia posición de reposo + envío inicial a servos
 
+  // --- PRUEBA ETAPA 0 ---
+  motors_init();
+  // motor_set(150, -150, 150, -150);
+  //  ----------------------
+
+  Serial.println("Running Peter Controller by Sam :D");
   Serial.println("LISTO");
-  Serial.println("  i=Adelante  ,=Atras   j=Izq  l=Der  k=Stop");
-  Serial.println("  u=Del+Izq   o=Del+Der  m=At+Izq  .=At+Der");
-  Serial.println("  c=Calibrar IMU (poner robot nivelado y presionar c)");
+  Serial.println("  i=Adelante  ,=Atras  u=Giro-Izq  o=Giro-Der  k=Stop");
   Serial.println("  leg,joint,ang  -> comando directo de servo");
 }
 

@@ -18,12 +18,10 @@
 #define RAD2DEG    (180.0f / (float)M_PI)
 
 // ── Estado interno ─────────────────────────────────────────────────────
-static bool     _ok         = false;
-static float    _pitch      = 0.0f;
-static float    _roll       = 0.0f;
-static float    _pitch_bias = 0.0f;
-static float    _roll_bias  = 0.0f;
-static uint32_t _last_ms    = 0;
+static bool     _ok       = false;
+static float    _pitch    = 0.0f;
+static float    _roll     = 0.0f;
+static uint32_t _last_ms  = 0;
 
 // ── I2C helpers ────────────────────────────────────────────────────────
 
@@ -112,11 +110,4 @@ void imu_update(uint32_t now_ms) {
     _roll  = IMU_ALPHA * (_roll  + gy_dps * dt) + (1.0f - IMU_ALPHA) * accel_roll;
 }
 
-void imu_calibrate() {
-    _pitch_bias = _pitch;
-    _roll_bias  = _roll;
-}
-
-float imu_get_pitch() { return _pitch - _pitch_bias; }
-float imu_get_roll()  { return _roll  - _roll_bias;  }
-bool  imu_ok()        { return _ok; }
+bool imu_ok() { return _ok; }
