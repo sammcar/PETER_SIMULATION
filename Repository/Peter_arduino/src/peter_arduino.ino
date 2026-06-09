@@ -108,10 +108,12 @@ static float _speed = 1.0f; // Multiplicador linear
 static float _turn = 1.0f;  // Multiplicador angular
 
 void omni_drive(float vx, float vy, float wz) {
-  int m1 = (int)((1.15f * vx + wz + vy) * MOTOR_BASE_SPEED * _speed);
-  int m2 = (int)((-1.15f * vx + wz + vy) * MOTOR_BASE_SPEED * _speed);
-  int m3 = (int)((1.15f * vx + wz - vy) * MOTOR_BASE_SPEED * _speed);
-  int m4 = (int)((-1.15f * vx + wz - vy) * MOTOR_BASE_SPEED * _speed);
+  float lin = MOTOR_BASE_SPEED * _speed;
+  float ang = MOTOR_BASE_SPEED * _turn;
+  int m1 = (int)((1.15f * vx + vy) * lin + wz * ang);
+  int m2 = (int)((-1.15f * vx + vy) * lin + wz * ang);
+  int m3 = (int)((1.15f * vx - vy) * lin + wz * ang);
+  int m4 = (int)((-1.15f * vx - vy) * lin + wz * ang);
   motor_set(constrain(m1, -255, 255), constrain(m2, -255, 255),
             constrain(m3, -255, 255), constrain(m4, -255, 255));
 }
@@ -158,6 +160,13 @@ static void handle_teleop(char key) {
     _turn *= 0.9f;
     Serial.println("-Turn Speed");
     return;
+
+  // ── Test individual de motores (modo independiente) ────────────────
+  case '1': motor_set(100, 0, 0, 0); Serial.println("TEST FR (pines 11,12)"); return;
+  case '2': motor_set(0, 100, 0, 0); Serial.println("TEST FL (pines 3,4)");  return;
+  case '3': motor_set(0, 0, 100, 0); Serial.println("TEST RR (pines 10,9)"); return;
+  case '4': motor_set(0, 0, 0, 100); Serial.println("TEST RL (pines 6,5)");  return;
+  case '0': motors_stop();           Serial.println("TEST STOP");                 return;
   }
 
   // 2. Control de movimiento dependiendo del modo actual
@@ -189,16 +198,20 @@ static void handle_teleop(char key) {
     switch (key) {
     case 'i':
       motor_set(+V, -V, +V, -V);
+      Serial.printf("VEHICLE FWD: FR=%d FL=%d RR=%d RL=%d\n",
+                    M3_DIR*(+V), M1_DIR*(-V), M4_DIR*(+V), M2_DIR*(-V));
       break;
     case ',':
       motor_set(-V, +V, -V, +V);
       break;
     case 'u':
     case 'm':
+    case 'j':
       motor_set(-Vt, -Vt, +Vt, +Vt);
       break;
     case 'o':
     case '.':
+    case 'l':
       motor_set(+Vt, +Vt, -Vt, -Vt);
       break;
     case 'k':

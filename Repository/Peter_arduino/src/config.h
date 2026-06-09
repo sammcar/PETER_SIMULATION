@@ -89,8 +89,15 @@ enum RobotMode { MODE_SPIDER = 0, MODE_VEHICLE, MODE_OMNI };
 // Aumentar magnitud (ej. -0.100) → cuerpo más alto. Reducir → cuerpo más bajo.
 // La extensión horizontal se calcula dinámicamente usando Pitágoras en la
 // tibia.
-#define FOLD_H_Z -0.005f    // Altura para Modo H (Vehículo - ruedas laterales)
-#define FOLD_X_Z -0.005f    // Altura para Modo X (Omni - ruedas diagonales)
+#define FOLD_H_Z -0.005f // Altura para Modo H (Vehículo - ruedas laterales)
+#define FOLD_X_Z -0.005f // Altura para Modo X (Omni - ruedas diagonales)
 
 // ── Velocidad base de motores ─────────────────────────────────────────
-#define MOTOR_BASE_SPEED 180 // 0-255
+#define MOTOR_BASE_SPEED 130 // 0-255
+
+// ── Dirección física por motor (+1 = normal, -1 = invertido) ─────────
+// Cambiar a -1 para invertir un motor sin tocar la lógica de control.
+#define M1_DIR -1 // pines 3,4  – físicamente FL (Frontal Izquierda)
+#define M2_DIR  1 // pines 6,5  – físicamente RL (Trasera Izquierda)
+#define M3_DIR -1 // pines 11,12 – físicamente FR (Frontal Derecha)
+#define M4_DIR -1 // pines 10,9  – físicamente RR (Trasera Derecha)
