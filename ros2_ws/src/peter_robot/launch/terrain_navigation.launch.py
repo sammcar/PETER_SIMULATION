@@ -153,16 +153,16 @@ def generate_launch_description():
     ])
 
     # ---- Application nodes ----
-    neural_network = TimerAction(period=9.5, actions=[
+    neural_network = TimerAction(period=12.5, actions=[
         Node(package=PACKAGE_NAME, executable='red_neuronal', name='red_neuronal', output='screen')
     ])
 
-    camera_node = TimerAction(period=10.0, actions=[
+    camera_node = TimerAction(period=13.0, actions=[
         Node(package=PACKAGE_NAME, executable='camera_node', name='camera_node', output='screen')
     ])
 
     # ---- Metrics & Stability Monitor ----
-    neural_recorder = TimerAction(period=10.5, actions=[
+    neural_recorder = TimerAction(period=13.5, actions=[
         Node(
             package=PACKAGE_NAME,
             executable='neural_recorder',
@@ -172,7 +172,7 @@ def generate_launch_description():
         )
     ])
 
-    metrics_recorder = TimerAction(period=10.5, actions=[
+    metrics_recorder = TimerAction(period=13.5, actions=[
         Node(
             package=PACKAGE_NAME,
             executable='metrics_recorder',
@@ -182,7 +182,7 @@ def generate_launch_description():
         )
     ])
 
-    stability_monitor = TimerAction(period=10.5, actions=[
+    stability_monitor = TimerAction(period=13.5, actions=[
         Node(
             package=PACKAGE_NAME,
             executable='peter_stability_monitor',
