@@ -102,7 +102,7 @@ class CmdTranslator(Node):
         # El eje con mayor magnitud decide el carácter
         dominant = max(
             (abs(ang), 'u' if ang > 0 else 'o'),
-            (abs(lat), 'j' if lat > 0 else 'l'),
+            (abs(lat), 'l' if lat > 0 else 'j'),
             (abs(lin), 'i' if lin > 0 else ','),
         )
         return dominant[1]
