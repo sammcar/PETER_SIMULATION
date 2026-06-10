@@ -167,16 +167,16 @@ static void _trans_H_to_spider() {
     site_expect[l][1] = site_now[l][1];
     site_expect[l][2] = z_transit;
   }
-  _animate_to_expect(LEG_SPEED);
+  _animate_to_expect(LEG_SPEED * TRANS_TO_SPIDER_MULT);
   // Paso 2: mover a LEFT_Y XY manteniendo la altura
   get_peter_target(LEG_FL, SIDE_m, 0.0f, z_transit, site_expect[LEG_FL]);
   get_peter_target(LEG_FR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_FR]);
   get_peter_target(LEG_RL, SIDE_m, 0.0f, z_transit, site_expect[LEG_RL]);
   get_peter_target(LEG_RR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_RR]);
-  _animate_to_expect(LEG_SPEED);
+  _animate_to_expect(LEG_SPEED * TRANS_TO_SPIDER_MULT);
   // Paso 3: bajar a REST_Z
   for (uint8_t l = 0; l < 4; l++) site_expect[l][2] = REST_Z;
-  _animate_to_expect(BODY_SPEED);
+  _animate_to_expect(BODY_SPEED * TRANS_TO_SPIDER_MULT);
 }
 
 static void _trans_X_to_spider() {
@@ -187,16 +187,16 @@ static void _trans_X_to_spider() {
     site_expect[l][1] = site_now[l][1];
     site_expect[l][2] = z_transit;
   }
-  _animate_to_expect(LEG_SPEED);
+  _animate_to_expect(LEG_SPEED * TRANS_TO_SPIDER_MULT);
   // Paso 2: mover a LEFT_Y XY manteniendo la altura
   get_peter_target(LEG_FL, SIDE_m, 0.0f, z_transit, site_expect[LEG_FL]);
   get_peter_target(LEG_FR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_FR]);
   get_peter_target(LEG_RL, SIDE_m, 0.0f, z_transit, site_expect[LEG_RL]);
   get_peter_target(LEG_RR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_RR]);
-  _animate_to_expect(LEG_SPEED);
+  _animate_to_expect(LEG_SPEED * TRANS_TO_SPIDER_MULT);
   // Paso 3: bajar a REST_Z
   for (uint8_t l = 0; l < 4; l++) site_expect[l][2] = REST_Z;
-  _animate_to_expect(BODY_SPEED);
+  _animate_to_expect(BODY_SPEED * TRANS_TO_SPIDER_MULT);
 }
 
 static void _trans_H_to_X() {

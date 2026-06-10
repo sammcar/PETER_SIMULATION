@@ -90,7 +90,10 @@ enum RobotMode { MODE_SPIDER = 0, MODE_VEHICLE, MODE_OMNI };
 // La extensión horizontal se calcula dinámicamente usando Pitágoras en la
 // tibia.
 #define FOLD_H_Z -0.005f // Altura para Modo H (Vehículo - ruedas laterales)
-#define FOLD_X_Z -0.005f // Altura para Modo X (Omni - ruedas diagonales)
+#define FOLD_X_Z -0.010f // Altura para Modo X (Omni - ruedas diagonales)
+
+// ── Multiplicador de velocidad para transiciones de regreso a Spider ──
+#define TRANS_TO_SPIDER_MULT 1.5f
 
 // ── Velocidad base de motores ─────────────────────────────────────────
 #define MOTOR_BASE_SPEED 130 // 0-255
