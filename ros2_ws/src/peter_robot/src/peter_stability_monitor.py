@@ -19,6 +19,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
 from geometry_msgs.msg import PoseArray
+from std_msgs.msg import String
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -122,11 +123,21 @@ class StabilityMonitor(Node):
 
         self.create_subscription(PoseArray, '/peter/stability_data', self._cb, 10)
         self.get_logger().info('PETER Stability Monitor started.')
+        self._current_mode = 'C' # Modo actual
+        self.create_subscription(String, '/peter_mode', self._mode_cb, 10) # NUEVO
 
         self._csv_file = open(LOG_FILE, 'w', newline='')
         self._csv_writer = csv.DictWriter(self._csv_file, fieldnames=CSV_FIELDS)
         self._csv_writer.writeheader()
         self._csv_file.flush()
+
+    def _mode_cb(self, msg):
+        """Registra cambios de modo para análisis de transición."""
+        new_mode = msg.data.upper()
+        if new_mode != self._current_mode:
+            self.get_logger().info(f'Switching mode: {self._current_mode} -> {new_mode}')
+            self._current_mode = new_mode
+            # Aquí dispararemos el registro de "snapshot" de transición
 
     def _cb(self, msg):
         if len(msg.poses) < 5:
@@ -147,38 +158,36 @@ class StabilityMonitor(Node):
         t = now - self._t0
 
         with self.lock:
-            # Always update pose data so the polygon is always shown
             self._latest_pose = {
                 't': t, 'feet_all': feet_all, 'on_ground': on_ground,
                 'com': com, 'n_grounded': len(grounded),
+                'mode': self._current_mode # Guardamos el modo en el log
             }
 
             # SM metrics only valid with exactly 3 feet on ground (active crawl)
-            if len(grounded) != 3:
-                return
+            if len(grounded) >= 3:
+                res = compute_stability(grounded, com)
+                self._latest_sm = res
 
-            res = compute_stability(grounded, com)
-            self._latest_sm = res
+                self._ht.append(t)
+                self._hsm.append(res['sm'])
+                self._hsmn.append(res['sm_norm'])
+                self._htr.append(res['tr'])
+                self._harea.append(res['area'])
 
-            self._ht.append(t)
-            self._hsm.append(res['sm'])
-            self._hsmn.append(res['sm_norm'])
-            self._htr.append(res['tr'])
-            self._harea.append(res['area'])
+                row = {
+                    'timestamp': t, 'leg_in_air': air_leg,
+                    'foot_RU_x': feet_all[0][0], 'foot_RU_y': feet_all[0][1],
+                    'foot_LU_x': feet_all[1][0], 'foot_LU_y': feet_all[1][1],
+                    'foot_RD_x': feet_all[2][0], 'foot_RD_y': feet_all[2][1],
+                    'foot_LD_x': feet_all[3][0], 'foot_LD_y': feet_all[3][1],
+                    'SM': res['sm'], 'SM_norm': res['sm_norm'], 'TR': res['tr'],
+                    'triangle_area': res['area'], 'inradius': res['r_in'],
+                }
 
-            row = {
-                'timestamp': t, 'leg_in_air': air_leg,
-                'foot_RU_x': feet_all[0][0], 'foot_RU_y': feet_all[0][1],
-                'foot_LU_x': feet_all[1][0], 'foot_LU_y': feet_all[1][1],
-                'foot_RD_x': feet_all[2][0], 'foot_RD_y': feet_all[2][1],
-                'foot_LD_x': feet_all[3][0], 'foot_LD_y': feet_all[3][1],
-                'SM': res['sm'], 'SM_norm': res['sm_norm'], 'TR': res['tr'],
-                'triangle_area': res['area'], 'inradius': res['r_in'],
-            }
-
-            self._csv_rows.append(row)
-            self._csv_writer.writerow(row)
-            self._csv_file.flush()
+                self._csv_rows.append(row)
+                self._csv_writer.writerow(row)
+                self._csv_file.flush()
 
     def save_csv(self):
         with self.lock:
@@ -211,6 +220,14 @@ class StabilityMonitor(Node):
         print(f'  Log: {LOG_FILE}')
         print('================================\n')
 
+def take_snapshot(self):
+        """Guarda estado actual para análisis posterior (ej. transiciones)."""
+        if self._latest_pose and self._latest_sm:
+            snapshot_file = Path.home() / f'snapshot_{int(time.time())}.csv'
+            with open(snapshot_file, 'w') as f:
+                # Escribe: modo, CoM, posición de 4 patas, SM, TR
+                # Esto es lo que usaremos para tus gráficas del paper
+                self.get_logger().info(f'Snapshot guardado en {snapshot_file}')
 
 # ── plots ─────────────────────────────────────────────────────────────────────
 
