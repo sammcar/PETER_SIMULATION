@@ -321,7 +321,7 @@ class NetworkPublisher(Node):
 
         R = self.areaBoundingBoxR / 500
         #R = 0
-        G = self.lidar[4,0]*15 if self.lidar[4,0]*15 > 0.2 else 0
+        G = (self.lidar[4,0]*15 if self.lidar[4,0]*15 > 0.2 else 0)*6
         #G = 0
         B = self.areaBoundingBoxB / 500
         #B = 0
@@ -360,8 +360,8 @@ class NetworkPublisher(Node):
         self.z[3,1]  = self.z[3,0]  + (self.dt/self.tau)*(-self.z[3,0]  + max(0, self.Gpe[2,0]))
         self.z[4,1]  = self.z[4,0]  + (self.dt/self.tau)*(-self.z[4,0]  + max(0, self.Gpe[1,0] + self.j*self.Gpe[0,0]))
 
-        self.z[5,1]  = self.z[5,0]  + (self.dt/self.tau)*(-self.z[5,0]  + max(0, self.lidar[2,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_s - self.ang_p) - 15)))
-        self.z[6,1]  = self.z[6,0]  + (self.dt/self.tau)*(-self.z[6,0]  + max(0, self.lidar[3,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_p - self.ang_s) - 15)))
+        self.z[5,1]  = self.z[5,0]  + (self.dt/self.tau)*(-self.z[5,0]  + max(0, self.lidar[2,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_s - self.ang_p) - 30)))
+        self.z[6,1]  = self.z[6,0]  + (self.dt/self.tau)*(-self.z[6,0]  + max(0, self.lidar[3,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_p - self.ang_s) - 30)))
 
         self.z[7,1]  = self.z[7,0]  + (self.dt/self.tau)*(-self.z[7,0]  + max(0, self.z[5,0] + self.z[3,0] - self.w*self.z[4,0]))
         self.z[8,1]  = self.z[8,0]  + (self.dt/self.tau)*(-self.z[8,0]  + max(0, self.z[5,0] + self.z[4,0] - self.w*self.z[3,0]))

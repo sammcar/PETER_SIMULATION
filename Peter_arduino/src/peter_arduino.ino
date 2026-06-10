@@ -108,8 +108,8 @@ static float _speed = 1.0f; // Multiplicador linear
 static float _turn = 1.0f;  // Multiplicador angular
 
 void omni_drive(float vx, float vy, float wz) {
-  float lin = MOTOR_BASE_SPEED * _speed;
-  float ang = MOTOR_BASE_SPEED * _turn;
+  float lin = OMNI_MOTOR_BASE_SPEED * _speed;
+  float ang = OMNI_MOTOR_BASE_SPEED * _turn;
   int m1 = (int)((1.15f * vx + vy) * lin + wz * ang);
   int m2 = (int)((-1.15f * vx + vy) * lin + wz * ang);
   int m3 = (int)((1.15f * vx - vy) * lin + wz * ang);

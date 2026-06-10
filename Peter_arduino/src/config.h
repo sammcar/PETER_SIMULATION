@@ -89,13 +89,21 @@ enum RobotMode { MODE_SPIDER = 0, MODE_VEHICLE, MODE_OMNI };
 #define FOLD_H_Z                                                               \
   -0.005f // Altura para Modo H: profundidad tibia bajo cuerpo (m)
 #define FOLD_X_BODY_H                                                          \
-  0.025f // Altura cuerpo sobre ruedas en Modo X (m) — máx: L_FEMUR = 0.068
+  0.035f // Altura cuerpo sobre ruedas en Modo X (m) — máx: L_FEMUR = 0.068
 
 // ── Multiplicador de velocidad para transiciones de regreso a Spider ──
 #define TRANS_TO_SPIDER_MULT 1.5f
 
+// ── Offsets de calibración para modo X (MODE_OMNI) ───────────────────
+// Suma grados extras a fémur/tibia por pata. 0.0f = sin cambio.
+// Orden: [LEG_FL, LEG_FR, LEG_RL, LEG_RR]
+static const float X_FEMUR_OFFSET[4] = {-10.0f, -10.0f, -10.0f, -10.0f};
+static const float X_TIBIA_OFFSET[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
 // ── Velocidad base de motores ─────────────────────────────────────────
-#define MOTOR_BASE_SPEED 130 // 0-255
+#define MOTOR_BASE_SPEED 90 // 0-255
+#define OMNI_MOTOR_BASE_SPEED                                                  \
+  255 // 0-255 — velocidad exclusiva para modo omnidireccional
 
 // ── Dirección física por motor (+1 = normal, -1 = invertido) ─────────
 // Cambiar a -1 para invertir un motor sin tocar la lógica de control.

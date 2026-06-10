@@ -55,12 +55,13 @@ static bool tick_toward_expect(float speed) {
 
 static void apply_ik_all() {
   float tibia_bias = _elbow_up ? +TIBIA_BIAS_DEG : -TIBIA_BIAS_DEG;
+  bool omni = (_robot_mode == MODE_OMNI);
   for (uint8_t l = 0; l < 4; l++) {
     float q[3];
     if (leg_ik(l, site_now[l][0], site_now[l][1], site_now[l][2], q, _elbow_up)) {
-      mover(l, COXA, q[0]);
-      mover(l, FEMUR, q[1]);
-      mover(l, TIBIA, q[2] + tibia_bias);
+      mover(l, COXA,  q[0]);
+      mover(l, FEMUR, q[1] + (omni ? X_FEMUR_OFFSET[l] : 0.0f));
+      mover(l, TIBIA, q[2] + tibia_bias + (omni ? X_TIBIA_OFFSET[l] : 0.0f));
     }
   }
 }
@@ -189,28 +190,15 @@ static void _trans_H_to_spider() {
 }
 
 static void _trans_X_to_spider() {
-  // Flip a elbow_down antes de animar: el pie no se mueve, solo la configuración de rodilla.
+  // Paso 1: flip a elbow_down y mover a posición H (coxas alineadas, transición estable)
   _elbow_up = false;
   apply_ik_all();
   delay(500);
+  _expect_all_h();
+  _animate_to_expect(BODY_SPEED);
 
-  float z_transit = REST_Z + STEP_H;
-  // Paso 1: mover a z_transit en el XY actual
-  for (uint8_t l = 0; l < 4; l++) {
-    site_expect[l][0] = site_now[l][0];
-    site_expect[l][1] = site_now[l][1];
-    site_expect[l][2] = z_transit;
-  }
-  _animate_to_expect(LEG_SPEED * TRANS_TO_SPIDER_MULT);
-  // Paso 2: mover a LEFT_Y XY manteniendo la altura
-  get_peter_target(LEG_FL, SIDE_m, 0.0f, z_transit, site_expect[LEG_FL]);
-  get_peter_target(LEG_FR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_FR]);
-  get_peter_target(LEG_RL, SIDE_m, 0.0f, z_transit, site_expect[LEG_RL]);
-  get_peter_target(LEG_RR, DIAG_m, DIAG_m, z_transit, site_expect[LEG_RR]);
-  _animate_to_expect(LEG_SPEED * TRANS_TO_SPIDER_MULT);
-  // Paso 3: bajar a REST_Z
-  for (uint8_t l = 0; l < 4; l++) site_expect[l][2] = REST_Z;
-  _animate_to_expect(BODY_SPEED * TRANS_TO_SPIDER_MULT);
+  // Paso 2: desde H ejecutar la transición H→Spider (probada y estable)
+  _trans_H_to_spider();
 }
 
 static void _trans_H_to_X() {
@@ -263,14 +251,23 @@ void gait_set_mode(RobotMode target_mode) {
     _trans_spider_to_X();
   else if (from == MODE_VEHICLE && target_mode == MODE_SPIDER)
     _trans_H_to_spider();
-  else if (from == MODE_OMNI && target_mode == MODE_SPIDER)
+  else if (from == MODE_OMNI && target_mode == MODE_SPIDER) {
+    _robot_mode = target_mode; // Quitar OMNI antes de transicionar: elimina offsets X
+    apply_ik_all();
+    delay(500);
     _trans_X_to_spider();
+  }
   else if (from == MODE_VEHICLE && target_mode == MODE_OMNI)
     _trans_H_to_X();
-  else if (from == MODE_OMNI && target_mode == MODE_VEHICLE)
+  else if (from == MODE_OMNI && target_mode == MODE_VEHICLE) {
+    _robot_mode = target_mode; // Quitar OMNI antes de transicionar: elimina offsets X
+    apply_ik_all();
+    delay(500);
     _trans_X_to_H();
+  }
 
   _robot_mode = target_mode;
+  apply_ik_all(); // Aplica offsets de modo (ej. X_FEMUR/TIBIA_OFFSET) ahora que _robot_mode está actualizado
   motors_stop(); // Re-afirma canales LEDC tras la animación de servos
 
   if (target_mode == MODE_SPIDER) {
