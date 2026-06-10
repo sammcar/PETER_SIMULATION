@@ -28,8 +28,13 @@ def generate_launch_description():
         'world_name', default_value='empty', description='World file name (without extension)'
     )
 
-    # Procesar URDF/Xacro del Robot PETER
+    # Procesar URDF/Xacro del Robot PETER (Ruta flexible)
     xacro_file = os.path.join(pkg_path, 'urdf', 'peter_robot.urdf.xacro')
+    
+    # Si no existe en el share instalado, buscar en el workspace src (Desarrollo)
+    if not os.path.exists(xacro_file):
+        xacro_file = os.path.join('/ros2_ws/src/peter_robot', 'urdf', 'peter_robot.urdf.xacro')
+        
     robot_description_config = xacro.process_file(xacro_file)
     robot_desc = robot_description_config.toxml()
 
