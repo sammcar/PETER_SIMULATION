@@ -148,6 +148,9 @@ run-experiments: ## Lanza el orquestador automático de experimentos dentro del 
 sim-terrain: ## Lanza la simulación base de Gazebo en el entorno de terreno irregular (Familia C1)
 	@make -f $(MK) sim-terrain $(PASSTHROUGH)
 
+run-transitions: ## Ejecuta el evaluador de estabilidad de transformaciones y resguarda la telemetría final
+	@make -f $(MK) run-transitions $(PASSTHROUGH)
+
 kill-sim: ## Mata todos los procesos zombis de Gazebo y ROS 2 dentro del contenedor
 	@echo "[kill-sim] Limpiando procesos huérfanos de simulación..."
 	@docker exec -it $(CONTAINER) pkill -9 -f ign || true
