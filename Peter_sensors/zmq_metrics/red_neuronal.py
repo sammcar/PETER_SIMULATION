@@ -74,7 +74,7 @@ class NetworkPublisher(Node):
         self.metrics_pub   = self.create_publisher(Float32MultiArray, TOPIC_METRICS,       10)
 
         # ── Estado inicial ─────────────────────────────────────────────────
-        self.current_mode     = 'H'
+        self.current_mode     = 'C'
         self.areaBoundingBoxR = 0.0
         self.areaBoundingBoxG = 0.0
         self.areaBoundingBoxB = 0.0
@@ -199,7 +199,7 @@ class NetworkPublisher(Node):
         self._rng         = np.random.default_rng(42)
         self._sigma_noise = self.NoiseLevel[self.ACTIVE_NOISE_LEVEL_IDX]
 
-        self.get_logger().info(
+        print(
             f'[ROBUSTEZ] Nivel de ruido: '
             f'σ={self._sigma_noise*100:.0f}%  '
             f'(índice {self.ACTIVE_NOISE_LEVEL_IDX} de {self.NoiseLevel})'
@@ -320,8 +320,15 @@ class NetworkPublisher(Node):
         self.lidar[4,1] = self.lidar[4,0] + (self.dt/self.tau)*(-self.lidar[4,0]*1.1 + max(0, np.sum(self.Aux[:,0])))
 
         R = self.areaBoundingBoxR / 500
+        #R = 0
         G = self.lidar[4,0]*15 if self.lidar[4,0]*15 > 0.2 else 0
+        #G = 0
         B = self.areaBoundingBoxB / 500
+        #B = 0
+
+        print("R: ", str(R))
+        print("G: ", str(G))
+        print("B: ", str(B))
 
         # ── Ganglios basales ───────────────────────────────────────────────
         self.StN[0,1] = np.clip(self.StN[0,0] + (1/self.TaoSTN)*(-self.StN[0,0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] - 1.0), 0, None)
@@ -344,7 +351,7 @@ class NetworkPublisher(Node):
         elif self.Gpe[2,1] > 1.5 and B > 0.5: self.ang_s = self.posB
         else: self.ang_s = 90 * (self.lidar[4,1] < 0.3)
 
-        self.ang_s = 90  # fijo para prueba de terreno inclinado
+        #self.ang_s = 90  # fijo para prueba de terreno inclinado
 
         # ── Módulo IMU ─────────────────────────────────────────────────────
         self.z[0,1]  = self.z[0,0]  + (self.dt/self.tau)*(-self.z[0,0]  + (self.A * max(0, self.std_dev_accel_z - self.Usigma_az)**2) / (self.SigmaIMU**2 + (-self.z[0,0]  + self.std_dev_accel_z - self.Usigma_az)**2))
@@ -353,8 +360,8 @@ class NetworkPublisher(Node):
         self.z[3,1]  = self.z[3,0]  + (self.dt/self.tau)*(-self.z[3,0]  + max(0, self.Gpe[2,0]))
         self.z[4,1]  = self.z[4,0]  + (self.dt/self.tau)*(-self.z[4,0]  + max(0, self.Gpe[1,0] + self.j*self.Gpe[0,0]))
 
-        self.z[5,1]  = self.z[5,0]  + (self.dt/self.tau)*(-self.z[5,0]  + max(0, self.lidar[2,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_s - self.ang_p) - 20)))
-        self.z[6,1]  = self.z[6,0]  + (self.dt/self.tau)*(-self.z[6,0]  + max(0, self.lidar[3,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_p - self.ang_s) - 20)))
+        self.z[5,1]  = self.z[5,0]  + (self.dt/self.tau)*(-self.z[5,0]  + max(0, self.lidar[2,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_s - self.ang_p) - 15)))
+        self.z[6,1]  = self.z[6,0]  + (self.dt/self.tau)*(-self.z[6,0]  + max(0, self.lidar[3,0]*160 + (self.lidar[4,1]<0.3)*((self.ang_p - self.ang_s) - 15)))
 
         self.z[7,1]  = self.z[7,0]  + (self.dt/self.tau)*(-self.z[7,0]  + max(0, self.z[5,0] + self.z[3,0] - self.w*self.z[4,0]))
         self.z[8,1]  = self.z[8,0]  + (self.dt/self.tau)*(-self.z[8,0]  + max(0, self.z[5,0] + self.z[4,0] - self.w*self.z[3,0]))
@@ -386,6 +393,49 @@ class NetworkPublisher(Node):
         for i in range(len(self.Gpe)):      self.Gpe[i,0]      = self.Gpe[i,1]      * (self.Gpe[i,1]      > self.epsilem)
         for i in range(len(self.StR)):      self.StR[i,0]      = self.StR[i,1]      * (self.StR[i,1]      > self.epsilem)
 
+        print("GpeR: ", str(self.Gpe[0,1]))
+        print("GpeG: ", str(self.Gpe[1,1]))
+        print("GpeB: ", str(self.Gpe[2,1]))
+
+        print("ang_p: ", str(self.ang_p))
+        print("ang_s: ", str(self.ang_s))
+
+        #print("5: ", str(self.z[5, 1]))
+        #print("3: ", str(self.z[3, 1]))
+        #print("4: ", str(self.z[4, 1]))
+        #print("6: ", str(self.z[6, 1]))
+
+        #print("7: ", str(self.z[7, 1]))
+        #print("8: ", str(self.z[8, 1]))
+        #print("9: ", str(self.z[9, 1]))
+        #print("10: ", str(self.z[10, 1]))
+
+        #print("11: ", str(self.z[11, 1]))
+        #print("12: ", str(self.z[12, 1]))
+        #print("13: ", str(self.z[13, 1]))
+
+        print("14: ", str(self.z[14, 1]))
+        print("16: ", str(self.z[16, 1]))  
+        print("15: ", str(self.z[15, 1]))  
+        print("17: ", str(self.z[17, 1]))
+
+        #print("0: ", str(self.z[0, 1]))
+        #print("1: ", str(self.z[1, 1]))
+        #print("2: ", str(self.z[2, 1])) 
+        #print("a: ", str(self.std_dev_accel_z))
+        #print("roll: ", str(self.roll))
+        #print("pitch: ", str(self.pitch))
+
+        print("cmd_ang: ", str(cmd_ang))
+        print("cmd_lineal: ", str(cmd_lineal))
+        print("cmd_lateral: ", str(cmd_lateral))
+
+        print("lidar frente: ", str(self.lidar[0,0]))
+        print("lidar atras: ", str(self.lidar[1,0]))
+        print("lidar izquierda: ", str(self.lidar[2,0]))
+        print("lidar derecha:", str(self.lidar[3,0]))
+        print("lidar 4:", str(self.lidar[4,0]))
+
         # ── Terrain changer ────────────────────────────────────────────────
         if self.accel_std > self.Usigma_az and not self.terrainchanger:
             self.terrainchanger  = True
@@ -402,13 +452,6 @@ class NetworkPublisher(Node):
             self.std_dev_accel_z = 0
 
         # ── Log consola ────────────────────────────────────────────────────
-        self.get_logger().info(
-            f'R={R:.2f} G={G:.2f} B={B:.2f} | '
-            f'roll={self.roll:.1f} pitch={self.pitch:.1f} | '
-            f'STD={self.accel_std:.3f} | '
-            f'Gpe=[{self.Gpe[0,1]:.2f},{self.Gpe[1,1]:.2f},{self.Gpe[2,1]:.2f}] | '
-            f't={time.time()-self.starttime:.1f}s'
-        )
 
         if not self.MOVEMENT:
             return
@@ -431,9 +474,15 @@ class NetworkPublisher(Node):
         self.publish_twist(tw_lin, tw_lat, tw_ang)
 
         # ── Modo ───────────────────────────────────────────────────────────
-        if   self.z[15,1] > 0.5: self.publish_mode('C')
-        elif self.z[16,1] > 0.5: self.publish_mode('H')
-        elif self.z[14,1] > 0.5: self.publish_mode('X')
+        if   self.z[15,1] > 0.5: 
+            self.publish_mode('C')
+            print("Cuadrupedo")
+        elif self.z[16,1] > 0.5: 
+            self.publish_mode('H')
+            print("Móvil H")
+        elif self.z[14,1] > 0.5: 
+            self.publish_mode('X')
+            print("Omnidireccional")
 
         # ── Actividad neuronal y GPe ───────────────────────────────────────
         self.publish_data()

@@ -80,8 +80,10 @@ class ScanGrid:
     Hilo de publicación →  snapshot(expiry_s)  →  LaserScan
     """
 
-    def __init__(self):
+    def __init__(self, rmin: float, rmax: float):
         self._lock      = threading.Lock()
+        self._rmin      = rmin
+        self._rmax      = rmax
         # distancia mínima vista en cada dirección
         self._dist      = np.full(GRID_N, np.inf,  dtype=np.float64)
         self._intensity = np.zeros(GRID_N,          dtype=np.float64)
@@ -100,18 +102,18 @@ class ScanGrid:
         with self._lock:
             for p in puntos:
                 dist_m = p["distance"] * 1e-3
-                if not (DIST_MIN_M <= dist_m <= DIST_MAX_M):
+                if not (self._rmin <= dist_m <= self._rmax):
                     continue
 
                 idx = int(p["angle"] % 360.0) % GRID_N
 
-                # timestamp siempre al más reciente
-                self._last_ts[idx] = now
-
-                # distancia: guardar la mínima (obstáculo más cercano)
+                # timestamp solo cuando se registra un obstáculo más cercano;
+                # si no se actualiza _dist, la celda eventualmente expira y
+                # acepta la nueva lectura (más lejana) en el siguiente ciclo.
                 if dist_m < self._dist[idx]:
                     self._dist[idx]      = dist_m
                     self._intensity[idx] = float(p["intensity"])
+                    self._last_ts[idx]   = now
 
     def snapshot(self, expiry_s: float) -> tuple:
         """
@@ -128,6 +130,11 @@ class ScanGrid:
 
             return self._dist.copy(), self._intensity.copy()
 
+    def read_snapshot(self) -> tuple:
+        """Lee el estado actual sin expirar celdas (para visualización)."""
+        with self._lock:
+            return self._dist.copy(), self._intensity.copy()
+
     @property
     def celdas_vivas(self) -> int:
         """Número de celdas con dato válido (no inf). Para debug."""
@@ -140,14 +147,16 @@ class ScanGrid:
 class LidarNode(Node):
 
     def __init__(self, host: str, port: int, rate_hz: float,
-                 expiry_s: float, show: bool):
+                 expiry_s: float, show: bool, rmax: float, rmin: float):
         super().__init__('lidar_node')
         self._host      = host
         self._port      = port
         self._period_s  = 1.0 / rate_hz
         self._expiry_s  = expiry_s
         self._show      = show
-        self._grid      = ScanGrid()
+        self._rmax      = rmax
+        self._rmin      = rmin
+        self._grid      = ScanGrid(rmin, rmax)
         self._pub       = self.create_publisher(LaserScan, TOPIC_SCAN, 10)
         self._running   = False
         self._scan_n    = 0
@@ -209,6 +218,55 @@ class LidarNode(Node):
                     f'min={min_dist:.3f} m'
                 )
 
+    # ── Visualización polar ────────────────────────────────────────────────
+
+    def _start_viz(self):
+        """Plot polar en tiempo real. Bloquea el hilo principal hasta cerrar ventana."""
+        import matplotlib
+        for _backend in ('TkAgg', 'Qt5Agg', 'Qt6Agg', 'GTK4Agg', 'GTK3Agg', 'wxAgg'):
+            try:
+                matplotlib.use(_backend)
+                break
+            except Exception:
+                continue
+        import matplotlib.pyplot as plt
+        from matplotlib.animation import FuncAnimation
+
+        angles_rad = np.linspace(0, 2 * math.pi, GRID_N, endpoint=False)
+
+        fig = plt.figure(figsize=(7, 7))
+        ax  = fig.add_subplot(111, projection='polar')
+        fig.patch.set_facecolor('#0d0d0d')
+        ax.set_facecolor('#0d0d0d')
+
+        def _update(_):
+            ax.clear()
+            ax.set_facecolor('#0d0d0d')
+            dist, _ = self._grid.read_snapshot()
+            valid = np.isfinite(dist)
+            if valid.any():
+                ax.scatter(
+                    angles_rad[valid], dist[valid],
+                    s=5, c=dist[valid], cmap='plasma_r',
+                    vmin=DIST_MIN_M, vmax=DIST_MAX_M, alpha=0.9,
+                )
+            ax.set_theta_zero_location('N')
+            ax.set_theta_direction(-1)
+            ax.set_rmax(self._rmax)
+            ax.set_rlabel_position(45)
+            ax.tick_params(colors='white')
+            ax.set_title(
+                f'LiDAR  —  {valid.sum()}/{GRID_N} puntos',
+                color='white', pad=12,
+            )
+            return ()
+
+        self._anim = FuncAnimation(
+            fig, _update, interval=100, blit=False, cache_frame_data=False
+        )
+        plt.tight_layout()
+        plt.show(block=True)   # libera cuando se cierra la ventana → finally en run()
+
     # ── Arranque ───────────────────────────────────────────────────────────
 
     def run(self):
@@ -228,8 +286,11 @@ class LidarNode(Node):
         )
 
         try:
-            while True:
-                time.sleep(0.5)
+            if self._show:
+                self._start_viz()   # bloquea hasta cerrar ventana matplotlib
+            else:
+                while True:
+                    time.sleep(0.5)
         except KeyboardInterrupt:
             pass
         finally:
@@ -254,10 +315,14 @@ def main():
     parser.add_argument('--expiry', type=float, default=1.0,
                         help='Segundos para expirar celda sin renovación (default 1.0)')
     parser.add_argument('--show',   action='store_true',
-                        help='Imprimir stats por scan')
+                        help='Mostrar plot polar en tiempo real')
+    parser.add_argument('--rmax',  type=float, default=DIST_MAX_M,
+                        help=f'Distancia máxima en metros (default {DIST_MAX_M})')
+    parser.add_argument('--rmin',  type=float, default=DIST_MIN_M,
+                        help=f'Distancia mínima en metros (default {DIST_MIN_M})')
     args = parser.parse_args()
 
-    node = LidarNode(args.host, args.port, args.rate, args.expiry, args.show)
+    node = LidarNode(args.host, args.port, args.rate, args.expiry, args.show, args.rmax, args.rmin)
     node.run()
 
 

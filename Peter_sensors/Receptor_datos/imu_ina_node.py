@@ -106,6 +106,9 @@ class ImuInaNode(Node):
             self._csv_writer.writerow(CAMPOS_CSV)
             self.get_logger().info(f'[imu_ina] CSV: {csv_path}')
 
+        self._roll_offset  = None
+        self._pitch_offset = None
+
         self.get_logger().info(
             f'[imu_ina] UDP {host}:{port} → {TOPIC_IMU}  {TOPIC_INA}'
         )
@@ -130,6 +133,18 @@ class ImuInaNode(Node):
     # ── Publicación ────────────────────────────────────────────────────────
 
     def _publicar(self, d: dict, t: float):
+        # ── Offset: primer paquete define el cero ──────────────────────────
+        if self._roll_offset is None:
+            self._roll_offset  = d['roll']
+            self._pitch_offset = d['pitch']
+            self.get_logger().info(
+                f'[imu_ina] offset fijado: roll={self._roll_offset:.2f}°  '
+                f'pitch={self._pitch_offset:.2f}°'
+            )
+
+        d['roll']  = ((d['roll']  - self._roll_offset  + 180) % 360) - 180
+        d['pitch'] = ((d['pitch'] - self._pitch_offset + 180) % 360) - 180
+
         # ── IMU ────────────────────────────────────────────────────────────
         qx, qy, qz, qw = euler_a_quaternion(d['roll'], d['pitch'])
 

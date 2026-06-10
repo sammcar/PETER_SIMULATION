@@ -27,3 +27,5 @@ TOPIC_POSE               = "/pose"                 # odometry publisher → rmse
 TOPIC_SCAN               = "/scan"                 # lidar_node → neural network
 TOPIC_IMU                = "/imu/data"             # imu_ina_node → neural network + stability
 TOPIC_INA                = "/ina/data"             # imu_ina_node → power recording
+
+TOPIC_ROBOT_CMD          = "/robot_cmd"            # cmd_translator → cmd_vel_server → Pi serial
