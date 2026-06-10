@@ -135,16 +135,17 @@ class StabilityMonitor(Node):
         """Registra cambios de modo para análisis de transición."""
         new_mode = msg.data.upper()
         if new_mode != self._current_mode:
+            tag = f"from_{self._current_mode}_to_{new_mode}"
             self.get_logger().info(f'Switching mode: {self._current_mode} -> {new_mode}')
             self._current_mode = new_mode
-            # Aquí dispararemos el registro de "snapshot" de transición
+            # Disparar automáticamente la toma de datos cuantitativos del transitorio
+            self.take_snapshot(tag)
 
     def _cb(self, msg):
         if len(msg.poses) < 5:
             return
 
         # Rotate 90° CCW so robot forward (+X) points up in the plot:
-        #   plot_x = -body_y,  plot_y = body_x
         feet_all  = [(-msg.poses[i].position.y,  msg.poses[i].position.x) for i in range(4)]
         on_ground = [msg.poses[i].orientation.w > 0.5 for i in range(4)]
         com       = (-msg.poses[4].position.y, msg.poses[4].position.x)
@@ -158,36 +159,77 @@ class StabilityMonitor(Node):
         t = now - self._t0
 
         with self.lock:
+            # Inicializamos variables por defecto para estados N=4 o transitorios
+            sm_val, smn_val, tr_val, area_val, r_in_val = 0.0, 0.0, 0.0, 0.0, 1e-9
+            res = None
+
+            # Solo calculamos geometría de triángulo si tenemos exactamente 3 patas en el suelo
+            if len(grounded) == 3:
+                res = compute_stability(grounded, com)
+                sm_val   = res['sm']
+                smn_val  = res['sm_norm']
+                tr_val   = res['tr']
+                area_val = res['area']
+                r_in_val = res['r_in']
+            elif len(grounded) == 4:
+                # Postura estática de 4 patas (Modos H, X o reposo)
+                sm_val, smn_val, tr_val, area_val = 0.05, 1.0, 0.0, 0.02  # Valores nominales seguros
+
             self._latest_pose = {
                 't': t, 'feet_all': feet_all, 'on_ground': on_ground,
                 'com': com, 'n_grounded': len(grounded),
-                'mode': self._current_mode # Guardamos el modo en el log
+                'mode': self._current_mode
+            }
+            self._latest_sm = res
+
+            # Registramos datos independientemente del modo o número de apoyos
+            self._ht.append(t)
+            self._hsm.append(sm_val)
+            self._hsmn.append(smn_val)
+            self._htr.append(tr_val)
+            self._harea.append(area_val)
+
+            row = {
+                'timestamp': t, 'leg_in_air': air_leg,
+                'foot_RU_x': feet_all[0][0], 'foot_RU_y': feet_all[0][1],
+                'foot_LU_x': feet_all[1][0], 'foot_LU_y': feet_all[1][1],
+                'foot_RD_x': feet_all[2][0], 'foot_RD_y': feet_all[2][1],
+                'foot_LD_x': feet_all[3][0], 'foot_LD_y': feet_all[3][1],
+                'SM': sm_val, 'SM_norm': smn_val, 'TR': tr_val,
+                'triangle_area': area_val, 'inradius': r_in_val,
             }
 
-            # SM metrics only valid with exactly 3 feet on ground (active crawl)
-            if len(grounded) >= 3:
-                res = compute_stability(grounded, com)
-                self._latest_sm = res
+            self._csv_rows.append(row)
+            self._csv_writer.writerow(row)
+            self._csv_file.flush()
 
-                self._ht.append(t)
-                self._hsm.append(res['sm'])
-                self._hsmn.append(res['sm_norm'])
-                self._htr.append(res['tr'])
-                self._harea.append(res['area'])
-
-                row = {
-                    'timestamp': t, 'leg_in_air': air_leg,
-                    'foot_RU_x': feet_all[0][0], 'foot_RU_y': feet_all[0][1],
-                    'foot_LU_x': feet_all[1][0], 'foot_LU_y': feet_all[1][1],
-                    'foot_RD_x': feet_all[2][0], 'foot_RD_y': feet_all[2][1],
-                    'foot_LD_x': feet_all[3][0], 'foot_LD_y': feet_all[3][1],
-                    'SM': res['sm'], 'SM_norm': res['sm_norm'], 'TR': res['tr'],
-                    'triangle_area': res['area'], 'inradius': res['r_in'],
-                }
-
-                self._csv_rows.append(row)
-                self._csv_writer.writerow(row)
-                self._csv_file.flush()
+    def take_snapshot(self, transition_tag="manual"):
+        """Guarda una captura explícita con las condiciones exactas del transitorio."""
+        with self.lock:
+            if not self._latest_pose:
+                return
+            pose = self._latest_pose
+            sm = self._latest_sm
+            
+        snapshot_file = Path.home() / f'snapshot_{transition_tag}_{int(time.time())}.csv'
+        try:
+            with open(snapshot_file, 'w', newline='') as f:
+                w = csv.writer(f)
+                w.writerow(['Metric', 'Value'])
+                w.writerow(['Timestamp', pose['t']])
+                w.writerow(['Current_Mode', pose['mode']])
+                w.writerow(['Grounded_Legs', pose['n_grounded']])
+                w.writerow(['CoM_X', pose['com'][1]])
+                w.writerow(['CoM_Y', pose['com'][0]])
+                if sm:
+                    w.writerow(['SM', sm['sm']])
+                    w.writerow(['Tipover_Risk', sm['tr']])
+                else:
+                    w.writerow(['SM', 0.0])
+                    w.writerow(['Tipover_Risk', 0.0])
+            self.get_logger().info(f'¡Snapshot de transición guardado con éxito! → {snapshot_file}')
+        except Exception as e:
+            self.get_logger().error(f'Error al guardar el snapshot: {str(e)}')
 
     def save_csv(self):
         with self.lock:
@@ -196,7 +238,7 @@ class StabilityMonitor(Node):
             w = csv.DictWriter(f, fieldnames=CSV_FIELDS)
             w.writeheader()
             w.writerows(rows)
-        self.get_logger().info(f'CSV saved ({len(rows)} samples) → {LOG_FILE}')
+        self.get_logger().info(f'CSV completo guardado ({len(rows)} muestras) → {LOG_FILE}')
 
     def print_stats(self):
         with self.lock:
@@ -219,15 +261,6 @@ class StabilityMonitor(Node):
         print(f'  Critical events   (TR >= 1.0) : {n_critical}')
         print(f'  Log: {LOG_FILE}')
         print('================================\n')
-
-def take_snapshot(self):
-        """Guarda estado actual para análisis posterior (ej. transiciones)."""
-        if self._latest_pose and self._latest_sm:
-            snapshot_file = Path.home() / f'snapshot_{int(time.time())}.csv'
-            with open(snapshot_file, 'w') as f:
-                # Escribe: modo, CoM, posición de 4 patas, SM, TR
-                # Esto es lo que usaremos para tus gráficas del paper
-                self.get_logger().info(f'Snapshot guardado en {snapshot_file}')
 
 # ── plots ─────────────────────────────────────────────────────────────────────
 
