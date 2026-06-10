@@ -319,16 +319,17 @@ class NetworkPublisher(Node):
 
         self.lidar[4,1] = self.lidar[4,0] + (self.dt/self.tau)*(-self.lidar[4,0]*1.1 + max(0, np.sum(self.Aux[:,0])))
 
-        R = self.areaBoundingBoxR / 500
+        #R = self.areaBoundingBoxR / 500
+        R = 3.652
         #R = 0
-        G = (self.lidar[4,0]*15 if self.lidar[4,0]*15 > 0.2 else 0)*6
-        #G = 0
-        B = self.areaBoundingBoxB / 500
-        #B = 0
+        #G = (self.lidar[4,0]*15 if self.lidar[4,0]*15 > 0.2 else 0)*6
+        G = 0
+        #B = self.areaBoundingBoxB / 500
+        B = 0
 
-        print("R: ", str(R))
-        print("G: ", str(G))
-        print("B: ", str(B))
+        #print("R: ", str(R))
+        #print("G: ", str(G))
+        #print("B: ", str(B))
 
         # ── Ganglios basales ───────────────────────────────────────────────
         self.StN[0,1] = np.clip(self.StN[0,0] + (1/self.TaoSTN)*(-self.StN[0,0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] - 1.0), 0, None)
@@ -351,7 +352,7 @@ class NetworkPublisher(Node):
         elif self.Gpe[2,1] > 1.5 and B > 0.5: self.ang_s = self.posB
         else: self.ang_s = 90 * (self.lidar[4,1] < 0.3)
 
-        #self.ang_s = 90  # fijo para prueba de terreno inclinado
+        self.ang_s = 90  # fijo para prueba de terreno inclinado
 
         # ── Módulo IMU ─────────────────────────────────────────────────────
         self.z[0,1]  = self.z[0,0]  + (self.dt/self.tau)*(-self.z[0,0]  + (self.A * max(0, self.std_dev_accel_z - self.Usigma_az)**2) / (self.SigmaIMU**2 + (-self.z[0,0]  + self.std_dev_accel_z - self.Usigma_az)**2))
@@ -393,12 +394,12 @@ class NetworkPublisher(Node):
         for i in range(len(self.Gpe)):      self.Gpe[i,0]      = self.Gpe[i,1]      * (self.Gpe[i,1]      > self.epsilem)
         for i in range(len(self.StR)):      self.StR[i,0]      = self.StR[i,1]      * (self.StR[i,1]      > self.epsilem)
 
-        print("GpeR: ", str(self.Gpe[0,1]))
-        print("GpeG: ", str(self.Gpe[1,1]))
-        print("GpeB: ", str(self.Gpe[2,1]))
+        #print("GpeR: ", str(self.Gpe[0,1]))
+        #print("GpeG: ", str(self.Gpe[1,1]))
+        #print("GpeB: ", str(self.Gpe[2,1]))
 
-        print("ang_p: ", str(self.ang_p))
-        print("ang_s: ", str(self.ang_s))
+        #print("ang_p: ", str(self.ang_p))
+        #print("ang_s: ", str(self.ang_s))
 
         #print("5: ", str(self.z[5, 1]))
         #print("3: ", str(self.z[3, 1]))
@@ -417,24 +418,24 @@ class NetworkPublisher(Node):
         print("14: ", str(self.z[14, 1]))
         print("16: ", str(self.z[16, 1]))  
         print("15: ", str(self.z[15, 1]))  
-        print("17: ", str(self.z[17, 1]))
+        #print("17: ", str(self.z[17, 1]))
 
-        #print("0: ", str(self.z[0, 1]))
-        #print("1: ", str(self.z[1, 1]))
-        #print("2: ", str(self.z[2, 1])) 
-        #print("a: ", str(self.std_dev_accel_z))
-        #print("roll: ", str(self.roll))
-        #print("pitch: ", str(self.pitch))
+        print("0: ", str(self.z[0, 1]))
+        print("1: ", str(self.z[1, 1]))
+        print("2: ", str(self.z[2, 1])) 
+        print("std_accel_z: ", str(self.std_dev_accel_z))
+        print("roll: ", str(self.roll))
+        print("pitch: ", str(self.pitch))
 
         print("cmd_ang: ", str(cmd_ang))
         print("cmd_lineal: ", str(cmd_lineal))
         print("cmd_lateral: ", str(cmd_lateral))
 
-        print("lidar frente: ", str(self.lidar[0,0]))
-        print("lidar atras: ", str(self.lidar[1,0]))
-        print("lidar izquierda: ", str(self.lidar[2,0]))
-        print("lidar derecha:", str(self.lidar[3,0]))
-        print("lidar 4:", str(self.lidar[4,0]))
+        #print("lidar frente: ", str(self.lidar[0,0]))
+        #print("lidar atras: ", str(self.lidar[1,0]))
+        #print("lidar izquierda: ", str(self.lidar[2,0]))
+        #print("lidar derecha:", str(self.lidar[3,0]))
+        #print("lidar 4:", str(self.lidar[4,0]))
 
         # ── Terrain changer ────────────────────────────────────────────────
         if self.accel_std > self.Usigma_az and not self.terrainchanger:
