@@ -23,6 +23,7 @@ static GaitDir _next_dir = GAIT_STOP;
 static bool _is_moving = false;
 
 static RobotMode _robot_mode = MODE_SPIDER;
+static bool _elbow_up = false;
 
 RobotMode gait_get_mode() { return _robot_mode; }
 // ── Forward declarations ───────────────────────────────────────────────
@@ -53,12 +54,13 @@ static bool tick_toward_expect(float speed) {
 }
 
 static void apply_ik_all() {
+  float tibia_bias = _elbow_up ? +TIBIA_BIAS_DEG : -TIBIA_BIAS_DEG;
   for (uint8_t l = 0; l < 4; l++) {
     float q[3];
-    if (leg_ik(l, site_now[l][0], site_now[l][1], site_now[l][2], q)) {
+    if (leg_ik(l, site_now[l][0], site_now[l][1], site_now[l][2], q, _elbow_up)) {
       mover(l, COXA, q[0]);
       mover(l, FEMUR, q[1]);
-      mover(l, TIBIA, q[2] - TIBIA_BIAS_DEG);
+      mover(l, TIBIA, q[2] + tibia_bias);
     }
   }
 }
@@ -74,18 +76,19 @@ static void _animate_to_expect(float speed) {
 
 // ── Helpers de posición para transiciones ──────────────────────────────
 
-// Calcula posición X-mode para un leg y la pone en site_expect
+// Calcula posición X-mode para un leg y la pone en site_expect.
+// Con elbow_up=true el IK da: fémur inclinado, tibia horizontal, cuerpo a FOLD_X_BODY_H sobre ruedas.
 static void _expect_x_pos(uint8_t leg) {
-  float rhoriz =
-      L_COXA + L_FEMUR + sqrtf(L_TIBIA * L_TIBIA - FOLD_X_Z * FOLD_X_Z);
-  float rdiag = rhoriz * 0.70711f;
+  float pz     = -FOLD_X_BODY_H;
+  float rhoriz = L_COXA + sqrtf(L_FEMUR * L_FEMUR - FOLD_X_BODY_H * FOLD_X_BODY_H) + L_TIBIA;
+  float rdiag  = rhoriz * 0.70711f;
   float sx = BODY_LEN / 2.0f + rdiag;
   float sy = BODY_WID / 2.0f + rdiag;
   float hy = (leg == LEG_FL || leg == LEG_RL) ? +sy : -sy;
   float hx = (leg == LEG_FL || leg == LEG_FR) ? +sx : -sx;
   site_expect[leg][0] = hx;
   site_expect[leg][1] = hy;
-  site_expect[leg][2] = FOLD_X_Z;
+  site_expect[leg][2] = pz;
 }
 
 // Pone las 4 patas en H-mode
@@ -148,15 +151,21 @@ static void _trans_spider_to_H() {
 static void _trans_spider_to_X() {
   bool left_y = (strcmp(_stable_pose, "LEFT_Y") == 0);
 
-  // Paso 1: patas diagonales → X-mode (camino directo, dentro del workspace)
+  // Paso 1: patas diagonales → X-mode (en elbow_down)
   if (left_y) { _expect_x_pos(LEG_FR); _expect_x_pos(LEG_RR); }
   else         { _expect_x_pos(LEG_FL); _expect_x_pos(LEG_RL); }
   _animate_to_expect(BODY_SPEED);
 
-  // Paso 2: patas laterales → X-mode (camino directo)
+  // Paso 2: patas laterales → X-mode (en elbow_down)
   if (left_y) { _expect_x_pos(LEG_FL); _expect_x_pos(LEG_RL); }
   else         { _expect_x_pos(LEG_FR); _expect_x_pos(LEG_RR); }
   _animate_to_expect(BODY_SPEED);
+
+  // Flip a elbow_up: simultáneo en las 4 patas ya en posición X.
+  // El pie no se mueve (IK garantiza el mismo punto), solo cambia la configuración de rodilla.
+  _elbow_up = true;
+  apply_ik_all();
+  delay(500);
 }
 
 static void _trans_H_to_spider() {
@@ -180,8 +189,13 @@ static void _trans_H_to_spider() {
 }
 
 static void _trans_X_to_spider() {
+  // Flip a elbow_down antes de animar: el pie no se mueve, solo la configuración de rodilla.
+  _elbow_up = false;
+  apply_ik_all();
+  delay(500);
+
   float z_transit = REST_Z + STEP_H;
-  // Paso 1: levantar todas las patas en su XY actual (rápido)
+  // Paso 1: mover a z_transit en el XY actual
   for (uint8_t l = 0; l < 4; l++) {
     site_expect[l][0] = site_now[l][0];
     site_expect[l][1] = site_now[l][1];
@@ -201,11 +215,20 @@ static void _trans_X_to_spider() {
 
 static void _trans_H_to_X() {
   _expect_all_x();
-  // Están a la misma altura o casi (ambas FOLD_*_Z), basta un paso
   _animate_to_expect(BODY_SPEED);
+
+  // Flip a elbow_up al llegar a posición X
+  _elbow_up = true;
+  apply_ik_all();
+  delay(500);
 }
 
 static void _trans_X_to_H() {
+  // Flip a elbow_down antes de salir de posición X
+  _elbow_up = false;
+  apply_ik_all();
+  delay(500);
+
   _expect_all_h();
   _animate_to_expect(BODY_SPEED);
 }

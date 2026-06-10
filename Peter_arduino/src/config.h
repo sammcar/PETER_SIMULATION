@@ -86,11 +86,10 @@ extern const ServoCalib CALIB[4][3];
 enum RobotMode { MODE_SPIDER = 0, MODE_VEHICLE, MODE_OMNI };
 
 // ── Profundidad del pie en modos de conducción ─────────────────────────
-// Aumentar magnitud (ej. -0.100) → cuerpo más alto. Reducir → cuerpo más bajo.
-// La extensión horizontal se calcula dinámicamente usando Pitágoras en la
-// tibia.
-#define FOLD_H_Z -0.005f // Altura para Modo H (Vehículo - ruedas laterales)
-#define FOLD_X_Z -0.010f // Altura para Modo X (Omni - ruedas diagonales)
+#define FOLD_H_Z                                                               \
+  -0.005f // Altura para Modo H: profundidad tibia bajo cuerpo (m)
+#define FOLD_X_BODY_H                                                          \
+  0.025f // Altura cuerpo sobre ruedas en Modo X (m) — máx: L_FEMUR = 0.068
 
 // ── Multiplicador de velocidad para transiciones de regreso a Spider ──
 #define TRANS_TO_SPIDER_MULT 1.5f

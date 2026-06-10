@@ -21,7 +21,7 @@ static const float COXA_ANGLE[4] = {
 
 // ── Cinemática inversa ─────────────────────────────────────────────────
 // Puerto directo del método SpiderLeg::ik() en robot_kinematics.py
-bool leg_ik(int leg, float fx, float fy, float fz, float q_out[3]) {
+bool leg_ik(int leg, float fx, float fy, float fz, float q_out[3], bool elbow_up) {
     float a = COXA_ANGLE[leg];
     float c = cosf(a), s = sinf(a);
 
@@ -43,10 +43,10 @@ bool leg_ik(int leg, float fx, float fy, float fz, float q_out[3]) {
     if (D > (L1 + L2) || D < fabsf(L1 - L2) || D < 1e-6f)
         return false;
 
-    // Tibia (ley del coseno, rodilla hacia abajo)
+    // Tibia (ley del coseno — signo selecciona la configuración del codo)
     float cos_t      = fmaxf(-1.0f, fminf(1.0f,
                             (D*D - L1*L1 - L2*L2) / (2.0f * L1 * L2)));
-    float theta_tib  = -acosf(cos_t);
+    float theta_tib  = elbow_up ? +acosf(cos_t) : -acosf(cos_t);
 
     // Fémur
     float alpha      = atan2f(pz, reach);

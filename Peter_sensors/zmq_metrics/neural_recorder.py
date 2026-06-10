@@ -51,10 +51,11 @@ class NeuralRecorder(Node):
                  output_dir=None, save_csv=True):
         super().__init__('neural_recorder')
 
-        self._exp_type   = experiment_type
-        self._window     = window_size
-        self._output_dir = output_dir or os.path.expanduser('~/peter_experiments')
-        self._save_csv   = save_csv
+        self._exp_type        = experiment_type
+        self._window          = window_size
+        self._explicit_outdir = output_dir is not None
+        self._output_dir      = output_dir or os.path.expanduser('~/peter_experiments')
+        self._save_csv        = save_csv
 
         # ── Sliding buffers ────────────────────────────────────────────────
         self._activity_buffer  = deque(maxlen=self._window)
@@ -78,10 +79,13 @@ class NeuralRecorder(Node):
 
         # ── CSV logging ────────────────────────────────────────────────────
         if self._save_csv:
-            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-            session_dir = os.path.join(self._output_dir, f'{self._exp_type}_{ts}')
+            if self._explicit_outdir:
+                session_dir = self._output_dir
+            else:
+                ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+                session_dir = os.path.join(self._output_dir, f'{self._exp_type}_{ts}')
             os.makedirs(session_dir, exist_ok=True)
-            csv_path = os.path.join(session_dir, 'metrics.csv')
+            csv_path = os.path.join(session_dir, 'neural_metrics.csv')
             self._csv_file   = open(csv_path, 'w', newline='')
             self._csv_writer = csv.writer(self._csv_file)
             self._csv_writer.writerow([
