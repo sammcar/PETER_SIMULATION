@@ -4,7 +4,7 @@ import xacro
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable, TimerAction
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, Command
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -27,24 +27,32 @@ def generate_launch_description():
     declare_world_cmd = DeclareLaunchArgument(
         'world_name', default_value='empty', description='World file name (without extension)'
     )
-
-    # Procesar URDF/Xacro del Robot PETER (Ruta flexible)
-    xacro_file = os.path.join(pkg_path, 'urdf', 'peter_robot.urdf.xacro')
     
-    # Si no existe en el share instalado, buscar en el workspace src (Desarrollo)
-    if not os.path.exists(xacro_file):
-        xacro_file = os.path.join('/ros2_ws/src/peter_robot', 'urdf', 'peter_robot.urdf.xacro')
-        
-    robot_description_config = xacro.process_file(xacro_file)
-    robot_desc = robot_description_config.toxml()
+    pkg_share = FindPackageShare(package=PACKAGE_NAME).find(PACKAGE_NAME)
 
-    # Nodo de Estado del Robot (Publica TF interna)
+    # ---- Model path (GAZEBO_MODEL_PATH) ----
+    model_path = os.path.join(pkg_share, 'models')
+    existing_model_path = os.environ.get('GAZEBO_MODEL_PATH', '/usr/share/gazebo/models')
+    set_model_path = SetEnvironmentVariable(
+        name='GAZEBO_MODEL_PATH',
+        value=f'{model_path}:{existing_model_path}',
+    )
+
+    # ---- Robot description (usando tu xacro real) ----
+    xacro_file = os.path.join(
+        get_package_share_directory(PACKAGE_NAME), 'urdf', 'peter.urdf.xacro'
+    )
+    robot_desc = xacro.process_file(xacro_file).toxml()
+
+    # ---- Core nodes ----
     robot_state_pub = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        name='robot_state_publisher',
         output='screen',
-        parameters=[{'robot_description': robot_desc, 'use_sim_time': LaunchConfiguration('use_sim_time')}]
+        parameters=[{
+            'robot_description': robot_desc,
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+        }],
     )
 
     # Lanzar Simulador Gazebo con el mundo vacío seleccionado
