@@ -241,9 +241,10 @@ run-experiments: check-install ## Ejecuta el orquestador automático de experime
 	$(DC) "$(WS_SOURCE) && ROS_DOMAIN_ID=$(DOMAIN_ID) python3 $(WS)/src/peter_robot/scripts/test_manager.py $(WS)/src/peter_robot/config/experiments_config.yaml"
 
 # Ejecuta el evaluador de estabilidad de transformaciones y resguarda la telemetría final
+# Ejecuta el evaluador de estabilidad de transformaciones dentro del contenedor Docker
 run-transitions:
-	@echo "Iniciando orquestador de transiciones experimentales..."
-	bash -c "source /opt/ros/humble/setup.bash && source ros2_ws/install/setup.bash && python3 ros2_ws/src/peter_robot/src/transition_manager.py"
+	@echo "Iniciando orquestador de transiciones experimentales dentro del contenedor..."
+	docker exec -it peter_simulation bash -c "source /opt/ros/humble/setup.bash && source /ros2_ws/install/setup.bash && python3 /ros2_ws/src/peter_robot/src/transition_manager.py"
 
 sim-terrain: check-install ## Lanza simulación base de Gazebo en el entorno de terreno irregular (Familia C1)
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \

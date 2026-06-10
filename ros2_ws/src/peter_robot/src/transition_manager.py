@@ -30,21 +30,18 @@ class TransitionManager(Node):
         self.start_time = time.monotonic()
 
 def main():
-    # Rutas por defecto del entorno PETER_SIMULATION
+    # Rutas internas dentro del contenedor de Docker
     home = Path.home()
     default_log = home / 'stability_log.csv'
-    results_base_dir = home / 'PETER_SIMULATION' / 'ros2_ws' / 'src' / 'peter_robot' / 'results'
+    results_base_dir = Path('/ros2_ws/src/peter_robot/results')
     
-    # 1. Lanzar el entorno completo en el mundo vacío de manera asíncrona
     print("--> Lanzando simulación y nodos de control de PETER...")
     launch_cmd = ["ros2", "launch", "peter_robot", "transition_evaluation.launch.py"]
     launch_proc = subprocess.Popen(launch_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
-    # Esperar el delay de seguridad del launch (7 segundos) más margen de estabilización física
     print("--> Esperando inicialización física del robot (12s)...")
     time.sleep(12)
     
-    # 2. Inicializar nodo de monitoreo interno para orquestar la sesión
     rclpy.init()
     manager = TransitionManager(results_base_dir)
     
@@ -59,19 +56,21 @@ def main():
     except KeyboardInterrupt:
         print("\n--> Finalizando pruebas y deteniendo procesos...")
     finally:
-        # 3. Terminación limpia de procesos de simulación
         manager.destroy_node()
-        rclpy.try_shutdown()
+        try:
+            rclpy.shutdown()
+        except:
+            pass
         
         launch_proc.terminate()
         launch_proc.wait()
         
-        # Kill remanentes de Gazebo / ROS para liberar memoria y puertos
+        # Kill remanentes internos del contenedor
         os.system("pkill -f gz_sim")
         os.system("pkill -f peter_controller")
         os.system("pkill -f stability_monitor")
         
-        # 4. Exportación y guardado de resultados del log de estabilidad general
+        # Exportación y guardado de resultados en el volumen compartido
         if default_log.exists():
             final_dest = results_base_dir / f"stability_session_report_{int(time.time())}.csv"
             shutil.move(str(default_log), str(final_dest))
