@@ -295,8 +295,8 @@ def _draw_panel(ax, row, panel_label, col_idx, from_mode, to_mode):
     timing = COL_TITLES[col_idx]
     ax.set_title(f'{timing}   (t = {timestamp:.2f} s)', fontsize=8.5, pad=5)
 
-    ax.set_xlim(-0.3, 0.3)
-    ax.set_ylim(-0.35, 0.35)
+    ax.set_xlim(-0.4, 0.4)
+    ax.set_ylim(-0.45, 0.45)
     ax.set_aspect('equal')
     ax.set_xlabel('Body X [m]', fontsize=8)
     ax.set_ylabel('Body Y [m]', fontsize=8)
@@ -327,7 +327,89 @@ def _draw_transition_label(ax, from_mode, to_mode):
             bbox=dict(boxstyle='round,pad=0.4', fc=tc, alpha=0.92))
 
 
-# ── 6. FIGURE ASSEMBLY ────────────────────────────────────────────────────────
+# ── 6. SINGLE-GROUP RENDERER ─────────────────────────────────────────────────
+def _render_transition_group(transitions, output_stem, part_label='', start_row=0):
+    """Renders a subset of transitions into one publication-quality figure.
+
+    Parameters
+    ----------
+    transitions : list of dicts   (output of find_transitions)
+    output_stem : str             base path without extension
+    part_label  : str             optional suffix for suptitle, e.g. 'Part 1 of 2'
+    start_row   : int             offset for panel-letter index (A=0, D=3, …)
+    """
+    n_trans = len(transitions)
+    if n_trans == 0:
+        return
+
+    fig_w = 17.0
+    fig_h = 5.8 * n_trans
+
+    fig = plt.figure(figsize=(fig_w, fig_h))
+    gs  = gridspec.GridSpec(
+        n_trans, 4,
+        figure=fig,
+        width_ratios=[0.13, 1, 1, 1],
+        hspace=0.55,
+        wspace=0.28,
+    )
+
+    for row_i, trans in enumerate(transitions):
+        ax_lbl = fig.add_subplot(gs[row_i, 0])
+        _draw_transition_label(ax_lbl, trans['from_mode'], trans['to_mode'])
+
+        for col_j, frame_row in enumerate(trans['frames']):
+            ax    = fig.add_subplot(gs[row_i, col_j + 1])
+            label = f'{ascii_uppercase[start_row + row_i]}{col_j + 1}'
+            _draw_panel(ax, frame_row, label, col_j,
+                        trans['from_mode'], trans['to_mode'])
+
+    # ── Shared legend ─────────────────────────────────────────────────────────
+    legend_handles = [
+        plt.Line2D([0], [0], color='#1565C0', lw=1.6,
+                   label='Support Polygon'),
+        plt.Line2D([0], [0], color='#D32F2F', lw=2.2,
+                   label='Critical Edge'),
+        plt.Line2D([0], [0], color='#546E7A', ls='--', lw=0.9,
+                   label='Inradius Circle ($r_{in}$)'),
+        plt.Line2D([0], [0], color='#D32F2F', lw=1.4, marker='>',
+                   markersize=6, label='SM Arrow (CoM $\\rightarrow$ Critical Edge)'),
+        plt.Line2D([0], [0], color='#546E7A', marker='+', ms=7,
+                   lw=0, mew=1.4, label='Polygon Centre'),
+        plt.Line2D([0], [0], color='#388e3c', marker='o', ms=7,
+                   lw=0, markeredgecolor='black', label='Stance Feet'),
+        plt.Line2D([0], [0], color='#f57c00', marker='X', ms=7,
+                   lw=0, markeredgecolor='black', label='Swing Foot'),
+        plt.Line2D([0], [0], color='#d32f2f', marker='P', ms=8,
+                   lw=0, markeredgecolor='black', label=r'CoM (base\_link)'),
+        mpatches.Patch(fc=MODE_COLORS['C'], label=MODE_FULL_NAMES['C']),
+        mpatches.Patch(fc=MODE_COLORS['H'], label=MODE_FULL_NAMES['H']),
+        mpatches.Patch(fc=MODE_COLORS['X'], label=MODE_FULL_NAMES['X']),
+    ]
+
+    fig.legend(handles=legend_handles, loc='lower center', ncol=4,
+               bbox_to_anchor=(0.5, 0.01), frameon=False,
+               fontsize=9, handlelength=2.0, columnspacing=1.4)
+
+    title = ('Static Stability Analysis across Locomotion Mode Transitions\n'
+             'Generalised McGhee-Frank (1968) Support Polygon')
+    if part_label:
+        title += f'  —  {part_label}'
+
+    fig.suptitle(title, fontsize=13, fontweight='bold', y=0.99)
+
+    fig.subplots_adjust(left=0.05, right=0.97, top=0.91, bottom=0.10,
+                        hspace=0.55, wspace=0.28)
+
+    for ext in ('pdf', 'png'):
+        out = f'{output_stem}.{ext}'
+        plt.savefig(out, bbox_inches='tight')
+        print(f'[OK] → {out}')
+
+    plt.show()
+
+
+# ── 7. FIGURE ASSEMBLY ────────────────────────────────────────────────────────
 def generate_transition_figure(csv_path, output_stem='fig_transition_phases'):
     df = pd.read_csv(csv_path)
     print(f'Loaded {len(df)} rows — '
@@ -346,79 +428,27 @@ def generate_transition_figure(csv_path, output_stem='fig_transition_phases'):
 
     set_publication_style()
 
-    n_trans  = len(transitions)
-    fig_w    = 17.0
-    fig_h    = 5.8 * n_trans
+    chunk   = 3   # transitions per figure page
+    parts   = [transitions[i:i + chunk] for i in range(0, len(transitions), chunk)]
+    n_parts = len(parts)
 
-    fig = plt.figure(figsize=(fig_w, fig_h))
-    gs  = gridspec.GridSpec(
-        n_trans, 4,
-        figure=fig,
-        width_ratios=[0.13, 1, 1, 1],
-        hspace=0.42,
-        wspace=0.28,
-    )
+    for p_idx, part in enumerate(parts):
+        if n_parts > 1:
+            part_label = f'Part {p_idx + 1} of {n_parts}'
+            stem       = f'{output_stem}_part{p_idx + 1}'
+        else:
+            part_label = ''
+            stem       = output_stem
 
-    panel_idx = 0
-    for row_i, trans in enumerate(transitions):
-        # Label column
-        ax_lbl = fig.add_subplot(gs[row_i, 0])
-        _draw_transition_label(ax_lbl, trans['from_mode'], trans['to_mode'])
-
-        # 3 data panels
-        for col_j, frame_row in enumerate(trans['frames']):
-            ax = fig.add_subplot(gs[row_i, col_j + 1])
-            label = f'{ascii_uppercase[row_i]}{col_j + 1}'
-            _draw_panel(ax, frame_row, label, col_j,
-                        trans['from_mode'], trans['to_mode'])
-            panel_idx += 1
-
-    # ── Shared legend ─────────────────────────────────────────────────────────
-    legend_handles = [
-        plt.Line2D([0], [0], color='#1565C0', lw=1.6,
-                   label='Support Polygon'),
-        plt.Line2D([0], [0], color='#D32F2F', lw=2.2,
-                   label='Critical Edge'),
-        plt.Line2D([0], [0], color='#546E7A', ls='--', lw=0.9,
-                   label='Inradius Circle ($r_{in}$)'),
-        plt.Line2D([0], [0], color='#D32F2F', lw=1.4, marker='>',
-                   markersize=6, label='SM Arrow (CoM → Critical Edge)'),
-        plt.Line2D([0], [0], color='#546E7A', marker='+', ms=7,
-                   lw=0, mew=1.4, label='Polygon Centre'),
-        plt.Line2D([0], [0], color='#388e3c', marker='o', ms=7,
-                   lw=0, markeredgecolor='black', label='Stance Feet'),
-        plt.Line2D([0], [0], color='#f57c00', marker='X', ms=7,
-                   lw=0, markeredgecolor='black', label='Swing Foot'),
-        plt.Line2D([0], [0], color='#d32f2f', marker='P', ms=8,
-                   lw=0, markeredgecolor='black', label='CoM (base_link)'),
-        # Mode colour patches
-        mpatches.Patch(fc=MODE_COLORS['C'], label=MODE_FULL_NAMES['C']),
-        mpatches.Patch(fc=MODE_COLORS['H'], label=MODE_FULL_NAMES['H']),
-        mpatches.Patch(fc=MODE_COLORS['X'], label=MODE_FULL_NAMES['X']),
-    ]
-
-    fig.legend(handles=legend_handles, loc='lower center', ncol=4,
-               bbox_to_anchor=(0.5, 0.01), frameon=False,
-               fontsize=9, handlelength=2.0, columnspacing=1.4)
-
-    fig.suptitle(
-        'Static Stability Analysis across Locomotion Mode Transitions\n'
-        'Generalised McGhee-Frank (1968) Support Polygon',
-        fontsize=13, fontweight='bold', y=0.99,
-    )
-
-    fig.subplots_adjust(left=0.05, right=0.97, top=0.96, bottom=0.06,
-                        hspace=0.42, wspace=0.28)
-
-    for ext in ('pdf', 'png'):
-        out = f'{output_stem}.{ext}'
-        plt.savefig(out, bbox_inches='tight')
-        print(f'[OK] → {out}')
-
-    plt.show()
+        print(f'\n── Rendering {part_label or "figure"} → {stem} ──')
+        _render_transition_group(
+            part, stem,
+            part_label = part_label,
+            start_row  = p_idx * chunk,
+        )
 
 
-# ── 7. ENTRY POINT ────────────────────────────────────────────────────────────
+# ── 8. ENTRY POINT ────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     script_dir = os.path.dirname(os.path.abspath(__file__))
     default_csv = os.path.join(script_dir, 'cvs',

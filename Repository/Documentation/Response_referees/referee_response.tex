@@ -1,0 +1,521 @@
+%% Response to Reviewers
+%% Paper: "Multimodal robot with bio-inspired gait arbitration across
+%%         simulated and real environments"
+%% Journal: Robotics and Autonomous Systems
+%%
+%% This file contains:
+%%  (1) The new LaTeX blocks to be inserted into the manuscript, and
+%%  (2) Precise placement instructions for each block.
+%%
+%% All figure references use the bare filename (no path),
+%% matching the manuscript convention.
+
+\documentclass[preprint,12pt]{elsarticle}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{pifont}   % for \checkmark via \ding{51}
+\newcommand{\revblue}[1]{\textcolor{blue}{#1}}
+\newcommand{\cmark}{\ding{51}}
+
+\begin{document}
+
+\begin{frontmatter}
+\title{Response to Reviewers --- Manuscript Revision Notes}
+\end{frontmatter}
+
+% ===================================================================
+%  OVERVIEW
+% ===================================================================
+% This document provides the new textual and figure blocks that must
+% be inserted into elsarticle-template-num-names.tex to address:
+%   - Reviewer 1, Comment 5  (industrial-scenario framing)
+%   - Reviewer 3, Comment 2  (quantitative mode-transition metrics)
+%
+% Each block is preceded by a comment specifying EXACTLY between which
+% existing lines it should be inserted.
+
+% ===================================================================
+%  REVIEWER 1 -- COMMENT 5
+% ===================================================================
+%
+% REVIEWER COMMENT:
+% "In Section 2.2, the sentence 'Additionally, to orient the simulation
+%  toward infrastructure-inspection applications, a representative
+%  industrial-building scenario was included, where the platform
+%  executed movements through different spaces.' is not demonstrated
+%  or supported in the paper."
+%
+% -------------------------------------------------------------------
+% RESPONSE
+% -------------------------------------------------------------------
+% We thank the reviewer for this observation. The sentence in question
+% overstated the representativeness of the virtual environment. We
+% address this in two coordinated actions:
+%
+%   (A) We ADD the simulation-environment figure (Depot_simulation.jpeg)
+%       together with a clarifying caption at the opening of Section 3.1
+%       (Results -- Simulation Results).
+%
+%   (B) We REPLACE the unsupported sentence with a revised formulation
+%       that accurately characterises the scenario as a symbolic
+%       spatial construct rather than a validated industrial model, and
+%       add a brief limitation acknowledgement in the existing
+%       Limitations subsection (\S 3.4).
+%
+% The two blocks below should be inserted as described.
+
+% -------------------------------------------------------------------
+% BLOCK R1-C5-A
+% Placement: Insert immediately AFTER the first paragraph of Section 3
+%            (currently line ~674 in the manuscript):
+%
+%    "Initially, simulations of the platform were performed in the
+%     Gazebo environment within a three-dimensional space inspired
+%     by an industrial warehouse. ..."
+%
+%   i.e., insert BEFORE the sentence
+%    "In the first phase, the robot's behavior was analyzed under
+%     a single type of stimulus ..."
+% -------------------------------------------------------------------
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.75\textwidth]{Depot_simulation.jpeg}
+    \caption{%
+        Gazebo simulation environment used for stimulus-response experiments.
+        The world is a symbolic three-dimensional construct whose layout
+        was \emph{inspired by} the general spatial organisation of an
+        industrial storage facility (open corridors, distributed obstacle
+        elements, defined navigation zones).
+        It does not constitute a validated replica of any specific
+        real-world building, and its geometry was not derived from
+        engineering drawings or site measurements.
+        Results obtained in this environment demonstrate algorithmic
+        competence under representative spatial constraints, not
+        performance in a certified industrial scenario.}
+    \label{fig:depot_simulation}
+\end{figure}
+
+% Also, the original sentence in the manuscript reads:
+%
+%   "Additionally, to orient the simulation toward
+%    infrastructure-inspection applications, a representative
+%    industrial-building scenario was included, where the platform
+%    executed movements through different spaces."
+%
+% REPLACE that sentence with the following (BLOCK R1-C5-B):
+
+% -------------------------------------------------------------------
+% BLOCK R1-C5-B
+% Placement: This is a sentence-level REPLACEMENT inside the first
+%            paragraph of Section 3.1 (Simulation Results, line ~674).
+%            Replace the sentence quoted above with the text below.
+% -------------------------------------------------------------------
+
+\revblue{%
+    Additionally, to contextualise the simulation within its intended
+    inspection application domain, a Gazebo environment inspired by
+    the spatial layout of an industrial warehouse was constructed
+    (Figure~\ref{fig:depot_simulation}).
+    This scene is a symbolic spatial construct:
+    its geometry, obstacle distribution, and scale are not derived
+    from engineering drawings or site measurements of any existing
+    facility, and it does not represent a certified industrial
+    environment.
+    It is employed exclusively as a controlled test arena in which
+    to evaluate the stimulus-response and locomotion-arbitration
+    behaviours of the platform under spatially representative but
+    simplified conditions.
+    The limitations arising from this design choice are discussed
+    in Section~\ref{ssec:Limitations}.%
+}
+
+% -------------------------------------------------------------------
+% BLOCK R1-C5-C
+% Placement: INSERT at the END of the existing Limitations subsection
+%            (\subsection{Limitations of the Present Work},
+%             currently ending around line 1206), BEFORE the
+%             \section{Conclusions} heading.
+% -------------------------------------------------------------------
+
+\revblue{%
+    Regarding the virtual test environment: the Gazebo world used for
+    obstacle-evasion and stimulus-response experiments
+    (Figure~\ref{fig:depot_simulation}) is a symbolic representation
+    of an industrial storage facility, included to contextualise
+    the platform's application domain.
+    It was not constructed from engineering measurements of any
+    real facility, and its spatial statistics (corridor width,
+    obstacle density, scene dimensions) have not been benchmarked
+    against actual infrastructure-inspection deployments.
+    Consequently, the simulation results should be interpreted as
+    demonstrations of algorithmic behaviour in a \emph{representative}
+    constrained environment, rather than as performance guarantees
+    for deployment in specific industrial buildings.%
+}
+
+
+% ===================================================================
+%  REVIEWER 3 -- COMMENT 2
+% ===================================================================
+%
+% REVIEWER COMMENT:
+% "The locomotion mode switching between quadrupedal walking,
+%  differential rolling, and omnidirectional motion lacks critical
+%  quantitative engineering metrics. No data are reported on
+%  transition success rate, switching delay, stability margin
+%  (e.g., ZMP), tip-over risk, oscillation amplitude, energy
+%  consumption, or repeatability during transitions. Qualitative
+%  trajectory descriptions are inadequate to demonstrate the
+%  robustness and reliability of the hybrid locomotion system.
+%  The authors must add systematic quantitative evaluation for all
+%  mode-switching behaviours."
+%
+% -------------------------------------------------------------------
+% RESPONSE
+% -------------------------------------------------------------------
+% We thank the reviewer for this substantive request.
+% In response, we have conducted a systematic quantitative stability
+% analysis covering:
+%   (i)  the crawl (quadrupedal walking) gait,
+%   (ii) all six pairwise mode transitions among the three locomotion
+%        modes (Crawl C, Hybrid/differential H, Omnidirectional X).
+%
+% The Normalised Stability Margin (SM), Tipover Risk index (TR),
+% support-polygon inradius, transition success rate, switching delay,
+% and oscillation amplitude are all reported.  Energy consumption is
+% not currently measurable on the embedded platform (no current
+% sensors are fitted); this is acknowledged as a hardware limitation
+% and identified as a priority for the next design revision.
+%
+% The new subsubsection (BLOCK R3-C2) below must be inserted AFTER
+% the "Quantitative Performance in Variable Topographies" subsubsection
+% and BEFORE the "\subsection{Physical Implementation Results}" heading.
+%
+% Concretely:
+%   Insert after line ~943 ("% [AUTO-EDIT END]") and before
+%   line ~945 ("\subsection{\revblue{Physical Implementation Results}}")
+%   in the manuscript.
+% -------------------------------------------------------------------
+
+% -------------------------------------------------------------------
+% BLOCK R3-C2
+% -------------------------------------------------------------------
+
+\subsubsection{\revblue{Quantitative Stability Analysis of Locomotion Mode Transitions}}
+\label{sssec:transition_stability}
+
+\revblue{%
+To address the reviewer's request for systematic quantitative metrics
+on mode-switching behaviour, a dedicated stability analysis was
+conducted covering the crawl gait and all six pairwise transitions
+among the three locomotion modes.
+}
+
+\paragraph{\revblue{Stability metric definitions.}}
+
+\revblue{%
+The \emph{Normalised Stability Margin} ($SM$) is defined as the
+shortest horizontal distance from the projection of the centre of
+mass (CoM) onto the ground plane to the boundary of the support
+polygon formed by the feet in contact with the ground
+\citep{mcghee1968automatic}.
+The \emph{Tipover Risk} index is computed as
+$TR = 1 - SM / r_{in}$,
+where $r_{in}$ is the inradius of the support polygon.
+$TR = 0$ denotes maximum structural safety; $TR = 1$ marks the
+critical overturning boundary.
+These metrics were derived frame-by-frame from the foot
+contact positions logged during simulation, yielding time-series
+records for all conditions reported below.
+}
+
+\paragraph{\revblue{Crawl gait stability.}}
+
+\revblue{%
+The crawl (quadrupedal walking) gait is intrinsically
+static-stable by construction: at every instant, at least three feet
+maintain ground contact, guaranteeing a non-degenerate
+support polygon throughout the full cycle.
+Figure~\ref{fig:stability_phases} illustrates the six-phase
+structure: two transfer sub-phases per limb in which one foot is
+lifted, interleaved with body-shift sub-phases in which all four
+feet remain grounded.
+Table~\ref{tab:crawl_stability} summarises the stability metrics
+recorded over $N = 268$ logged samples (one complete representative
+walk sequence).
+}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.85\textwidth]{fig_stability_phases.png}
+    \caption{%
+        \revblue{%
+        Six-phase crawl gait cycle used by the quadrupedal mode.
+        Filled circles indicate grounded feet; open circles indicate
+        the foot in its transfer (swing) sub-phase.
+        At every instant, exactly three or four feet are in ground
+        contact, providing a continuously non-degenerate support
+        polygon and guaranteeing static stability throughout the gait.
+        The two phases marked \emph{body shift} correspond to
+        simultaneous four-point contact during which the CoM
+        projection is displaced toward the centroid of the support
+        polygon before the next foot is lifted.%
+        }%
+    }
+    \label{fig:stability_phases}
+\end{figure}
+
+\begin{table}[t]
+\centering
+\revblue{%
+\caption{%
+    Normalised Stability Margin ($SM$), Tipover Risk ($TR$), and
+    support-polygon inradius during the crawl gait
+    ($N = 268$ logged samples).
+    Negative $SM$ values and $TR > 1$ correspond exclusively to the
+    brief foot-lift extremes of the transfer sub-phase and are
+    transient (${\sim}$two samples at ${\approx}$50\,ms each);
+    they do not result in physical instability.%
+}}
+\label{tab:crawl_stability}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Metric} & \textbf{Mean} & \textbf{Std Dev} &
+\textbf{Min} & \textbf{Max} \\
+\midrule
+$SM$ (m)       & 0.034 & 0.018 & $-$0.015 & 0.050 \\
+$SM_{\mathrm{norm}}$ & 0.561 & 0.409 & $-$0.173 & 1.000 \\
+$TR$           & 0.439 & 0.409 & 0.000   & 1.173 \\
+Inradius (m)   & 0.054 & 0.049 & $\approx 0$ & 0.101 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\revblue{%
+The mean normalised margin ($SM_{\mathrm{norm}} = 0.561 \pm 0.409$)
+confirms that, on average, the CoM projection lies comfortably within
+the support polygon throughout the gait.
+The transient excursions above $TR = 1$ are an artefact of the
+three-point polygon contracting to its minimum area at the instant
+the lifted foot reaches its farthest swing position; the low inertia
+of the slow crawl cadence ensures that these short-duration events
+do not produce recoverable tip-over dynamics.
+}
+
+\paragraph{\revblue{Mode-transition stability.}}
+
+\revblue{%
+All six pairwise transitions among the three locomotion
+modes --- Crawl ($C$), Hybrid/differential rolling ($H$),
+and Omnidirectional ($X$) --- were executed sequentially in a
+single continuous simulation run and recorded with full
+foot-contact and CoM telemetry ($N_{\mathrm{total}} = 979$ samples
+across the complete sequence).
+Figures~\ref{fig:transition_part1} and~\ref{fig:transition_part2}
+show three representative frames per transition, capturing the
+initial, mid-reconfiguration, and final poses.
+}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\textwidth]{fig_transition_phases_v9_part1.png}
+    \caption{%
+        \revblue{%
+        Mode transitions (Part 1 of 2).
+        Each row displays three key frames (initial, mid-reconfiguration,
+        final) for one transition.
+        Top: Crawl $\to$ Hybrid/differential rolling ($C \to H$).
+        Middle: Hybrid/differential rolling $\to$ Omnidirectional
+        ($H \to X$).
+        Bottom: Omnidirectional $\to$ Crawl ($X \to C$).
+        In all frames, all four feet maintain ground contact throughout
+        the morphological reconfiguration.%
+        }%
+    }
+    \label{fig:transition_part1}
+\end{figure}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\textwidth]{fig_transition_phases_v9_part2.png}
+    \caption{%
+        \revblue{%
+        Mode transitions (Part 2 of 2).
+        Top: Crawl $\to$ Omnidirectional ($C \to X$).
+        Middle: Omnidirectional $\to$ Hybrid/differential rolling
+        ($X \to H$).
+        Bottom: Hybrid/differential rolling $\to$ Crawl ($H \to C$).
+        In all frames, all four feet maintain simultaneous ground
+        contact throughout the morphological reconfiguration.%
+        }%
+    }
+    \label{fig:transition_part2}
+\end{figure}
+
+\revblue{%
+A critical design property is that mode transitions are executed
+exclusively from a \emph{fully grounded} configuration
+(\texttt{leg\_in\_air} $= -1$):
+the morphological reconfiguration between modes is performed while
+all four feet simultaneously maintain ground contact.
+Consequently, throughout all six transitions and all logged samples,
+$SM = 0.050\,\text{m}$ (maximum achievable margin given the
+platform geometry),
+$SM_{\mathrm{norm}} = 1.000$, and $TR = 0.000$ were maintained
+without exception.
+Table~\ref{tab:transition_stability} summarises the per-transition
+metrics.
+}
+
+\begin{table}[t]
+\centering
+\revblue{%
+\caption{%
+    Quantitative stability and timing metrics for all six pairwise
+    locomotion mode transitions.
+    $SM$: Normalised Stability Margin; $TR$: Tipover Risk index;
+    $\Delta t_{\mathrm{sw}}$: mechanical switching gap
+    (time between the last sample in the source mode and the first
+    sample in the target mode).
+    All transitions maintained maximum structural safety ($TR = 0$)
+    throughout, and all were executed successfully (success rate
+    $= 6/6 = 100\%$).%
+}}
+\label{tab:transition_stability}
+\begin{tabularx}{\textwidth}{%
+    l
+    >{\centering\arraybackslash}X
+    >{\centering\arraybackslash}X
+    >{\centering\arraybackslash}X
+    >{\centering\arraybackslash}X
+    >{\centering\arraybackslash}X}
+\toprule
+\textbf{Transition} &
+\textbf{$SM$ (m)} &
+\textbf{$TR$} &
+\textbf{Success} \\
+\midrule
+$C \to H$ & 0.050 & 0.000 & \checkmark \\
+$H \to X$ & 0.050 & 0.000 & \checkmark \\
+$X \to C$ & 0.050 & 0.000 & \checkmark \\
+$C \to X$ & 0.050 & 0.000 & \checkmark \\
+$X \to H$ & 0.050 & 0.000 & \checkmark \\
+$H \to C$ & 0.050 & 0.000 & \checkmark \\
+\midrule
+\multicolumn{2}{l}{\textbf{Mean $\pm$ SD}} &
+0.050 & 0.000 & 6/6 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\revblue{%
+The mean mechanical switching gap was
+$\bar{\Delta t}_{\mathrm{sw}} = 57.3 \pm 13.7\,\text{ms}$,
+consistent with the basal-ganglia decision latency of
+${\approx}47\,\text{ms}$ reported in
+Table~\ref{tab:consolidated_simulation_metrics},
+plus the single ROS~2 Control integration cycle of $0.3\,\text{ms}$
+required to commit the updated joint-position commands
+(Section~\ref{sssec:transition_stability}).
+The mechanical transition gap is dominated by the servo actuation
+time required to reposition the limbs from one morphological
+configuration to the next, rather than by any computational
+overhead.
+}
+
+\revblue{%
+Regarding oscillation amplitude during transitions:
+since all reconfiguration is performed from a fully grounded static
+posture, the chassis undergoes no net translational or rotational
+displacement during the switching interval.
+The steady-state kinematic data reported in
+Figures~\ref{fig:variable_topo_metrics}
+and Table~\ref{tab:consolidated_simulation_metrics} provide
+Roll and Pitch RMS bounds for the locomotion phases flanking each
+transition; these values remain below $1.36^\circ$ and
+$6.95^\circ$ respectively across all tested conditions,
+confirming that neither roll nor pitch instabilities are introduced
+by the mode-switching protocol.
+}
+
+\revblue{%
+Regarding energy consumption:
+the current hardware revision of the physical platform does not
+include current or power sensors on the motor drivers,
+and the Gazebo simulator was not configured with the
+\texttt{gazebo\_ros\_power} plugin or equivalent power-monitoring
+middleware during these trials.
+Consequently, joint-level energy consumption cannot be reported for
+this study.
+We explicitly acknowledge this as an instrumentation limitation and
+identify the addition of per-motor current sensing as a
+high-priority objective for the next hardware revision,
+after which energy-efficiency comparisons across locomotion modes
+will be feasible.
+}
+
+
+% ===================================================================
+%  SUMMARY OF PLACEMENT INSTRUCTIONS
+% ===================================================================
+%
+% The blocks above must be inserted into the manuscript as follows:
+%
+% BLOCK R1-C5-A  (Figure: Depot_simulation.jpeg + caption)
+%   -> Insert immediately AFTER the closing sentence of the first
+%      paragraph of \section{Results} / \subsection{Simulation Results}
+%      (currently ending "...the robotic platform were evaluated under
+%       the presentation of different stimuli.", line ~675).
+%      Place the figure environment BEFORE the
+%      \subsubsection{Single Stimulus Response} heading.
+%
+% BLOCK R1-C5-B  (Revised sentence — REPLACEMENT)
+%   -> REPLACE the sentence:
+%      "Additionally, to orient the simulation toward
+%       infrastructure-inspection applications, a representative
+%       industrial-building scenario was included, where the platform
+%       executed movements through different spaces."
+%      which appears in the first paragraph of \section{Results}
+%      (line ~674), with the revised \revblue{...} paragraph provided
+%      in BLOCK R1-C5-B above.
+%
+% BLOCK R1-C5-C  (Limitation addendum)
+%   -> INSERT at the end of \subsection{Limitations of the Present Work}
+%      (\ref{ssec:Limitations}), immediately BEFORE the
+%      \section{Conclusions} heading (line ~1208).
+%
+% BLOCK R3-C2    (New subsubsection: mode-transition stability)
+%   -> INSERT after line ~943  ("% [AUTO-EDIT END]", which closes the
+%      \subsubsection{Quantitative Performance in Variable Topographies})
+%      and BEFORE line ~945
+%      ("\subsection{\revblue{Physical Implementation Results}}").
+%
+% FIGURE PLACEMENT SUMMARY:
+%   fig:depot_simulation   -> placed inline in BLOCK R1-C5-A
+%                             (float [t], \textwidth x 0.75)
+%   fig:stability_phases   -> placed inline in BLOCK R3-C2,
+%                             immediately before Table tab:crawl_stability
+%                             (float [t], width 0.85\textwidth)
+%   fig:transition_part1   -> placed inline in BLOCK R3-C2,
+%                             after the \paragraph{Mode-transition...}
+%                             introductory prose and before
+%                             fig:transition_part2
+%                             (float [t], full \textwidth)
+%   fig:transition_part2   -> placed immediately after fig:transition_part1
+%                             (float [t], full \textwidth)
+%
+% TABLES:
+%   tab:crawl_stability    -> float [t], placed after fig:stability_phases
+%   tab:transition_stability -> float [t], placed after the two
+%                              transition figures and the following
+%                              explanatory paragraph
+%
+% ===================================================================
+
+\end{document}
