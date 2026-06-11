@@ -13,6 +13,7 @@ TOPIC_CMD_VEL            = "/cmd_vel"
 TOPIC_BBOX_RED           = "/bounding_box/red"
 TOPIC_BBOX_BLUE          = "/bounding_box/blue"
 TOPIC_PETER_MODE         = "/peter_mode"
+TOPIC_PITCH_STIMULUS     = "/pitch_stimulus"
 
 TOPIC_EXPERIMENT_METRICS = "/experiment/metrics"   # neural_recorder → metrics_recorder
 TOPIC_EXPERIMENT_STATUS  = "/experiment/status"    # neural_recorder → (debug)

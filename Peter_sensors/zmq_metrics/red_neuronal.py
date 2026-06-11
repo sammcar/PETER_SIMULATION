@@ -49,6 +49,7 @@ from topics import (
     TOPIC_CMD_VEL, TOPIC_PETER_MODE,
     TOPIC_METRICS,
     TOPIC_NEURON_ACTIVITY,
+    TOPIC_PITCH_STIMULUS,
 )
 
 # Tópicos de diagnóstico GPe (solo para monitoreo)
@@ -74,7 +75,7 @@ class NetworkPublisher(Node):
         self.metrics_pub   = self.create_publisher(Float32MultiArray, TOPIC_METRICS,       10)
 
         ## HISTÉRESIS PARA CAMBIO DE MODO
-        self.min_dwell_time = 8.0          # Tiempo mínimo (segundos) que debe permanecer en un modo
+        self.min_dwell_time = 3.0          # Tiempo mínimo (segundos) que debe permanecer en un modo
         self.last_mode_change_time = 0.0   # Timestamp del último cambio
         self.hysteresis_threshold = 0.35   # Umbral más bajo para mantenerse en H (evita el "flickering")
 
@@ -88,10 +89,19 @@ class NetworkPublisher(Node):
         self.posB = 0.0
 
         # ── Suscriptores ───────────────────────────────────────────────────
-        self.create_subscription(Float32MultiArray, TOPIC_BBOX_RED,  self.red_callback,   100)
-        self.create_subscription(Float32MultiArray, TOPIC_BBOX_BLUE, self.blue_callback,  100)
-        self.create_subscription(Imu,               TOPIC_IMU,       self.imu_callback,    10)
-        self.create_subscription(LaserScan,         TOPIC_SCAN,      self.lidar_callback,  10)
+        self.create_subscription(Float32MultiArray, TOPIC_BBOX_RED,     self.red_callback,            100)
+        self.create_subscription(Float32MultiArray, TOPIC_BBOX_BLUE,    self.blue_callback,           100)
+        self.create_subscription(Imu,               TOPIC_IMU,          self.imu_callback,             10)
+        self.create_subscription(LaserScan,         TOPIC_SCAN,         self.lidar_callback,           10)
+        self.create_subscription(Float64,           TOPIC_PITCH_STIMULUS, self.pitch_stimulus_callback, 10)
+
+        # ── Estado estímulo de pitch externo ───────────────────────────────
+        self.external_pitch_value = 0.0
+        self.pitch_stimulus_active = False
+        self.pitch_stimulus_time = None
+        self.pitch_change_pending = False
+        self.pitch_latencies = []
+        self.last_pitch_latency = None
 
         # ── Constantes y variables de dinámica neuronal ────────────────────
         self._noise_level_idx = noise_level_idx
@@ -233,6 +243,12 @@ class NetworkPublisher(Node):
     # CALLBACKS (sin cambios en la lógica)
     # ══════════════════════════════════════════════════════════════════════
 
+    def pitch_stimulus_callback(self, msg):
+        self.external_pitch_value = float(msg.data)
+        self.pitch_stimulus_time = time.time()
+        self.pitch_stimulus_active = True
+        self.pitch_change_pending = True
+
     def lidar_callback(self, msg):
         ranges = np.array(msg.ranges)
 
@@ -326,7 +342,6 @@ class NetworkPublisher(Node):
 
         #R = self.areaBoundingBoxR / 500
         R = 3.652
-        #R = 0
         #G = (self.lidar[4,0]*15 if self.lidar[4,0]*15 > 0.2 else 0)*6
         G = 0
         #B = self.areaBoundingBoxB / 500
@@ -517,6 +532,12 @@ class NetworkPublisher(Node):
             self.current_mode = new_mode
             self.last_mode_change_time = current_time
             self.get_logger().info(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
+            if self.pitch_change_pending and self.pitch_stimulus_time is not None:
+                latency = current_time - self.pitch_stimulus_time
+                self.pitch_latencies.append(latency)
+                self.last_pitch_latency = latency
+                self.pitch_change_pending = False
+                self.get_logger().info(f"Latencia pitch->modo: {latency:.4f} s")
 
         # ── Actividad neuronal y GPe ───────────────────────────────────────
         self.publish_data()
