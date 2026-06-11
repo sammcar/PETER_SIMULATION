@@ -35,12 +35,14 @@ LEG_NAMES  = ['RU', 'LU', 'RD', 'LD']
 LEG_COLORS = ['#1976D2', '#388E3C', '#F57C00', '#7B1FA2']
 
 CSV_FIELDS = [
-    'timestamp', 'leg_in_air',
-    'foot_RU_x', 'foot_RU_y', 'foot_LU_x', 'foot_LU_y',
-    'foot_RD_x', 'foot_RD_y', 'foot_LD_x', 'foot_LD_y',
-    'SM', 'SM_norm', 'TR', 'triangle_area', 'inradius',
+    'timestamp', 'mode', 'leg_in_air',
+    'foot_RU_x', 'foot_RU_y',
+    'foot_LU_x', 'foot_LU_y',
+    'foot_RD_x', 'foot_RD_y',
+    'foot_LD_x', 'foot_LD_y',
+    'SM', 'SM_norm', 'TR',
+    'triangle_area', 'inradius',
 ]
-
 
 # ── maths ─────────────────────────────────────────────────────────────────────
 
@@ -190,7 +192,7 @@ class StabilityMonitor(Node):
             self._harea.append(area_val)
 
             row = {
-                'timestamp': t, 'leg_in_air': air_leg,
+                'timestamp': t, 'mode': self._current_mode, 'leg_in_air': air_leg,
                 'foot_RU_x': feet_all[0][0], 'foot_RU_y': feet_all[0][1],
                 'foot_LU_x': feet_all[1][0], 'foot_LU_y': feet_all[1][1],
                 'foot_RD_x': feet_all[2][0], 'foot_RD_y': feet_all[2][1],

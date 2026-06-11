@@ -900,22 +900,43 @@ class JointPositionPublisher(Node):
             return hx - ys, hy + xs
 
     def _publish_stability_data(self):
-        """Publish foot positions and CoM in base_link frame. Only active in mode C."""
-        # if self.state != 'C':
-        #     return
+        """
+        Publica las posiciones FÍSICAS REALES de las patas y el CoM utilizando Transformaciones (TF).
+        Vital para capturar la dispersión poligonal continua durante las transiciones de modo.
+        """
         msg = PoseArray()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'base_link'
 
-        for i in range(4):
+        # Enlaces de contacto físicos definidos en tu URDF
+        foot_links = ['BumperRU_link', 'BumperLU_link', 'BumperRD_link', 'BumperLD_link']
+
+        for i, link_name in enumerate(foot_links):
             p = Pose()
-            p.position.x, p.position.y = self._foot_body_xy(i)
-            p.position.z = 0.0
-            # orientation.w encodes contact state: 1.0 = on ground, 0.0 = in air
-            p.orientation.w = 0.0 if site_now[i][2] < Z_DEFAULT - 5.0 else 1.0
+            try:
+                # 1. Obtener coordenadas reales interpoladas de la simulación en tiempo real
+                trans = self.tf_buffer.lookup_transform('base_link', link_name, rclpy.time.Time())
+                p.position.x = trans.transform.translation.x
+                p.position.y = trans.transform.translation.y
+                p.position.z = trans.transform.translation.z
+                
+                # 2. Definir estado de contacto dinámico
+                if self.state == 'C':
+                    # Si camina, verifica altura real de la pata
+                    p.orientation.w = 0.0 if site_now[i][2] < Z_DEFAULT - 5.0 else 1.0
+                else:
+                    # Transiciones, modo H y X operan arrastrándose / rodando siempre apoyados
+                    p.orientation.w = 1.0 
+                    
+            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+                # Fallback de seguridad usando la cinemática teórica inversa si el TF se retrasa
+                p.position.x, p.position.y = self._foot_body_xy(i)
+                p.position.z = 0.0
+                p.orientation.w = 0.0 if site_now[i][2] < Z_DEFAULT - 5.0 else 1.0
+
             msg.poses.append(p)
 
-        # CoM: geometric body center (base_link origin)
+        # Centro de Masas (CoM) aproximado al origen del robot
         com = Pose()
         com.position.x = 0.0
         com.position.y = 0.0
