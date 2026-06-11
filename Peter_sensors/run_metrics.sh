@@ -52,8 +52,8 @@ echo ""
 cleanup() {
     echo ""
     echo "Deteniendo nodos de métricas..."
-    kill $PID_NEURAL $PID_COMBINED 2>/dev/null
-    wait $PID_NEURAL $PID_COMBINED 2>/dev/null
+    kill $PID_NEURAL $PID_COMBINED $PID_INA 2>/dev/null
+    wait $PID_NEURAL $PID_COMBINED $PID_INA 2>/dev/null
     echo "CSVs guardados en: $OUT_DIR"
     exit 0
 }
@@ -67,18 +67,24 @@ uv run "$SCRIPT_DIR/zmq_metrics/neural_recorder.py" \
     --output-dir "$OUT_DIR" &
 PID_NEURAL=$!
 
-echo "[2/2] Metrics recorder..."
+echo "[2/3] Metrics recorder..."
 uv run "$SCRIPT_DIR/zmq_metrics/metrics_recorder.py" \
     --experiment "$EXPERIMENT" \
     --test "$TEST_NUM" \
     --output-dir "$OUT_DIR" &
 PID_COMBINED=$!
 
+echo "[3/3] IMU + INA recorder..."
+uv run "$SCRIPT_DIR/zmq_metrics/imu_ina_recorder.py" \
+    --output-dir "$OUT_DIR" &
+PID_INA=$!
+
 echo ""
 echo "Nodos corriendo:"
 echo "  Neural recorder   PID $PID_NEURAL   → $OUT_DIR/neural_metrics.csv"
 echo "  Metrics recorder  PID $PID_COMBINED → $OUT_DIR/combined_metrics.csv"
+echo "  IMU+INA recorder  PID $PID_INA      → $OUT_DIR/imu_ina_<timestamp>.csv"
 echo ""
 echo "Presiona Ctrl+C para detener y guardar."
 
-wait $PID_NEURAL $PID_COMBINED
+wait $PID_NEURAL $PID_COMBINED $PID_INA

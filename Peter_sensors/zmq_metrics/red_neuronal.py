@@ -73,6 +73,11 @@ class NetworkPublisher(Node):
         self.publisher_imu = self.create_publisher(Float32MultiArray, TOPIC_IMU_ACTIVITY,  10)
         self.metrics_pub   = self.create_publisher(Float32MultiArray, TOPIC_METRICS,       10)
 
+        ## HISTÉRESIS PARA CAMBIO DE MODO
+        self.min_dwell_time = 8.0          # Tiempo mínimo (segundos) que debe permanecer en un modo
+        self.last_mode_change_time = 0.0   # Timestamp del último cambio
+        self.hysteresis_threshold = 0.35   # Umbral más bajo para mantenerse en H (evita el "flickering")
+
         # ── Estado inicial ─────────────────────────────────────────────────
         self.current_mode     = 'C'
         self.areaBoundingBoxR = 0.0
@@ -131,7 +136,7 @@ class NetworkPublisher(Node):
         self.ang_s   = 90
         self.epsilem = 0.01
         self.dt      = 1
-        self.cte     = 3
+        self.cte     = 6
         self.Area    = 28
 
         self.roll  = 0.0
@@ -152,8 +157,8 @@ class NetworkPublisher(Node):
         self.TaoSTR   = 1
 
         self.Usigma_az = 2.9
-        self.Upitch    = 20
-        self.Uroll     = 270
+        self.Upitch    = 10
+        self.Uroll     = 20
 
         self.W_input_to_response  = np.fliplr(np.eye(16))
         self.weights_r_r          = -np.ones((16, 16)) + np.eye(16)
@@ -352,7 +357,7 @@ class NetworkPublisher(Node):
         elif self.Gpe[2,1] > 1.5 and B > 0.5: self.ang_s = self.posB
         else: self.ang_s = 90 * (self.lidar[4,1] < 0.3)
 
-        self.ang_s = 90  # fijo para prueba de terreno inclinado
+        #self.ang_s = 90  # fijo para prueba de terreno inclinado
 
         # ── Módulo IMU ─────────────────────────────────────────────────────
         self.z[0,1]  = self.z[0,0]  + (self.dt/self.tau)*(-self.z[0,0]  + (self.A * max(0, self.std_dev_accel_z - self.Usigma_az)**2) / (self.SigmaIMU**2 + (-self.z[0,0]  + self.std_dev_accel_z - self.Usigma_az)**2))
@@ -374,8 +379,8 @@ class NetworkPublisher(Node):
         self.z[13,1] = self.z[13,0] + (self.dt/self.tau)*(-self.z[13,0] + max(0, -self.w*abs(cmd_ang)*self.z[11,0] - self.w*abs(cmd_ang)*self.z[12,0] - 2*self.w*self.z[17,0] + self.cte + self.Gpe[2,0]))
 
         self.z[14,1] = self.z[14,0] + (self.dt/self.tau)*(-self.z[14,0] + (self.A * max(0, 100*self.Gpe[1,0] - self.w*self.Gpi[0,0] - self.w*self.Gpi[2,0] - self.w*self.z[15,0] - self.w*self.z[16,0])**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0,0] - self.w*self.Gpi[2,0] - self.w*self.z[15,0] - self.w*self.z[16,0])**2))
-        self.z[15,1] = self.z[15,0] + (self.dt/self.tau)*(-self.z[15,0] + (self.A * max(0, -self.Gpe[1,0]*100 - self.cte + self.z[4,0]*self.w + 2*self.z[0,0] - self.w*self.z[14,0]*1.5 - self.w*self.z[16,0])**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 - self.cte + self.z[4,0]*self.w + 2*self.z[0,0] - self.w*self.z[14,0]*1.5 - self.w*self.z[16,0])**2))
-        self.z[16,1] = self.z[16,0] + (self.dt/self.tau)*(-self.z[16,0] + (self.A * max(0, self.z[3,0] - 100*self.Gpe[1,0] - self.w*self.z[14,0]*1.5 - self.w*self.z[15,0]*1.5 + 5*self.z[1,0] + 5*self.z[2,0] + self.cte)**2) / (self.Sigma**2 + (self.z[3,0] - 100*self.Gpe[1,0] - self.w*self.z[14,0]*1.5 - self.w*self.z[15,0]*1.5 + 5*self.z[1,0] + 5*self.z[2,0] + self.cte)**2))
+        self.z[15,1] = self.z[15,0] + (self.dt/self.tau)*(-self.z[15,0] + (self.A * max(0, -self.Gpe[1,0]*100 -self.z[1,0]*150 + self.cte*5 + self.z[4,0]*self.w + 2*self.z[0,0] - self.w*self.z[14,0]*1.5 - self.w*self.z[16,0])**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 -self.z[1,0] - self.cte + self.z[4,0]*self.w + 2*self.z[0,0] - self.w*self.z[14,0]*1.5 - self.w*self.z[16,0])**2))
+        self.z[16,1] = self.z[16,0] + (self.dt/self.tau)*(-self.z[16,0] + (self.A * max(0, self.z[3,0] - 100*self.Gpe[1,0] - self.w*self.z[14,0]*1.5 - self.w*self.z[15,0]*1.5 + 150*self.z[1,0] + 5*self.z[2,0] -self.cte)**2) / (self.Sigma**2 + (self.z[3,0] - 100*self.Gpe[1,0] - self.w*self.z[14,0]*1.5 - self.w*self.z[15,0]*1.5 + 5*self.z[1,0] + 5*self.z[2,0] + self.cte)**2))
 
         self.z[17,1] = self.z[17,0] + (self.dt/self.tau)*(-self.z[17,0] + max(0, self.Gpe[2,0] - self.Area))
 
@@ -468,6 +473,7 @@ class NetworkPublisher(Node):
 
         tw_ang, tw_lat, tw_lin = 0.0, 0.0, 0.0
         if   self.z[17,1] > 0.25:                      pass          # STOP
+        elif lin != 0.0 and self.current_mode in ('X', 'C'):          tw_lin = lin  # Modos X y C: lineal tiene prioridad
         elif ang != 0.0:                                tw_ang = ang
         elif lat != 0.0 and self.z[16,1] < 0.5:        tw_lat = lat
         elif lin != 0.0:                                tw_lin = lin
@@ -475,15 +481,42 @@ class NetworkPublisher(Node):
         self.publish_twist(tw_lin, tw_lat, tw_ang)
 
         # ── Modo ───────────────────────────────────────────────────────────
-        if   self.z[15,1] > 0.5: 
-            self.publish_mode('C')
-            print("Cuadrupedo")
-        elif self.z[16,1] > 0.5: 
-            self.publish_mode('H')
-            print("Móvil H")
-        elif self.z[14,1] > 0.5: 
-            self.publish_mode('X')
-            print("Omnidireccional")
+        #if   self.z[15,1] > 0.5: 
+        #    self.publish_mode('C')
+        #    print("Cuadrupedo")
+        #elif self.z[16,1] > 0.5: 
+        #    self.publish_mode('H')
+        #    print("Móvil H")
+        #elif self.z[14,1] > 0.5: 
+        #    self.publish_mode('X')
+        #    print("Omnidireccional")
+
+        # Obtener valores actuales
+        z15 = self.z[15,1] # Activación C
+        z16 = self.z[16,1] # Activación H
+        z14 = self.z[14,1] # Activación X
+            
+        current_time = time.time()
+        time_since_last_change = current_time - self.last_mode_change_time
+            
+        # Lógica de decisión con Histéresis
+        new_mode = self.current_mode 
+        
+        # Condición de activación para H (más sensible)
+        if z16 > 0.4: 
+            new_mode = 'H'
+        # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
+        elif z15 > 0.6 and time_since_last_change > self.min_dwell_time:
+            new_mode = 'C'
+        elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
+            new_mode = 'X'
+
+        # Ejecutar cambio solo si el modo es realmente diferente
+        if new_mode != self.current_mode:
+            self.publish_mode(new_mode)
+            self.current_mode = new_mode
+            self.last_mode_change_time = current_time
+            self.get_logger().info(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
 
         # ── Actividad neuronal y GPe ───────────────────────────────────────
         self.publish_data()

@@ -101,7 +101,7 @@ static const float X_FEMUR_OFFSET[4] = {-10.0f, -10.0f, -10.0f, -10.0f};
 static const float X_TIBIA_OFFSET[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
 // ── Velocidad base de motores ─────────────────────────────────────────
-#define MOTOR_BASE_SPEED 90 // 0-255
+#define MOTOR_BASE_SPEED 255 // 0-255
 #define OMNI_MOTOR_BASE_SPEED                                                  \
   255 // 0-255 — velocidad exclusiva para modo omnidireccional
 
