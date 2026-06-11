@@ -901,8 +901,8 @@ class JointPositionPublisher(Node):
 
     def _publish_stability_data(self):
         """Publish foot positions and CoM in base_link frame. Only active in mode C."""
-        if self.state != 'C':
-            return
+        # if self.state != 'C':
+        #     return
         msg = PoseArray()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'base_link'
