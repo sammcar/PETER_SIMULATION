@@ -5,7 +5,7 @@ log/
 ros2_ws/core.*
 # Resultados de experimentos exportados — no versionar datos brutos
 ros2_ws/src/peter_robot/docs/resultados/*
-ros2_ws/src/peter_robot/resultados/*
+ros2_ws/src/peter_robot/results/*
 !ros2_ws/src/peter_robot/docs/resultados/.gitkeep
 pruebas/
 
