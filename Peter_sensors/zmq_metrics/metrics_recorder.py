@@ -11,6 +11,7 @@ Salida:
   CSV con timestamp en ~/peter_experiments/metrics_<timestamp>.csv  (5 Hz)
 """
 
+import argparse
 import csv
 import os
 from datetime import datetime
@@ -23,20 +24,20 @@ from topics import (
     TOPIC_EXPERIMENT_METRICS,
     TOPIC_METRICS,
     TOPIC_RMSE_CT,
-    TOPIC_INA,
 )
 
 
 class MetricsRecorder(Node):
 
-    def __init__(self):
+    def __init__(self, output_dir=None, experiment='unknown', test=1):
         super().__init__('metrics_recorder')
 
-        output_dir = os.path.expanduser('~/peter_experiments/pruebas')
+        if output_dir is None:
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_dir = os.path.expanduser(f'~/peter_experiments/{experiment}_{ts}')
         os.makedirs(output_dir, exist_ok=True)
 
-        timestamp     = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.csv_path = os.path.join(output_dir, f'metrics_{timestamp}.csv')
+        self.csv_path = os.path.join(output_dir, 'combined_metrics.csv')
 
         self.csv_file   = open(self.csv_path, 'w', newline='')
         self.csv_writer = csv.writer(self.csv_file)
@@ -45,7 +46,6 @@ class MetricsRecorder(Node):
             'latency', 'firing_var', 'temp_consistency', 'lambda_efficiency',
             'Tresponse', 'Tswitch', 'roll_rms', 'pitch_rms', 'active_noise_level',
             'rmse_ct',
-            'current_A', 'voltage_V', 'power_W',
         ])
 
         self.get_logger().info(f'Guardando CSV en: {self.csv_path}')
@@ -64,15 +64,10 @@ class MetricsRecorder(Node):
 
         self.rmse_ct = None
 
-        self.current_A = None
-        self.voltage_V = None
-        self.power_W   = None
-
         # ── Subscriptions ──────────────────────────────────────────────────
         self.create_subscription(Float32MultiArray, TOPIC_EXPERIMENT_METRICS, self.metrics_cb,  10)
         self.create_subscription(Float32MultiArray, TOPIC_METRICS,            self.metrics2_cb, 10)
         self.create_subscription(Float64,           TOPIC_RMSE_CT,            self.rmse_cb,     10)
-        self.create_subscription(Float32MultiArray, TOPIC_INA,                self.ina_cb,      10)
 
         self.create_timer(0.2, self.save_row)
 
@@ -96,12 +91,6 @@ class MetricsRecorder(Node):
     def rmse_cb(self, msg):
         self.rmse_ct = msg.data
 
-    def ina_cb(self, msg):
-        if len(msg.data) >= 3:
-            self.current_A = msg.data[0]
-            self.voltage_V = msg.data[1]
-            self.power_W   = msg.data[2]
-
     # ── CSV write ──────────────────────────────────────────────────────────
 
     def save_row(self):
@@ -111,7 +100,6 @@ class MetricsRecorder(Node):
             self.latency, self.firing_var, self.temp_consistency, self.lambda_efficiency,
             self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.active_noise_level,
             self.rmse_ct,
-            self.current_A, self.voltage_V, self.power_W,
         ])
         self.csv_file.flush()
 
@@ -121,7 +109,17 @@ class MetricsRecorder(Node):
 
 
 def main():
-    node = MetricsRecorder()
+    parser = argparse.ArgumentParser(description='Metrics Recorder')
+    parser.add_argument('--output-dir',  default=None,      help='Directorio de salida (absoluto)')
+    parser.add_argument('--experiment',  default='unknown',  help='Nombre del experimento')
+    parser.add_argument('--test',        type=int, default=1, help='Número de prueba')
+    args = parser.parse_args()
+
+    node = MetricsRecorder(
+        output_dir=args.output_dir,
+        experiment=args.experiment,
+        test=args.test,
+    )
     try:
         spin(node)
     except KeyboardInterrupt:

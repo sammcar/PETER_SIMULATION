@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """
-imu_ina_recorder.py — Graba en CSV los datos publicados por imu_ina_node.py.
+imu_ina_recorder.py — Graba en CSV los datos publicados por imu_ina_node.py
+                       junto con el último comando enviado al robot.
 
 Suscripciones (ZMQ):
-  /imu/data  (Imu)              — orientación (quat), accel lineal, vel angular
-  /ina/data  (Float32MultiArray) — [current_A, voltage_V, power_W]
+  /imu/data   (Imu)              — orientación (quat), accel lineal, vel angular
+  /ina/data   (Float32MultiArray) — [current_A, voltage_V, power_W]
+  /robot_cmd  (String)            — último carácter enviado al ESP (i , j l u o k z x c …)
 
 Salida:
-  CSV con timestamp en ~/peter_experiments/pruebas/imu_ina_<timestamp>.csv (5 Hz)
+  CSV con timestamp en <output_dir>/imu_ina_<timestamp>.csv  (5 Hz)
+
+Columna robot_cmd:
+  Refleja el último comando recibido en /robot_cmd. Útil para correlacionar
+  consumo de corriente con modo o dirección de movimiento.
 """
 
 import argparse
@@ -15,8 +21,8 @@ import csv
 import os
 from datetime import datetime
 
-from transport import Node, spin, Imu, Float32MultiArray
-from topics import TOPIC_IMU, TOPIC_INA
+from transport import Node, spin, Imu, Float32MultiArray, String
+from topics import TOPIC_IMU, TOPIC_INA, TOPIC_ROBOT_CMD
 
 
 class ImuInaRecorder(Node):
@@ -37,6 +43,7 @@ class ImuInaRecorder(Node):
             'ax', 'ay', 'az',
             'gx', 'gy', 'gz',
             'current_A', 'voltage_V', 'power_W',
+            'robot_cmd',
         ])
 
         self.get_logger().info(f'Guardando CSV en: {self.csv_path}')
@@ -46,10 +53,12 @@ class ImuInaRecorder(Node):
         self.ax = self.ay = self.az = None
         self.gx = self.gy = self.gz = None
         self.current_A = self.voltage_V = self.power_W = None
+        self.robot_cmd = None
 
         # ── Subscriptions ──────────────────────────────────────────────────
-        self.create_subscription(Imu,              TOPIC_IMU, self.imu_cb, 10)
-        self.create_subscription(Float32MultiArray, TOPIC_INA, self.ina_cb, 10)
+        self.create_subscription(Imu,              TOPIC_IMU,       self.imu_cb, 10)
+        self.create_subscription(Float32MultiArray, TOPIC_INA,       self.ina_cb, 10)
+        self.create_subscription(String,            TOPIC_ROBOT_CMD, self.cmd_cb, 10)
 
         self.create_timer(0.2, self.save_row)
 
@@ -73,6 +82,9 @@ class ImuInaRecorder(Node):
             self.voltage_V = msg.data[1]
             self.power_W   = msg.data[2]
 
+    def cmd_cb(self, msg):
+        self.robot_cmd = msg.data
+
     # ── CSV write ──────────────────────────────────────────────────────────
 
     def save_row(self):
@@ -83,6 +95,7 @@ class ImuInaRecorder(Node):
             self.ax, self.ay, self.az,
             self.gx, self.gy, self.gz,
             self.current_A, self.voltage_V, self.power_W,
+            self.robot_cmd,
         ])
         self.csv_file.flush()
 
