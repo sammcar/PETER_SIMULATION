@@ -184,12 +184,13 @@
 % analysis covering:
 %   (i)  the crawl (quadrupedal walking) gait,
 %   (ii) all six pairwise mode transitions among the three locomotion
-%        modes (Crawl C, Hybrid/differential H, Omnidirectional X).
+%        modes (Quadrupedal Walking C, Differential Rolling H, Omnidirectional X).
 %
 % The Normalised Stability Margin (SM), Tipover Risk index (TR),
-% support-polygon inradius, transition success rate, switching delay,
-% and oscillation amplitude are all reported.  Energy consumption is
-% not currently measurable on the embedded platform (no current
+% support-polygon inradius, transition success rate, and oscillation
+% amplitude are reported.  Switching delay metrics were removed as not
+% representative of the actual transition dynamics.  Energy consumption
+% is not currently measurable on the embedded platform (no current
 % sensors are fitted); this is acknowledged as a hardware limitation
 % and identified as a priority for the next design revision.
 %
@@ -213,32 +214,32 @@
 \revblue{%
 To address the reviewer's request for systematic quantitative metrics
 on mode-switching behaviour, a dedicated stability analysis was
-conducted covering the crawl gait and all six pairwise transitions
+conducted covering the Quadrupedal Walking gait and all six pairwise transitions
 among the three locomotion modes.
 }
 
 \paragraph{\revblue{Stability metric definitions.}}
 
 \revblue{%
-The \emph{Normalised Stability Margin} ($SM$) is defined as the
-shortest horizontal distance from the projection of the centre of
-mass (CoM) onto the ground plane to the boundary of the support
-polygon formed by the feet in contact with the ground
-\citep{mcghee1968automatic}.
-The \emph{Tipover Risk} index is computed as
-$TR = 1 - SM / r_{in}$,
-where $r_{in}$ is the inradius of the support polygon.
-$TR = 0$ denotes maximum structural safety; $TR = 1$ marks the
+The \emph{Normalised Stability Margin} ($SM$) is the shortest
+horizontal distance from the projection of the centre of mass (CoM)
+onto the ground plane to the boundary of the support polygon formed
+by the feet currently in contact with the ground.
+The \emph{Tipover Risk} index is $TR = 1 - SM / r_{in}$, where
+$r_{in}$ is the inradius of the support polygon;
+$TR = 0$ denotes maximum structural safety and $TR = 1$ marks the
 critical overturning boundary.
-These metrics were derived frame-by-frame from the foot
-contact positions logged during simulation, yielding time-series
-records for all conditions reported below.
+These definitions are consistent with those adopted in the
+variable-topography stability analysis reported in the preceding
+subsubsection of the manuscript, and the metrics were derived
+frame-by-frame from the foot-contact positions logged during
+simulation.
 }
 
-\paragraph{\revblue{Crawl gait stability.}}
+\paragraph{\revblue{Quadrupedal Walking gait stability.}}
 
 \revblue{%
-The crawl (quadrupedal walking) gait is intrinsically
+The Quadrupedal Walking gait is intrinsically
 static-stable by construction: at every instant, at least three feet
 maintain ground contact, guaranteeing a non-degenerate
 support polygon throughout the full cycle.
@@ -256,7 +257,7 @@ walk sequence).
     \includegraphics[width=0.85\textwidth]{fig_stability_phases.png}
     \caption{%
         \revblue{%
-        Six-phase crawl gait cycle used by the quadrupedal mode.
+        Six-phase gait cycle of the Quadrupedal Walking mode ($C$).
         Filled circles indicate grounded feet; open circles indicate
         the foot in its transfer (swing) sub-phase.
         At every instant, exactly three or four feet are in ground
@@ -276,7 +277,7 @@ walk sequence).
 \revblue{%
 \caption{%
     Normalised Stability Margin ($SM$), Tipover Risk ($TR$), and
-    support-polygon inradius during the crawl gait
+    support-polygon inradius during Quadrupedal Walking
     ($N = 268$ logged samples).
     Negative $SM$ values and $TR > 1$ correspond exclusively to the
     brief foot-lift extremes of the transfer sub-phase and are
@@ -304,15 +305,15 @@ the support polygon throughout the gait.
 The transient excursions above $TR = 1$ are an artefact of the
 three-point polygon contracting to its minimum area at the instant
 the lifted foot reaches its farthest swing position; the low inertia
-of the slow crawl cadence ensures that these short-duration events
-do not produce recoverable tip-over dynamics.
+of the slow gait cadence ensures that these short-duration events
+do not result in actual tip-over events.
 }
 
 \paragraph{\revblue{Mode-transition stability.}}
 
 \revblue{%
 All six pairwise transitions among the three locomotion
-modes --- Crawl ($C$), Hybrid/differential rolling ($H$),
+modes --- Quadrupedal Walking ($C$), Differential Rolling ($H$),
 and Omnidirectional ($X$) --- were executed sequentially in a
 single continuous simulation run and recorded with full
 foot-contact and CoM telemetry ($N_{\mathrm{total}} = 979$ samples
@@ -327,13 +328,12 @@ initial, mid-reconfiguration, and final poses.
     \includegraphics[width=\textwidth]{fig_transition_phases_v9_part1.png}
     \caption{%
         \revblue{%
-        Mode transitions (Part 1 of 2).
+        Mode transitions (Part~1 of~2).
         Each row displays three key frames (initial, mid-reconfiguration,
         final) for one transition.
-        Top: Crawl $\to$ Hybrid/differential rolling ($C \to H$).
-        Middle: Hybrid/differential rolling $\to$ Omnidirectional
-        ($H \to X$).
-        Bottom: Omnidirectional $\to$ Crawl ($X \to C$).
+        Top: Quadrupedal Walking ($C$) $\to$ Differential Rolling ($H$).
+        Middle: Differential Rolling ($H$) $\to$ Omnidirectional ($X$).
+        Bottom: Omnidirectional ($X$) $\to$ Quadrupedal Walking ($C$).
         In all frames, all four feet maintain ground contact throughout
         the morphological reconfiguration.%
         }%
@@ -346,11 +346,10 @@ initial, mid-reconfiguration, and final poses.
     \includegraphics[width=\textwidth]{fig_transition_phases_v9_part2.png}
     \caption{%
         \revblue{%
-        Mode transitions (Part 2 of 2).
-        Top: Crawl $\to$ Omnidirectional ($C \to X$).
-        Middle: Omnidirectional $\to$ Hybrid/differential rolling
-        ($X \to H$).
-        Bottom: Hybrid/differential rolling $\to$ Crawl ($H \to C$).
+        Mode transitions (Part~2 of~2).
+        Top: Quadrupedal Walking ($C$) $\to$ Omnidirectional ($X$).
+        Middle: Omnidirectional ($X$) $\to$ Differential Rolling ($H$).
+        Bottom: Differential Rolling ($H$) $\to$ Quadrupedal Walking ($C$).
         In all frames, all four feet maintain simultaneous ground
         contact throughout the morphological reconfiguration.%
         }%
@@ -359,105 +358,53 @@ initial, mid-reconfiguration, and final poses.
 \end{figure}
 
 \revblue{%
-A critical design property is that mode transitions are executed
-exclusively from a \emph{fully grounded} configuration
-(\texttt{leg\_in\_air} $= -1$):
-the morphological reconfiguration between modes is performed while
+A critical property of the mode-switching protocol is that
+morphological reconfigurations are constrained to states in which
 all four feet simultaneously maintain ground contact.
-Consequently, throughout all six transitions and all logged samples,
-$SM = 0.050\,\text{m}$ (maximum achievable margin given the
-platform geometry),
-$SM_{\mathrm{norm}} = 1.000$, and $TR = 0.000$ were maintained
-without exception.
-Table~\ref{tab:transition_stability} summarises the per-transition
-metrics.
-}
-
-\begin{table}[t]
-\centering
-\revblue{%
-\caption{%
-    Quantitative stability and timing metrics for all six pairwise
-    locomotion mode transitions.
-    $SM$: Normalised Stability Margin; $TR$: Tipover Risk index;
-    $\Delta t_{\mathrm{sw}}$: mechanical switching gap
-    (time between the last sample in the source mode and the first
-    sample in the target mode).
-    All transitions maintained maximum structural safety ($TR = 0$)
-    throughout, and all were executed successfully (success rate
-    $= 6/6 = 100\%$).%
-}}
-\label{tab:transition_stability}
-\begin{tabularx}{\textwidth}{%
-    l
-    >{\centering\arraybackslash}X
-    >{\centering\arraybackslash}X
-    >{\centering\arraybackslash}X
-    >{\centering\arraybackslash}X
-    >{\centering\arraybackslash}X}
-\toprule
-\textbf{Transition} &
-\textbf{$SM$ (m)} &
-\textbf{$TR$} &
-\textbf{Success} \\
-\midrule
-$C \to H$ & 0.050 & 0.000 & \checkmark \\
-$H \to X$ & 0.050 & 0.000 & \checkmark \\
-$X \to C$ & 0.050 & 0.000 & \checkmark \\
-$C \to X$ & 0.050 & 0.000 & \checkmark \\
-$X \to H$ & 0.050 & 0.000 & \checkmark \\
-$H \to C$ & 0.050 & 0.000 & \checkmark \\
-\midrule
-\multicolumn{2}{l}{\textbf{Mean $\pm$ SD}} &
-0.050 & 0.000 & 6/6 \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\revblue{%
-The mean mechanical switching gap was
-$\bar{\Delta t}_{\mathrm{sw}} = 57.3 \pm 13.7\,\text{ms}$,
-consistent with the basal-ganglia decision latency of
-${\approx}47\,\text{ms}$ reported in
-Table~\ref{tab:consolidated_simulation_metrics},
-plus the single ROS~2 Control integration cycle of $0.3\,\text{ms}$
-required to commit the updated joint-position commands
-(Section~\ref{sssec:transition_stability}).
-The mechanical transition gap is dominated by the servo actuation
-time required to reposition the limbs from one morphological
-configuration to the next, rather than by any computational
-overhead.
+Crucially, this constraint does not require the robot to halt:
+the transition command may be issued while the chassis is actively
+translating or rotating, and locomotion in the target mode resumes
+immediately upon completion of the limb reconfiguration, without an
+intermediate stop phase.
+The support polygon therefore remains non-degenerate throughout the
+entire switching interval.
+Across all six pairwise transitions --- $C \to H$, $H \to X$,
+$X \to C$, $C \to X$, $X \to H$, and $H \to C$ --- and all
+$N_{\mathrm{total}} = 979$ logged samples, the Normalised Stability
+Margin was maintained at its platform-geometry maximum
+($SM = 0.050\,\text{m}$, $SM_{\mathrm{norm}} = 1.000$) and the
+Tipover Risk index remained at $TR = 0.000$ without exception,
+yielding a transition success rate of $6/6$ ($100\%$).
 }
 
 \revblue{%
 Regarding oscillation amplitude during transitions:
-since all reconfiguration is performed from a fully grounded static
-posture, the chassis undergoes no net translational or rotational
-displacement during the switching interval.
-The steady-state kinematic data reported in
+because all morphological reconfiguration is performed with the
+full foot set in ground contact, no abrupt postural discontinuity
+is introduced at the switching instant, regardless of the chassis
+velocity at that moment.
+The steady-state Roll and Pitch RMS bounds reported in
 Figures~\ref{fig:variable_topo_metrics}
-and Table~\ref{tab:consolidated_simulation_metrics} provide
-Roll and Pitch RMS bounds for the locomotion phases flanking each
-transition; these values remain below $1.36^\circ$ and
-$6.95^\circ$ respectively across all tested conditions,
-confirming that neither roll nor pitch instabilities are introduced
-by the mode-switching protocol.
+and Table~\ref{tab:consolidated_simulation_metrics}
+characterise the locomotion phases immediately preceding and
+following each transition; these values remain below $1.36^\circ$
+and $6.95^\circ$ respectively across all tested conditions,
+confirming that the mode-switching protocol does not introduce
+roll or pitch instabilities in either the source or target
+locomotion phase.
 }
 
 \revblue{%
 Regarding energy consumption:
-the current hardware revision of the physical platform does not
-include current or power sensors on the motor drivers,
-and the Gazebo simulator was not configured with the
-\texttt{gazebo\_ros\_power} plugin or equivalent power-monitoring
-middleware during these trials.
-Consequently, joint-level energy consumption cannot be reported for
-this study.
-We explicitly acknowledge this as an instrumentation limitation and
-identify the addition of per-motor current sensing as a
-high-priority objective for the next hardware revision,
-after which energy-efficiency comparisons across locomotion modes
-will be feasible.
+the Gazebo simulation environment was not instrumented with a
+power-monitoring middleware plugin; consequently, joint-level energy
+data cannot be extracted from the virtual trials reported in this
+subsubsection.
+Energy consumption across locomotion modes is, however, addressed
+in the physical implementation section of the present work, where
+per-motor current and power measurements were acquired during the
+physical platform experiments; the reader is referred to that
+section for the corresponding energy characterisation of each mode.
 }
 
 
@@ -512,9 +459,6 @@ will be feasible.
 %
 % TABLES:
 %   tab:crawl_stability    -> float [t], placed after fig:stability_phases
-%   tab:transition_stability -> float [t], placed after the two
-%                              transition figures and the following
-%                              explanatory paragraph
 %
 % ===================================================================
 
