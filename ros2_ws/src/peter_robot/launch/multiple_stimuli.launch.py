@@ -134,8 +134,10 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_y', default_value='0.0'),
         DeclareLaunchArgument('robot_z', default_value='1.2'),
         DeclareLaunchArgument('record_metrics', default_value='true'),
+        DeclareLaunchArgument('imu_drift_lvl', default_value='3.0'),
+        DeclareLaunchArgument('lidar_noise_lvl', default_value='3.0'),
+        DeclareLaunchArgument('illum_lvl', default_value='3.0'),
     ]
-
     resolve_world = OpaqueFunction(function=_resolve_world)
     spawn_stimuli = OpaqueFunction(function=_spawn_stimuli)
 

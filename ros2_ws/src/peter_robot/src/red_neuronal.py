@@ -16,6 +16,40 @@ import subprocess
 NOTA DIEGO: el tiempo de prueba, goal y noise son constantes que se deben cambiar segun la prueba, se puede hacer un publisher que envie esos valores si no se desea cambiar el código frecuentemente
 La posición del robot se obtiene sin un suscriptor debido a que cuandop se hace el bridge del tópico no se incluyen las etiquetas(headers) de cada objeto de la simulación
 Lo anterior mencionado es una característica de gazebo aunque yo opino que es más un error del propio software
+
+
+=====================================================================
+CAMBIOS PARA EXPERIMENTO D (robustez sensorial, Reviewer #3.4)
+=====================================================================
+En vez de un único ruido gaussiano proporcional aplicado por igual a
+IMU, LiDAR y cámara, cada modalidad ahora tiene su PROPIO modelo de
+perturbación y su PROPIO parámetro de nivel, para poder:
+ 
+  (a) perturbar un solo sensor a la vez (atribución causal), y
+  (b) activar los tres simultáneamente para el caso combinado
+      "worst-case" del Experimento D.
+ 
+  - IMU  -> deriva (random-walk bias, no ruido de media cero) +
+            ruido blanco (el que ya existía, ahora opcional/separado)
+  - LiDAR-> ruido gaussiano proporcional al rango (SIN CAMBIOS,
+            este modelo ya era físicamente correcto)
+  - Cámara -> distorsión de iluminación: sesgo sistemático del área
+            (encogimiento/sobreexposición) + probabilidad de dropout
+            (pérdida de detección) + jitter de posición creciente
+            con la severidad (contraste bajo = peor centroide)
+ 
+Parámetros ROS (declarar en el launch o vía --ros-args -p):
+  imu_noise_lvl   : índice en IMUNoiseLevels   (ruido blanco IMU)
+  imu_drift_lvl   : índice en IMUDriftLevels   (deriva IMU)
+  lidar_noise_lvl : índice en LidarNoiseLevels (ruido LiDAR, = nl anterior)
+  illum_lvl       : índice en IllumLevels      (distorsión de iluminación)
+ 
+Ejemplo, perturbar solo la cámara a severidad 2:
+  ros2 run peter_robot red_neuronal --ros-args -p illum_lvl:=2
+ 
+Ejemplo, caso combinado worst-case (los tres a la vez):
+  ros2 run peter_robot red_neuronal --ros-args \
+      -p imu_drift_lvl:=3 -p lidar_noise_lvl:=3 -p illum_lvl:=3
 """
 
 class NetworkPublisher(Node):
@@ -198,60 +232,142 @@ class NetworkPublisher(Node):
         self.roll_rms = 0.0
         self.pitch_rms = 0.0
 
-        # --------------- Metricas de robustez --------------------
-        # Niveles de ruido a evaluar (fracción del valor medido, equivalente a ±%)
-        self.NoiseLevel = [0.0, 0.05, 0.10, 0.20, 0.30]   # 0 % → 5 % → 10 % → 20 % → 30 %
-
-        # Nivel activo en este experimento (índice en NoiseLevel).
-        # Cámbialo antes de cada prueba: 0=limpio, 1=±5%, 2=±10%, etc.
-
-        self.declare_parameter('nl', 0) #Noise level default
-
-        self.ACTIVE_NOISE_LEVEL_IDX = (self.get_parameter('nl').get_parameter_value().integer_value) #Parametro noise level ros2 run peter_robot red_neuronal --ros-args -p nl:=0
-
+        # =====================================================================
+        # --------------- ROBUSTEZ REVISION 2 --
+        # =====================================================================
         # Semilla reproducible (None = aleatoria)
         self.NoiseSeed = 42
 
-        # RNG reproducible
-        self._rng = np.random.default_rng(self.NoiseSeed)
+        self._rng_imu_noise = np.random.default_rng(self.NoiseSeed + 1)
+        self._rng_imu_drift = np.random.default_rng(self.NoiseSeed + 2)
+        self._rng_lidar = np.random.default_rng(self.NoiseSeed + 3)
+        self._rng_illum = np.random.default_rng(self.NoiseSeed + 4)
 
-        # Nivel de ruido activo (σ como fracción del valor de entrada)
-        self._sigma_noise = self.NoiseLevel[self.ACTIVE_NOISE_LEVEL_IDX]
+
+        # ---- 1) IMU: ruido blanco (el modelo original, ahora opcional) ----
+        self.IMUNoiseLevels = [0.0, 0.05, 0.10, 0.20, 0.30]  # fracción del valor medido
+        self.declare_parameter('imu_noise_lvl', 0)
+        self.ACTIVE_IMU_NOISE_IDX = self.get_parameter('imu_noise_lvl').get_parameter_value().integer_value
+        self._sigma_imu_noise = self.IMUNoiseLevels[self.ACTIVE_IMU_NOISE_IDX]
+ 
+        # ---- 2) IMU: DERIVA (drift) -- random-walk acumulativo, NO ruido de media cero ----
+        # sigma_rw = paso de la caminata aleatoria por ciclo de control (0.15 s)
+        # Niveles pensados en unidades de aceleración (m/s^2) y de ángulo (deg)
+        self.IMUDriftLevels_accel = [0.0, 0.01, 0.03, 0.06]   # m/s^2 por paso
+        self.IMUDriftLevels_angle = [0.0, 0.02, 0.05, 0.10]   # deg por paso (roll/pitch)
+        self.declare_parameter('imu_drift_lvl', 0)
+        self.ACTIVE_IMU_DRIFT_IDX = self.get_parameter('imu_drift_lvl').get_parameter_value().integer_value
+        self._sigma_drift_accel = self.IMUDriftLevels_accel[self.ACTIVE_IMU_DRIFT_IDX]
+        self._sigma_drift_angle = self.IMUDriftLevels_angle[self.ACTIVE_IMU_DRIFT_IDX]
+ 
+        # Estado acumulado de la deriva (persiste y camina en el tiempo)
+        self.imu_drift_accel_bias = np.zeros(3)   # bias acumulado en ax, ay, az
+        self.imu_drift_roll_bias = 0.0
+        self.imu_drift_pitch_bias = 0.0
+ 
+        # ---- 3) LiDAR: ruido gaussiano proporcional al rango (SIN CAMBIOS DE MODELO) ----
+        self.LidarNoiseLevels = [0.0, 0.05, 0.10, 0.20, 0.30]
+        self.declare_parameter('lidar_noise_lvl', 0)
+        self.ACTIVE_LIDAR_NOISE_IDX = self.get_parameter('lidar_noise_lvl').get_parameter_value().integer_value
+        self._sigma_lidar_noise = self.LidarNoiseLevels[self.ACTIVE_LIDAR_NOISE_IDX]
+ 
+        # ---- 4) Cámara: DISTORSIÓN DE ILUMINACIÓN (sesgo + dropout + jitter) ----
+        # severidad en [0, 1]; no es ruido de media cero
+        self.IllumLevels = [0.0, 0.15, 0.30, 0.50]
+        self.declare_parameter('illum_lvl', 0)
+        self.ACTIVE_ILLUM_IDX = self.get_parameter('illum_lvl').get_parameter_value().integer_value
+        self._illum_severity = self.IllumLevels[self.ACTIVE_ILLUM_IDX]
+ 
+        # Dirección de la distorsión: -1 = escena oscurecida (el blob se encoge
+        # y se pierde), +1 = sobreexposición (el blob "florece"/satura). Se fija
+        # UNA VEZ al iniciar el nodo, porque una condición de iluminación real
+        # es persistente durante la prueba, no un parpadeo aleatorio.
+        self.declare_parameter('illum_direction', -1)  # -1 oscuro, +1 sobreexpuesto
+        self._illum_direction = self.get_parameter('illum_direction').get_parameter_value().integer_value
+ 
         self.get_logger().info(
-            f"[ROBUSTEZ] Nivel de ruido activo: "
-            f"σ = {self._sigma_noise*100:.0f}%  "
-            f"(índice {self.ACTIVE_NOISE_LEVEL_IDX} de {self.NoiseLevel})"
+            "[ROBUSTEZ] Niveles activos -> "
+            f"IMU ruido idx={self.ACTIVE_IMU_NOISE_IDX} (σ={self._sigma_imu_noise*100:.0f}%), "
+            f"IMU deriva idx={self.ACTIVE_IMU_DRIFT_IDX} "
+            f"(accel={self._sigma_drift_accel} m/s^2/paso, ang={self._sigma_drift_angle} deg/paso), "
+            f"LiDAR idx={self.ACTIVE_LIDAR_NOISE_IDX} (σ={self._sigma_lidar_noise*100:.0f}%), "
+            f"Iluminación idx={self.ACTIVE_ILLUM_IDX} "
+            f"(severidad={self._illum_severity}, dirección={self._illum_direction})"
         )
+
 
        
     # =========================================================================
     # INYECCIÓN DE RUIDO — funciones auxiliares
     # =========================================================================
 
-    def _add_gaussian_noise(self, value: float, sigma_fraction: float) -> float:
-        """
-        Añade ruido gaussiano a un escalar.
-        σ_abs = sigma_fraction × |value|   (ruido proporcional al valor)
-        Si value ≈ 0, usa σ_abs mínimo de 1e-4 para evitar ruido cero.
-        """
+    @staticmethod
+    def _gaussian_noise(rng, value: float, sigma_fraction: float) -> float:
         if sigma_fraction == 0.0:
             return value
         sigma_abs = max(abs(value) * sigma_fraction, 1e-4)
-        noise = self._rng.normal(0.0, sigma_abs)
-        return value + noise
-
-    def _add_gaussian_noise_array(self, arr: np.ndarray,
-                                  sigma_fraction: float) -> np.ndarray:
-        """
-        Añade ruido gaussiano elemento a elemento a un array numpy.
-        σ_abs[i] = sigma_fraction × |arr[i]|
-        """
+        return value + rng.normal(0.0, sigma_abs)
+ 
+    @staticmethod
+    def _gaussian_noise_array(rng, arr: np.ndarray, sigma_fraction: float) -> np.ndarray:
         if sigma_fraction == 0.0:
             return arr.copy()
         sigma_abs = np.maximum(np.abs(arr) * sigma_fraction, 1e-4)
-        noise = self._rng.normal(0.0, sigma_abs)
-        return arr + noise
+        return arr + rng.normal(0.0, sigma_abs)
+ 
+    def _update_imu_drift(self):
+        """
+        Actualiza el sesgo acumulado de la IMU por caminata aleatoria.
+        A diferencia del ruido blanco (media cero, independiente entre
+        muestras), la deriva PERSISTE y se acumula: es la forma correcta
+        de modelar bias instability / random walk de una IMU real.
+ 
+        Se aplica tanto al acelerómetro (ax, ay, az) como a roll/pitch,
+        porque estas dos últimas son las variables que efectivamente
+        alimentan los umbrales Uroll/Upitch/Usigma_az en la red -- si la
+        deriva no llega hasta ahí, el experimento no estaría probando
+        realmente el efecto sobre la arbitración de marcha.
+        """
+        if self._sigma_drift_accel > 0.0:
+            step = self._rng_imu_drift.normal(0.0, self._sigma_drift_accel, size=3)
+            self.imu_drift_accel_bias += step
+ 
+        if self._sigma_drift_angle > 0.0:
+            self.imu_drift_roll_bias += self._rng_imu_drift.normal(0.0, self._sigma_drift_angle)
+            self.imu_drift_pitch_bias += self._rng_imu_drift.normal(0.0, self._sigma_drift_angle)
+ 
+        return self.imu_drift_accel_bias, self.imu_drift_roll_bias, self.imu_drift_pitch_bias
 
+    def _apply_illumination_distortion(self, pos: float, area: float):
+        """
+        Modela el efecto de un cambio de iluminación sobre un detector de
+        blobs por umbral de color -- NO es ruido de media cero:
+ 
+          1) Sesgo sistemático del área: bajo luz insuficiente el blob
+             segmentado se ENCOGE; bajo sobreexposición se SATURA/agranda.
+          2) Probabilidad de dropout (pérdida total de detección) que
+             crece con la severidad -- típico cuando el umbral de color
+             deja de separar el objetivo del fondo.
+          3) Jitter de posición creciente con la severidad, porque el
+             centroide del blob es más ruidoso cuando el contraste es bajo.
+        """
+        if self._illum_severity <= 0.0:
+            return pos, area
+ 
+        # 1) sesgo sistemático de área (persistente, no aleatorio por muestra)
+        gain = 1.0 + self._illum_direction * self._illum_severity
+        area_distorted = max(0.0, area * gain)
+ 
+        # 2) dropout de detección
+        p_dropout = min(0.9, self._illum_severity * 0.6)
+        if self._rng_illum.uniform() < p_dropout:
+            area_distorted = 0.0  # el pipeline aguas abajo debe tratar area=0 como "sin objetivo"
+ 
+        # 3) jitter de posición dependiente del contraste
+        pos_jitter_sigma = self._illum_severity * 8.0  # grados, ajustar según FOV/resolución real
+        pos_distorted = pos + self._rng_illum.normal(0.0, pos_jitter_sigma)
+ 
+        return pos_distorted, area_distorted
 
     def gausiana(self, theta, omega):
         return np.exp((np.dot(theta, omega) - 1) / (2 * (self.sigma**2)))
@@ -259,14 +375,12 @@ class NetworkPublisher(Node):
     def lidar_callback(self, msg):
         ranges = np.array(msg.ranges)
 
-        # ── Inyectar ruido gaussiano al LiDAR ────────────────────────────
-        # σ proporcional al rango medido; NaN/Inf se preservan
-        if self._sigma_noise > 0.0:
+        # ── Ruido de distancia del LiDAR (modelo sin cambios: proporcional al rango) ──
+        if self._sigma_lidar_noise > 0.0:
             valid = np.isfinite(ranges)
             noisy = ranges.copy()
-            noisy[valid] = self._add_gaussian_noise_array(
-                ranges[valid], self._sigma_noise)
-            # Clampear valores negativos (distancia no puede ser < 0)
+            noisy[valid] = self._gaussian_noise_array(
+                self._rng_lidar, ranges[valid], self._sigma_lidar_noise)
             noisy[valid] = np.maximum(noisy[valid], 0.0)
             ranges = noisy
 
@@ -431,7 +545,8 @@ class NetworkPublisher(Node):
                         f"Tresponse: {self.Tresponse} s \n"
                         f"Tswitch: {self.Tswitch} s \n"
                         f"maxstd {np.max(self.maxstd) if self.maxstd else 0.0}\n"
-                        f"time {time.time() - self.starttime}"
+                        f"time {time.time() - self.starttime}\n"
+                        f"ESTE CODIGO ES NUEVOOOOOOOOOOOOOOOOOOOOOOO"
                         )
         
         if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
@@ -565,6 +680,8 @@ class NetworkPublisher(Node):
             print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
 
             self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_LEVEL_IDX]
+            #CAMBIAR A ESTE DE ABAJO MODIFICAR !!!!!!
+            #self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms,self.ACTIVE_IMU_NOISE_IDX, self.ACTIVE_IMU_DRIFT_IDX,self.ACTIVE_LIDAR_NOISE_IDX, self.ACTIVE_ILLUM_IDX,]
             self.publicarMatericas()
 
 
@@ -605,15 +722,17 @@ class NetworkPublisher(Node):
             pos_raw  = msg.data[0]
             area_raw = msg.data[1]
 
-            # ── Inyectar ruido gaussiano a la cámara (bounding box rojo) ─
-            # El área se perturba; la posición angular también
-            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
-            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
-            area_noisy = max(0.0, area_noisy)  # área no puede ser negativa
 
+            # 1) distorsión de iluminación (sesgo sistemático + dropout + jitter)
+            pos_illum, area_illum = self._apply_illumination_distortion(pos_raw, area_raw)
+ 
+            # 2) ruido de medición genérico de la cámara, sobre la señal ya distorsionada
+            pos_noisy = self._gaussian_noise(self._rng_imu_noise, pos_illum, self._sigma_imu_noise)
+            area_noisy = self._gaussian_noise(self._rng_imu_noise, area_illum, self._sigma_imu_noise)
+            area_noisy = max(0.0, area_noisy)
+ 
             self.posR = pos_noisy
             self.areaBoundingBoxR = area_noisy
-
 
 
     def green_callback(self, msg):
@@ -621,11 +740,12 @@ class NetworkPublisher(Node):
             pos_raw  = msg.data[0]
             area_raw = msg.data[1]
 
-            # ── Inyectar ruido gaussiano a la cámara (bounding box azul) ─
-            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
-            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
+            pos_illum, area_illum = self._apply_illumination_distortion(pos_raw, area_raw)
+ 
+            pos_noisy = self._gaussian_noise(self._rng_imu_noise, pos_illum, self._sigma_imu_noise)
+            area_noisy = self._gaussian_noise(self._rng_imu_noise, area_illum, self._sigma_imu_noise)
             area_noisy = max(0.0, area_noisy)
-
+ 
             self.posG = pos_noisy
             self.areaBoundingBoxG = area_noisy
     
@@ -635,11 +755,12 @@ class NetworkPublisher(Node):
             pos_raw  = msg.data[0]
             area_raw = msg.data[1]
 
-            # ── Inyectar ruido gaussiano a la cámara (bounding box azul) ─
-            pos_noisy  = self._add_gaussian_noise(pos_raw,  self._sigma_noise)
-            area_noisy = self._add_gaussian_noise(area_raw, self._sigma_noise)
+            pos_illum, area_illum = self._apply_illumination_distortion(pos_raw, area_raw)
+ 
+            pos_noisy = self._gaussian_noise(self._rng_imu_noise, pos_illum, self._sigma_imu_noise)
+            area_noisy = self._gaussian_noise(self._rng_imu_noise, area_illum, self._sigma_imu_noise)
             area_noisy = max(0.0, area_noisy)
-
+ 
             self.posB = pos_noisy
             self.areaBoundingBoxB = area_noisy
     
@@ -661,11 +782,24 @@ class NetworkPublisher(Node):
         ay = msg.linear_acceleration.y
         az = msg.linear_acceleration.z
 
-        # ── Inyectar ruido gaussiano al IMU ──────────────────────────────
-        ax = self._add_gaussian_noise(ax, self._sigma_noise)
-        ay = self._add_gaussian_noise(ay, self._sigma_noise)
-        az = self._add_gaussian_noise(az, self._sigma_noise)
-        
+        # ── 1) DERIVA (drift): sesgo acumulado por random walk, aplicado ──
+        #      tanto al acelerómetro como a roll/pitch, porque son las
+        #      variables que realmente alimentan la arbitración de marcha.
+        drift_accel, drift_roll, drift_pitch = self._update_imu_drift()
+        ax = ax + drift_accel[0]
+        ay = ay + drift_accel[1]
+        az = az + drift_accel[2]
+        roll_drifted = self.roll + drift_roll
+        pitch_drifted = self.pitch + drift_pitch
+ 
+        # ── 2) Ruido blanco de la IMU (el modelo original, ahora con su propio nivel) ──
+        ax = self._gaussian_noise(self._rng_imu_noise, ax, self._sigma_imu_noise)
+        ay = self._gaussian_noise(self._rng_imu_noise, ay, self._sigma_imu_noise)
+        az = self._gaussian_noise(self._rng_imu_noise, az, self._sigma_imu_noise)
+        self.roll = self._gaussian_noise(self._rng_imu_noise, roll_drifted, self._sigma_imu_noise)
+        self.pitch = self._gaussian_noise(self._rng_imu_noise, pitch_drifted, self._sigma_imu_noise)
+
+
         accel_mag = np.sqrt(ax**2 + ay**2 + az**2)
 
         # --- Guardar en buffers ---
