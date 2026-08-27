@@ -246,19 +246,19 @@ class NetworkPublisher(Node):
 
         # ---- 1) IMU: ruido blanco (el modelo original, ahora opcional) ----
         self.IMUNoiseLevels = [0.0, 0.05, 0.10, 0.20, 0.30]  # fracción del valor medido
-        self.declare_parameter('imu_noise_lvl', 0)
-        self.ACTIVE_IMU_NOISE_IDX = self.get_parameter('imu_noise_lvl').get_parameter_value().integer_value
-        self._sigma_imu_noise = self.IMUNoiseLevels[self.ACTIVE_IMU_NOISE_IDX]
+        self.declare_parameter('nl', 0)
+        self.ACTIVE_NOISE_IDX = self.get_parameter('nl').get_parameter_value().integer_value
+        self._sigma_imu_noise = self.IMUNoiseLevels[0] #Ahora es opcional entonces se pone en 0 para conveniencia
  
         # ---- 2) IMU: DERIVA (drift) -- random-walk acumulativo, NO ruido de media cero ----
         # sigma_rw = paso de la caminata aleatoria por ciclo de control (0.15 s)
         # Niveles pensados en unidades de aceleración (m/s^2) y de ángulo (deg)
-        self.IMUDriftLevels_accel = [0.0, 0.01, 0.03, 0.06]   # m/s^2 por paso
-        self.IMUDriftLevels_angle = [0.0, 0.02, 0.05, 0.10]   # deg por paso (roll/pitch)
-        self.declare_parameter('imu_drift_lvl', 0)
-        self.ACTIVE_IMU_DRIFT_IDX = self.get_parameter('imu_drift_lvl').get_parameter_value().integer_value
-        self._sigma_drift_accel = self.IMUDriftLevels_accel[self.ACTIVE_IMU_DRIFT_IDX]
-        self._sigma_drift_angle = self.IMUDriftLevels_angle[self.ACTIVE_IMU_DRIFT_IDX]
+        self.IMUDriftLevels_accel = [0.0, 0.01, 0.03, 0.06, 0.08]   # m/s^2 por paso
+        self.IMUDriftLevels_angle = [0.0, 0.02, 0.05, 0.10, 0.12]   # deg por paso (roll/pitch)
+        #self.declare_parameter('imu_drift_lvl', 0) #Descomentar si se desea parametros independientes
+        #self.ACTIVE_IMU_DRIFT_IDX = self.get_parameter('imu_drift_lvl').get_parameter_value().integer_value
+        self._sigma_drift_accel = self.IMUDriftLevels_accel[self.ACTIVE_NOISE_IDX]
+        self._sigma_drift_angle = self.IMUDriftLevels_angle[self.ACTIVE_NOISE_IDX]
  
         # Estado acumulado de la deriva (persiste y camina en el tiempo)
         self.imu_drift_accel_bias = np.zeros(3)   # bias acumulado en ax, ay, az
@@ -267,16 +267,16 @@ class NetworkPublisher(Node):
  
         # ---- 3) LiDAR: ruido gaussiano proporcional al rango (SIN CAMBIOS DE MODELO) ----
         self.LidarNoiseLevels = [0.0, 0.05, 0.10, 0.20, 0.30]
-        self.declare_parameter('lidar_noise_lvl', 0)
-        self.ACTIVE_LIDAR_NOISE_IDX = self.get_parameter('lidar_noise_lvl').get_parameter_value().integer_value
-        self._sigma_lidar_noise = self.LidarNoiseLevels[self.ACTIVE_LIDAR_NOISE_IDX]
+        #self.declare_parameter('lidar_noise_lvl', 0)#Descomentar si se desea parametros independientes
+        #self.ACTIVE_LIDAR_NOISE_IDX = self.get_parameter('lidar_noise_lvl').get_parameter_value().integer_value
+        self._sigma_lidar_noise = self.LidarNoiseLevels[self.ACTIVE_NOISE_IDX]
  
         # ---- 4) Cámara: DISTORSIÓN DE ILUMINACIÓN (sesgo + dropout + jitter) ----
         # severidad en [0, 1]; no es ruido de media cero
-        self.IllumLevels = [0.0, 0.15, 0.30, 0.50]
-        self.declare_parameter('illum_lvl', 0)
-        self.ACTIVE_ILLUM_IDX = self.get_parameter('illum_lvl').get_parameter_value().integer_value
-        self._illum_severity = self.IllumLevels[self.ACTIVE_ILLUM_IDX]
+        self.IllumLevels = [0.0, 0.15, 0.30, 0.50, 0.80]
+        #self.declare_parameter('illum_lvl', 0) #Descomentar si se desea parametros independientes
+        #self.ACTIVE_ILLUM_IDX = self.get_parameter('illum_lvl').get_parameter_value().integer_value
+        self._illum_severity = self.IllumLevels[self.ACTIVE_NOISE_IDX]
  
         # Dirección de la distorsión: -1 = escena oscurecida (el blob se encoge
         # y se pierde), +1 = sobreexposición (el blob "florece"/satura). Se fija
@@ -287,11 +287,8 @@ class NetworkPublisher(Node):
  
         self.get_logger().info(
             "[ROBUSTEZ] Niveles activos -> "
-            f"IMU ruido idx={self.ACTIVE_IMU_NOISE_IDX} (σ={self._sigma_imu_noise*100:.0f}%), "
-            f"IMU deriva idx={self.ACTIVE_IMU_DRIFT_IDX} "
             f"(accel={self._sigma_drift_accel} m/s^2/paso, ang={self._sigma_drift_angle} deg/paso), "
-            f"LiDAR idx={self.ACTIVE_LIDAR_NOISE_IDX} (σ={self._sigma_lidar_noise*100:.0f}%), "
-            f"Iluminación idx={self.ACTIVE_ILLUM_IDX} "
+            f"LiDAR (σ={self._sigma_lidar_noise*100:.0f}%), "
             f"(severidad={self._illum_severity}, dirección={self._illum_direction})"
         )
 
@@ -452,7 +449,7 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
-        R = 3.652 #Descomentar para probar inclinacion
+        #R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
         G = 0
@@ -477,14 +474,14 @@ class NetworkPublisher(Node):
 
         if self.Gpe[0,1] > 1.5 and R > 0.5:
             self.ang_s = self.posR
-        # elif self.Gpe[1,1] > 0.5 and G > 0.5:
-        #     self.ang_s = 180*(self.lidar[2,1] > 0.1) + 90*(self.lidar[0,1] > 0.1) + self.ang_s*(self.lidar[4,1]<0.1)
+        elif self.Gpe[1,1] > 0.5 and G > 0.5:
+             self.ang_s = 180*(self.lidar[2,1] > 0.1) + 90*(self.lidar[0,1] > 0.1) + self.ang_s*(self.lidar[4,1]<0.1)
         elif self.Gpe[2,1] > 1.5 and B > 0.5:
             self.ang_s = self.posB
         else:
             self.ang_s = 90*(self.lidar[4,1]<0.3)
 
-        self.ang_s = 90 #Descomentar para probar terreno inclinado
+        #self.ang_s = 90 #Descomentar para probar terreno inclinado
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
@@ -533,6 +530,7 @@ class NetworkPublisher(Node):
 
         # ── LOG CON CORRECCIÓN CRÍTICA DE CONDICIÓN DE CARRERA (maxstd) ──
         print(
+                        f"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCc\n"
                         f"GpeR: {self.Gpe[0,1]}\n"
                         f"GpeG: {self.Gpe[1,1]}\n"
                         f"GpeB: {self.Gpe[2,1]}\n"
@@ -546,7 +544,9 @@ class NetworkPublisher(Node):
                         f"Tswitch: {self.Tswitch} s \n"
                         f"maxstd {np.max(self.maxstd) if self.maxstd else 0.0}\n"
                         f"time {time.time() - self.starttime}\n"
-                        f"ESTE CODIGO ES NUEVOOOOOOOOOOOOOOOOOOOOOOO"
+                        f"(accel={self._sigma_drift_accel} m/s^2/paso, ang={self._sigma_drift_angle} deg/paso), "
+                        f"LiDAR (σ={self._sigma_lidar_noise*100:.0f}%), "
+                        f"(severidad={self._illum_severity}, dirección={self._illum_direction})"
                         )
         
         if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
@@ -679,7 +679,7 @@ class NetworkPublisher(Node):
             print(f"Roll RMS: {self.roll_rms:.3f} deg")
             print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
 
-            self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_LEVEL_IDX]
+            self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_IDX]
             #CAMBIAR A ESTE DE ABAJO MODIFICAR !!!!!!
             #self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms,self.ACTIVE_IMU_NOISE_IDX, self.ACTIVE_IMU_DRIFT_IDX,self.ACTIVE_LIDAR_NOISE_IDX, self.ACTIVE_ILLUM_IDX,]
             self.publicarMatericas()
