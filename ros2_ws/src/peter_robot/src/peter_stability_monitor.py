@@ -123,6 +123,11 @@ class StabilityMonitor(Node):
         self.create_subscription(PoseArray, '/peter/stability_data', self._cb, 10)
         self.get_logger().info('PETER Stability Monitor started.')
 
+        self._csv_file = open(LOG_FILE, 'w', newline='')
+        self._csv_writer = csv.DictWriter(self._csv_file, fieldnames=CSV_FIELDS)
+        self._csv_writer.writeheader()
+        self._csv_file.flush()
+
     def _cb(self, msg):
         if len(msg.poses) < 5:
             return
@@ -161,7 +166,7 @@ class StabilityMonitor(Node):
             self._htr.append(res['tr'])
             self._harea.append(res['area'])
 
-            self._csv_rows.append({
+            row = {
                 'timestamp': t, 'leg_in_air': air_leg,
                 'foot_RU_x': feet_all[0][0], 'foot_RU_y': feet_all[0][1],
                 'foot_LU_x': feet_all[1][0], 'foot_LU_y': feet_all[1][1],
@@ -169,7 +174,11 @@ class StabilityMonitor(Node):
                 'foot_LD_x': feet_all[3][0], 'foot_LD_y': feet_all[3][1],
                 'SM': res['sm'], 'SM_norm': res['sm_norm'], 'TR': res['tr'],
                 'triangle_area': res['area'], 'inradius': res['r_in'],
-            })
+            }
+
+            self._csv_rows.append(row)
+            self._csv_writer.writerow(row)
+            self._csv_file.flush()
 
     def save_csv(self):
         with self.lock:
@@ -460,8 +469,16 @@ def main(args=None):
         node.print_stats()
         node.save_csv()
         executor.shutdown()
+        if hasattr(node, '_csv_file'):
+            node._csv_file.close()
         node.destroy_node()
         rclpy.shutdown()
+
+    # node.print_stats()
+    # node.save_csv()
+    # executor.shutdown()
+    # node.destroy_node()
+    # rclpy.shutdown()
 
 
 if __name__ == '__main__':

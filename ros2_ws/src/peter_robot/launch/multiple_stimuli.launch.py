@@ -268,6 +268,19 @@ def generate_launch_description():
         )
     ])
 
+    # Nodo unificado de telemetría de tu compañero (se lanza en paralelo)
+    metrics_recorder = TimerAction(period=10.5, actions=[
+        Node(
+            package=PACKAGE_NAME,
+            executable='metrics_recorder',
+            name='metrics_recorder',
+            output='screen',
+            parameters=[{
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+            }],
+        )
+    ])
+
     return LaunchDescription(
         args
         + [
@@ -287,5 +300,6 @@ def generate_launch_description():
             neural_network,
             camera_node,
             neural_recorder,
+            metrics_recorder,  # <── INYECTADO AQUÍ
         ]
     )

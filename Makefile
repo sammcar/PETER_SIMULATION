@@ -21,9 +21,9 @@ WS          ?= /ros2_ws
 REPO_ROOT   ?= $(HOME)/PETER_SIMULATION
 WS_HOST     ?= $(REPO_ROOT)/ros2_ws
 DOMAIN_ID   ?= 0
-STIM        ?= red
+STIM        ?= blue
 STIM_X      ?= 4.0
-STIM_Y      ?= 0.0
+STIM_Y      ?= -2.0
 SPAWN_RED   ?= true
 SPAWN_BLUE  ?= true
 SPAWN_GREEN ?= false
@@ -43,7 +43,8 @@ PASSTHROUGH := IMAGE=$(IMAGE) CONTAINER=$(CONTAINER) WS=$(WS) \
         sim-multi sim-multi-conflict sim-multi-full \
         teleop-host teleop-container record neural \
         echo-metrics echo-status list-topics \
-        export-results export-last-result list-results clean-container-results
+        export-results export-last-result list-results clean-container-results \
+        run-experiments
 
 help: ## Muestra todos los comandos disponibles
 	@make -f $(MK) help IMAGE=$(IMAGE) CONTAINER=$(CONTAINER) 2>/dev/null || \
@@ -140,3 +141,20 @@ list-results: ## Lista los resultados disponibles en el contenedor
 
 clean-container-results: ## Elimina todos los resultados del contenedor
 	@make -f $(MK) clean-container-results $(PASSTHROUGH)
+
+run-experiments: ## Lanza el orquestador automático de experimentos dentro del contenedor
+	@make -f $(MK) run-experiments $(PASSTHROUGH)
+
+sim-terrain: ## Lanza la simulación base de Gazebo en el entorno de terreno irregular (Familia C1)
+	@make -f $(MK) sim-terrain $(PASSTHROUGH)
+
+kill-sim: ## Mata todos los procesos zombis de Gazebo y ROS 2 dentro del contenedor
+	@echo "[kill-sim] Limpiando procesos huérfanos de simulación..."
+	@docker exec -it $(CONTAINER) pkill -9 -f ign || true
+	@docker exec -it $(CONTAINER) pkill -9 -f ruby || true
+	@docker exec -it $(CONTAINER) pkill -9 -f ros2 || true
+	@echo "[kill-sim] ✓ Contenedor Peter esterilizado y listo."
+
+tail-sim: ## Muestra los logs de la simulación en tiempo real (red neuronal, prints, etc.)
+	@echo "[tail-sim] Conectando al flujo de logs en vivo... (Ctrl+C para salir)"
+	@docker exec -it $(CONTAINER) tail -f /root/sim_output.log

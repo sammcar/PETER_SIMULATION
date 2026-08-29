@@ -21,7 +21,14 @@ STIM_X      ?= 4.0
 STIM_Y      ?= 0.0
 SPAWN_RED   ?= true
 SPAWN_BLUE  ?= true
-SPAWN_GREEN ?= false
+SPAWN_GREEN ?= true
+WORLD_NAME  ?= multiple_stimuli
+RED_X       ?= 4.0
+RED_Y       ?= 2.0
+BLUE_X      ?= 4.0
+BLUE_Y      ?= -2.0
+GREEN_X     ?= 3.0
+GREEN_Y     ?= 0.0
 
 DC = docker exec -it $(CONTAINER) bash -c
 
@@ -38,7 +45,8 @@ EXPORT_SCRIPT ?= $(REPO_ROOT)/ros2_ws/src/peter_robot/scripts/export_results.sh
         teleop-stdin-container record neural shell chown-ws echo-metrics echo-status \
         list-topics check-install check-container \
         docker-build docker-create docker-start docker-stop docker-rm docker-status docker-logs \
-        export-results export-last-result list-results clean-container-results
+        export-results export-last-result list-results clean-container-results \
+        run-experiments
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
@@ -131,10 +139,10 @@ docker-logs: ## Muestra las últimas 50 líneas de log del contenedor
 
 
 build: check-container ## Compila el workspace dentro del contenedor
-	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build --symlink-install"
+	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build"
 
 rebuild: check-container ## Limpia y recompila el workspace dentro del contenedor
-	$(DC) "cd $(WS) && rm -rf build install log && $(ROS_SOURCE) && colcon build --symlink-install"
+	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build"
 
 clean: ## Limpia build/, install/ y log/ del workspace dentro del contenedor
 	$(DC) "rm -rf $(WS)/build $(WS)/install $(WS)/log"
@@ -163,10 +171,13 @@ sim-single-red: ## Simulación single estímulo rojo
 sim-single-green: ## Simulación single estímulo verde
 	$(MAKE) sim-single STIM=green STIM_X=3.0 STIM_Y=0.0
 
-sim-multi: check-install ## Lanza simulación con múltiples estímulos
+sim-multi: check-install ## Lanza simulación con múltiples estímulos parametrizados
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 launch peter_robot multiple_stimuli.launch.py \
-	         spawn_red:=$(SPAWN_RED) spawn_blue:=$(SPAWN_BLUE) spawn_green:=$(SPAWN_GREEN)"
+	         world_name:=$(WORLD_NAME) \
+	         spawn_red:=$(SPAWN_RED) red_x:=$(RED_X) red_y:=$(RED_Y) \
+	         spawn_blue:=$(SPAWN_BLUE) blue_x:=$(BLUE_X) blue_y:=$(BLUE_Y) \
+	         spawn_green:=$(SPAWN_GREEN) green_x:=$(GREEN_X) green_y:=$(GREEN_Y)"
 
 sim-multi-conflict: ## Rojo + azul
 	$(MAKE) sim-multi SPAWN_RED=true SPAWN_BLUE=true SPAWN_GREEN=false
@@ -231,3 +242,11 @@ list-results: ## Lista los resultados disponibles en el contenedor
 clean-container-results: ## Elimina TODOS los resultados del contenedor (pide confirmación)
 	@chmod +x $(EXPORT_SCRIPT)
 	CONTAINER=$(CONTAINER) bash $(EXPORT_SCRIPT) --clean
+
+run-experiments: check-install ## Ejecuta el orquestador automático de experimentos dentro del contenedor
+	$(DC) "$(WS_SOURCE) && ROS_DOMAIN_ID=$(DOMAIN_ID) python3 $(WS)/src/peter_robot/scripts/test_manager.py $(WS)/src/peter_robot/config/experiments_config.yaml"
+
+sim-terrain: check-install ## Lanza simulación base de Gazebo en el entorno de terreno irregular (Familia C1)
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
+	       ros2 launch peter_robot gazebo.launch.py \
+	       world_name:=terrain"

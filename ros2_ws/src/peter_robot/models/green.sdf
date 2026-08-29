@@ -5,9 +5,10 @@
     <link name="sphere_link">
       <visual name="sphere_visual">
         <geometry>
-          <sphere>
-            <radius>0.5</radius> <!-- radio en metros -->
-          </sphere>
+          <capsule>
+            <radius>0.2</radius>
+            <length>1.0</length>
+          </capsule>
         </geometry>
         <material>
           <diffuse>0.0 0.8 0.0 1.0</diffuse> <!-- Color verde (RGBA) -->
@@ -16,9 +17,10 @@
 
       <collision name="sphere_collision">
         <geometry>
-          <sphere>
-            <radius>0.5</radius>
-          </sphere>
+          <capsule>
+            <radius>0.2</radius>
+            <length>1.0</length>
+          </capsule>
         </geometry>
       </collision>
     </link>

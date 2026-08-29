@@ -36,7 +36,7 @@ class NetworkPublisher(Node):
         self.metrics_pub = self.create_publisher(Float32MultiArray, '/Metrics', 10) #Tiempo de respuesta, delay de cambio, amplitud de oscilación, noise
 
         # Modo Inicial
-        self.current_mode = 'H' #Original en C
+        self.current_mode = 'C' #Original en C
 
         # Intensidad de estimulo
         self.areaBoundingBoxR = 0.0
@@ -66,6 +66,11 @@ class NetworkPublisher(Node):
         # Timer para llamar la función de control cada segundo
         #self.timer = self.create_timer(0.2, self.run_network) #original
         self.timer = self.create_timer(0.15, self.run_network)
+
+        ## HISTÉRESIS PARA CAMBIO DE MODO
+        self.min_dwell_time = 3.0          # Tiempo mínimo (segundos) que debe permanecer en un modo
+        self.last_mode_change_time = 0.0   # Timestamp del último cambio
+        self.hysteresis_threshold = 0.35   # Umbral más bajo para mantenerse en H (evita el "flickering")
 
 
     def initctes(self):
@@ -132,10 +137,10 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 2.9 #PARA CASO PLANO-RUGOSO-PLANO
-        #self.Usigma_az = 10 #PARA CASO PLANO-INLINADO
-        #self.Upitch = 5 #Umbral pitch INCLINADO
-        self.Upitch = 20 
+        #self.Usigma_az = 3.3 #PARA CASO PLANO-RUGOSO-PLANO
+        #self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
+        self.Upitch = 1 #uMbral pitch INCLINADO
+        self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -200,7 +205,10 @@ class NetworkPublisher(Node):
 
         # Nivel activo en este experimento (índice en NoiseLevel).
         # Cámbialo antes de cada prueba: 0=limpio, 1=±5%, 2=±10%, etc.
-        self.ACTIVE_NOISE_LEVEL_IDX = 0   # ← MODIFICAR ANTES DE CADA PRUEBA (0 = No ruido)
+
+        self.declare_parameter('nl', 0) #Noise level default
+
+        self.ACTIVE_NOISE_LEVEL_IDX = (self.get_parameter('nl').get_parameter_value().integer_value) #Parametro noise level ros2 run peter_robot red_neuronal --ros-args -p nl:=0
 
         # Semilla reproducible (None = aleatoria)
         self.NoiseSeed = 42
@@ -332,9 +340,10 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
-        #R = 3.652 #Descomentar para probar inclinacion
+        R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
+        G = 0
         B = self.areaBoundingBoxB/500
 
 
@@ -410,32 +419,13 @@ class NetworkPublisher(Node):
         print("G: ", str(G))
         print("B: ", str(B)) 
 
-
-
+        # ── LOG CON CORRECCIÓN CRÍTICA DE CONDICIÓN DE CARRERA (maxstd) ──
         print(
                         f"GpeR: {self.Gpe[0,1]}\n"
                         f"GpeG: {self.Gpe[1,1]}\n"
                         f"GpeB: {self.Gpe[2,1]}\n"
                         f"ang_p: {self.ang_p}\n"
                         f"ang_s: {self.ang_s}\n"
-                        # f"3: {self.z[3,1]}\n"
-                        # f"4: {self.z[4,1]}\n"
-                        # f"5: {self.z[5,1]}\n"
-                        # f"6: {self.z[6,1]}\n"
-                        # f"7: {self.z[7,1]}\n"
-                        # f"8: {self.z[8,1]}\n"
-                        # f"9: {self.z[9,1]}\n"
-                        # f"10: {self.z[10,1]}\n"
-                        # f"11: {self.z[11,1]}\n"
-                        # f"12: {self.z[12,1]}\n"
-                        # f"13: {self.z[13,1]}\n"
-                        # f"14: {self.z[14,1]}\n"
-                        # f"15: {self.z[15,1]}\n"
-                        # f"16: {self.z[16,1]}\n"
-                        # f"17: {self.z[17,1]}\n"
-                        # f"0: {self.z[0,1]}\n"
-                        # f"1: {self.z[1,1]}\n"
-                        # f"2: {self.z[2,1]}\n"
                         f"roll: {self.roll}\n"
                         f"pitch: {self.pitch}\n"
                         f"STD total: {self.accel_std:.3f}\n"
@@ -447,25 +437,6 @@ class NetworkPublisher(Node):
                         )
 
         # if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
-        
-        # print("cmd_ang: ", str(cmd_ang))
-        # print("cmd_lineal: ", str(cmd_lineal))
-        # print("cmd_lateral: ", str(cmd_lateral))
-
-        #print("lidar frente")
-        #print("lidar atras: ", str(self.lidar[1,0]))
-        #print("lidar izquierda: ", str(self.lidar[2,0]))
-        #print("lidar derecha:", str(self.lidar[3,0]))
-        #print("lidar 4:", str(self.lidar[4,0]))
-
-        # Imprimir los 16 valores de Response
-        #for i, val in enumerate(self.Response[:, 0]):
-        #    print(f"Response {i}: {val}")
-
-        # Imprimir los 16 valores de Aux
-        #for i, val in enumerate(self.Aux[:, 0]):
-        #    print(f"Aux {i}: {val}")
-
 
         cmd_ang = self.limit(cmd_ang, 1)
         cmd_lineal = self.limit(cmd_lineal, 5)
@@ -533,12 +504,40 @@ class NetworkPublisher(Node):
             # ------------------------------------------------------------------------------
 
             # modos
-            if self.z[15,1] > 0.5:
-                self.publish_mode('C'); #print("Cuadrupedo")
-            elif self.z[16,1] > 0.5:
-                self.publish_mode('H'); #print("Móvil H")
-            elif self.z[14,1] > 0.5:
-                self.publish_mode('X'); #print("Móvil X")
+            # if self.z[15,1] > 0.5:
+            #     self.publish_mode('C'); #print("Cuadrupedo")
+            # elif self.z[16,1] > 0.5:
+            #     self.publish_mode('H'); #print("Móvil H")
+            # elif self.z[14,1] > 0.5:
+            #     self.publish_mode('X'); #print("Móvil X")
+
+
+            # Obtener valores actuales
+            z15 = self.z[15,1] # Activación C
+            z16 = self.z[16,1] # Activación H
+            z14 = self.z[14,1] # Activación X
+            
+            current_time = time.time()
+            time_since_last_change = current_time - self.last_mode_change_time
+            
+            # Lógica de decisión con Histéresis
+            new_mode = self.current_mode 
+            
+            # Condición de activación para H (más sensible)
+            if z16 > 0.4: 
+                new_mode = 'H'
+            # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
+            elif z15 > 0.6 and time_since_last_change > self.min_dwell_time:
+                new_mode = 'C'
+            elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
+                new_mode = 'X'
+
+            # Ejecutar cambio solo si el modo es realmente diferente
+            if new_mode != self.current_mode:
+                self.publish_mode(new_mode)
+                self.current_mode = new_mode
+                self.last_mode_change_time = current_time
+                self.get_logger().info(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
 
             self.publish_data()
             self.publish_imu()
@@ -588,9 +587,11 @@ class NetworkPublisher(Node):
 
     def publicarMatericas(self):
         
+        clean_metrics = [float(x) if x is not None else 0.0 for x in self.metricsArr] #Limpia los valores None
+
         msg = Float32MultiArray()
 
-        msg.data = [float(v) if v is not None else -1.0 for v in self.metricsArr]
+        msg.data = clean_metrics
 
         self.metrics_pub.publish(msg)
 
