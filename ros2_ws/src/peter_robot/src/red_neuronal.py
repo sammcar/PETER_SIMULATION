@@ -90,7 +90,7 @@ class NetworkPublisher(Node):
 
         #--------------IMU --------------
         
-        self.ignore_imu = False
+        self.ignore_imu = True
         self.ignore_timer = time.time()
         #self.ignore_duration = 4.2
         self.ignore_duration = 2
@@ -104,6 +104,7 @@ class NetworkPublisher(Node):
         #Logica que será neuronal
         self.terrainchanger = False
         self.terrain_timer = 0.0  # Guarda el tiempo de inicio
+        self.IGNORE_IMU_TERRAIN = True  # Deshabilita detección de terreno rugoso vía IMU
 
 
         self.ang_p = 90 # Posicion Frente del Robot
@@ -259,6 +260,7 @@ class NetworkPublisher(Node):
             noisy[valid] = self._add_gaussian_noise_array(
                 ranges[valid], self._sigma_noise)
             # Clampear valores negativos (distancia no puede ser < 0)
+
             noisy[valid] = np.maximum(noisy[valid], 0.0)
             ranges = noisy
 
@@ -361,7 +363,7 @@ class NetworkPublisher(Node):
         else:
             self.ang_s = 90*(self.lidar[4,1]<0.3)
 
-        self.ang_s = 90 #Descomentar para probar terreno inclinado
+        #self.ang_s = 90 #Descomentar para probar terreno inclinado
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
@@ -437,14 +439,14 @@ class NetworkPublisher(Node):
                         f"roll: {self.roll}\n"
                         f"pitch: {self.pitch}\n"
                         f"STD total: {self.accel_std:.3f}\n"
-                        f"IGNOREIMU: {self.ignore_imu}\n"
-                        f"Tresponse: {self.Tresponse} s \n"
-                        f"Tswitch: {self.Tswitch} s \n"
-                        f"maxstd {np.max(self.maxstd)}\n"
-                        f"time {time.time() - self.starttime}"
+                        # f"IGNOREIMU: {self.ignore_imu}\n"
+                        # f"Tresponse: {self.Tresponse} s \n"
+                        # f"Tswitch: {self.Tswitch} s \n"
+                        # f"maxstd {np.max(self.maxstd) if self.maxstd else 0.0}\n"
+                        # f"time {time.time() - self.starttime}"
                         )
-        
-        if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
+
+        # if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
         
         # print("cmd_ang: ", str(cmd_ang))
         # print("cmd_lineal: ", str(cmd_lineal))
@@ -471,30 +473,26 @@ class NetworkPublisher(Node):
 
     #------------------------- TERRAIN CHANGER -----------------------------
 
-        if self.accel_std > self.Usigma_az and not self.terrainchanger: #Segunda parte del or para estancamiento
-            print("Terreno rocoso detectado 🚧")
-            self.terrainchanger = True
-            self.std_dev_accel_z = 9
-            self.terrain_timer = time.time()  # Guardar momento de activación
-
-        # Si está activo, verificar si pasaron 8 segundos
-        if self.terrainchanger:
-            elapsed = time.time() - self.terrain_timer
-            if elapsed < 40:
-                print("Terreno rocoso detectado 🚧")
+        if self.IGNORE_IMU_TERRAIN:
+            self.std_dev_accel_z = 0
+        else:
+            if self.accel_std > self.Usigma_az and not self.terrainchanger:
+                self.terrainchanger = True
                 self.std_dev_accel_z = 9
-            else:
-                self.terrainchanger = False  # Volver a estado normal
-                print("Terreno liso 🛣️")
+                self.terrain_timer = time.time()
+
+            if self.terrainchanger:
+                elapsed = time.time() - self.terrain_timer
+                if elapsed < 40:
+                    self.std_dev_accel_z = 9
+                else:
+                    self.terrainchanger = False
+                    self.std_dev_accel_z = 0
+            elif not self.terrainchanger:
                 self.std_dev_accel_z = 0
 
-        # Si no está activo y no hay vibración, mensaje normal
-        elif not self.terrainchanger:
-            self.std_dev_accel_z = 0
-            print("Terreno liso 🛣️")
-
-        if self.pitch > self.Upitch: print("Terreno inclinado")
-        else: print("Terreno NO inclinado")
+        # if self.pitch > self.Upitch: print("Terreno inclinado")
+        # else: print("Terreno NO inclinado")
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
         
@@ -548,7 +546,7 @@ class NetworkPublisher(Node):
 
             #------------------------- M E T R I C A S--------------------------------------#
             stable_condition = (self.accel_std < 2 and self.pitch < 1.5 and self.roll > 178) #Estabilización cond
-            print(f"stable condition: {stable_condition}")
+            # print(f"stable condition: {stable_condition}")
 
             #Tiempo de respuesta
             if (self.terrainchanger and not self.response_measured and stable_condition): 
@@ -562,8 +560,8 @@ class NetworkPublisher(Node):
                 self.mode_transition_active = False
 
             #Amplitud de oscilacion
-            print(f"Roll RMS: {self.roll_rms:.3f} deg")
-            print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
+            # print(f"Roll RMS: {self.roll_rms:.3f} deg")
+            # print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
 
             self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_LEVEL_IDX]
             self.publicarMatericas()
@@ -592,7 +590,7 @@ class NetworkPublisher(Node):
         
         msg = Float32MultiArray()
 
-        msg.data = self.metricsArr
+        msg.data = [float(v) if v is not None else -1.0 for v in self.metricsArr]
 
         self.metrics_pub.publish(msg)
 

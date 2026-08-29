@@ -200,7 +200,7 @@ def generate_launch_description():
         arguments=[
             '-file', os.path.join(pkg_path, 'models', 'blue.sdf'),
             '-name', 'blue_sphere',
-            '-x', '4.0', '-y', '-2.0', '-z', '0.5'
+            '-x', '-2.0', '-y', '2.0', '-z', '0.5'
         ],
         output='screen'
     )
@@ -216,7 +216,16 @@ def generate_launch_description():
         output='screen'
     )
 
-
+    spawn_obstacle = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-file', os.path.join(pkg_path, 'models', 'obstacle_box.sdf'),
+            '-name', 'obstacle_box',
+            '-x', '2.5', '-y', '0.0', '-z', '0.25'
+        ],
+        output='screen'
+    )
 
     return LaunchDescription([
         declare_use_sim_time_cmd,
@@ -235,6 +244,7 @@ def generate_launch_description():
         peter_controller,
         #spawn_green_sphere,
         #spawn_red_sphere,
-        #spawn_blue_sphere,
+        spawn_blue_sphere,
+        #spawn_obstacle,
         camera_node
     ])
