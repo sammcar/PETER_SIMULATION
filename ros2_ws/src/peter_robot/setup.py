@@ -47,6 +47,7 @@ setup(
             'peter_teleop_stdin = src.peter_teleop_stdin:main',
             'peter_test_joints = src.test_move_joints:main',
             'red_neuronal = src.red_neuronal:main',
+            'fsm_arbitration = src.fsm_gait_arbitration:main',
             'camera_node = src.camera_node:main',
             'camera_Adjust = src.camera_Adjust:main',
             'plotter = src.plotter:main',
