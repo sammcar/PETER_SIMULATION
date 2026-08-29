@@ -340,10 +340,10 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
-        R = 3.652 #Descomentar para probar inclinacion
+        #R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
-        G = 0
+        #G = 0
         B = self.areaBoundingBoxB/500
 
 

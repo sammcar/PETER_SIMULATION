@@ -58,6 +58,7 @@ setup(
             "RMSENode = src.RMSE_node:main",
             'test_manager = scripts.test_manager:main',
             'metrics_recorder = src.metrics_recorder:main',
+            'inspection_recorder = src.inspection_recorder:main',
         ],
     },
 )

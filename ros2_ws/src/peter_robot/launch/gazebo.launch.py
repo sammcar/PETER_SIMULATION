@@ -104,6 +104,55 @@ def generate_launch_description():
         ]
     )
 
+    red_neuronal = TimerAction(
+        period=11.0,
+        actions=[
+            Node(
+                package='peter_robot',
+                executable='red_neuronal',
+                name='red_neuronal',
+                output='screen'
+            )
+        ]
+    )
+
+    metric_nodes = TimerAction(
+        period=12.0,
+        actions=[
+            Node(
+                package='peter_robot',
+                executable='peter_stability_monitor',
+                name='peter_stability_monitor',
+                output='screen'
+            ),
+            Node(
+                package='peter_robot',
+                executable='metrics_recorder',
+                name='metrics_recorder',
+                output='screen'
+            ),
+            Node(
+                package='peter_robot',
+                executable='neural_recorder',
+                name='neural_recorder',
+                parameters=[{'experiment_type': 'familia_e_inspeccion'}],
+                output='screen'
+            ),
+        ]
+    )
+
+    inspection_recorder = TimerAction(
+        period=13.0,
+        actions=[
+            Node(
+                package='peter_robot',
+                executable='inspection_recorder',
+                name='inspection_recorder',
+                output='screen'
+            )
+        ]
+    )
+
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             os.path.join(get_package_share_directory('ros_gz_sim'), 'launch', 'gz_sim.launch.py')
@@ -246,5 +295,8 @@ def generate_launch_description():
         #spawn_red_sphere,
         spawn_blue_sphere,
         #spawn_obstacle,
-        camera_node
+        camera_node,
+        red_neuronal,
+        metric_nodes,
+        inspection_recorder,
     ])

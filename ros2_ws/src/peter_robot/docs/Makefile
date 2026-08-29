@@ -33,10 +33,10 @@ GREEN_Y     ?= 0.0
 DC = docker exec -it $(CONTAINER) bash -c
 
 # Solo ROS base para compilar
-ROS_SOURCE = source /opt/ros/humble/setup.bash
+ROS_SOURCE = source /opt/ros/jazzy/setup.bash
 
 # ROS + overlay del workspace ya compilado
-WS_SOURCE = source /opt/ros/humble/setup.bash && source $(WS)/install/setup.bash
+WS_SOURCE = source /opt/ros/jazzy/setup.bash && source $(WS)/install/setup.bash
 
 # Ruta al script de exportación (relativa al Makefile, que vive en docs/)
 EXPORT_SCRIPT ?= $(REPO_ROOT)/ros2_ws/src/peter_robot/scripts/export_results.sh

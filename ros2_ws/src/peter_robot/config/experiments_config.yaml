@@ -4,8 +4,9 @@
 # Generado conforme a la especificación de las Fases 2–5 del proyecto.
 
 global_settings:
-  workspace_path: "/ros2_ws"                                 # <--- CORREGIDO (Ruta nativa en el contenedor)
-  output_base_dir: "/ros2_ws/src/peter_robot/docs/resultados" # <--- RECOMENDADO (Para que caiga directo en tu carpeta montada)
+  workspace_path: "/home/ros/docker_simulation_ws/PETER_SIMULATION/ros2_ws"
+  output_base_dir: "/home/ros/docker_simulation_ws/PETER_SIMULATION/ros2_ws/src/p\
+    eter_robot/docs/resultados"
   grace_period_teardown_s: 5.0
 
 experiment_suites:
@@ -83,22 +84,37 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C1 — Transición a Terreno Irregular
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_c1_terreno_rugoso"
-    launch_file: "terrain_navigation.launch.py"  
-    repetitions: 15
-    dynamic_parameters:
-      world_name: "terrain"
-      timeout_s: 120.0
-      random_perturbation: false
+  # - suite_name: "familia_c1_terreno_rugoso"
+  #   launch_file: "terrain_navigation.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     world_name: "terrain"
+  #     timeout_s: 120.0
+  #     random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C2 — Prueba de Pendiente Inclinada
   # Éxito: pitch > 5° → X1 activo → modo móvil H + Tswitch + 12 s estables.
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_c2_pendiente"
-    launch_file: "slope_navigation.launch.py"
-    repetitions: 15
+  # - suite_name: "familia_c2_pendiente"
+  #   launch_file: "slope_navigation.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     world_name: "terrain"
+  #     timeout_s: 120.0
+  #     random_perturbation: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # FAMILIA E — Tarea de Inspección Reactiva (Experimento E, Reviewer #3.5)
+  # Éxito: z[17] (neurona X17, índice 29 del vector /neuron_activity) > 0.25
+  #        sostenido 2 s continuos. Robot se detiene frente al estímulo azul
+  #        tras navegar la pista de 3 cápsulas obstáculo.
+  # Mundo: obstaculos.world — robot en (0,0), esfera azul en (-2.0, 2.0, 0.5)
+  # ──────────────────────────────────────────────────────────────────────────
+  - suite_name: "familia_e_inspeccion"
+    launch_file: "gazebo.launch.py"
+    repetitions: 20
     dynamic_parameters:
-      world_name: "terrain"
-      timeout_s: 120.0
+      world_name: "obstaculos"
+      timeout_s: 90.0
       random_perturbation: false

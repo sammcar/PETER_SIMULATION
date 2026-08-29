@@ -42,7 +42,7 @@ CRIT_TR: float = 1.0
 TIPOVER_HOLD_S: float = 3.0          
 X17_THRESHOLD: float = 0.2    # Umbral activación neurona de parada
 SUCCESS_HOLD_S: float = 2.0   
-WARMUP_S: float = 10.5        
+WARMUP_S: float = 15.0
 SAFETY_STABLE_S: float = 12.0 
 ACCEL_Z_THRESH: float = 3.7   
 PITCH_THRESH_DEG: float = 5.0 
@@ -50,10 +50,11 @@ GRACE_PERIOD_S: float = 5.0
 STABILITY_LOG_SRC: Path = Path.home() / 'stability_log.csv'
 
 # ── Suites con lógica de éxito específica ────────────────────────────────────
-SUITE_APPETITIVE = {'familia_a_apetitivo', 'familia_b_compleja'}
-SUITE_EVASIVE    = {'familia_a_obstaculo', 'familia_a_aversivo'}
-SUITE_TERRAIN_C1 = {'familia_c1_terreno_rugoso'}
-SUITE_TERRAIN_C2 = {'familia_c2_pendiente'}
+SUITE_APPETITIVE  = {'familia_a_apetitivo', 'familia_b_compleja'}
+SUITE_EVASIVE     = {'familia_a_obstaculo', 'familia_a_aversivo'}
+SUITE_TERRAIN_C1  = {'familia_c1_terreno_rugoso'}
+SUITE_TERRAIN_C2  = {'familia_c2_pendiente'}
+SUITE_INSPECTION  = {'familia_e_inspeccion'}
 
 class State(Enum):
     INIT        = auto()
@@ -108,7 +109,7 @@ class TestJudgeNode(Node):
     def _cb_neurons(self, msg: Float32MultiArray) -> None:
         with self._lock:
             data = list(msg.data)
-            while len(data) < 20: data.append(0.0)
+            while len(data) < 30: data.append(0.0)
             self._neuron_activity = data
 
     def _cb_exp_metrics(self, msg: Float32MultiArray) -> None:
@@ -258,15 +259,16 @@ class TrialEvaluator:
             self._tipover_start_s = None  # Resetea si el robot recupera el equilibrio
         # -------------------------------------------------
 
-        if self.suite_name in SUITE_APPETITIVE: return self._eval_appetitive(snap, current_sim_s)
-        if self.suite_name in SUITE_EVASIVE: return self._eval_evasive(snap, current_sim_s)
-        if self.suite_name in SUITE_TERRAIN_C1: return self._eval_terrain_c1(snap, current_sim_s)
-        if self.suite_name in SUITE_TERRAIN_C2: return self._eval_terrain_c2(snap, current_sim_s)
+        if self.suite_name in SUITE_APPETITIVE:  return self._eval_appetitive(snap, current_sim_s)
+        if self.suite_name in SUITE_EVASIVE:     return self._eval_evasive(snap, current_sim_s)
+        if self.suite_name in SUITE_TERRAIN_C1:  return self._eval_terrain_c1(snap, current_sim_s)
+        if self.suite_name in SUITE_TERRAIN_C2:  return self._eval_terrain_c2(snap, current_sim_s)
+        if self.suite_name in SUITE_INSPECTION:  return self._eval_inspection(snap, current_sim_s)
         return None
 
     def _eval_appetitive(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
         neurons = snap['neurons']
-        x17 = neurons[17] if len(neurons) > 17 else 0.0
+        x17 = neurons[29] if len(neurons) > 29 else 0.0
         
         if x17 > X17_THRESHOLD:
             if self._success_hold_start is None:
@@ -276,6 +278,21 @@ class TrialEvaluator:
                 return Verdict.SUCCESS
         elif x17 < 0.1:
             self._success_hold_start = None  
+        return None
+
+    def _eval_inspection(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
+        """Familia E — Éxito: z[17] (índice 29) > 0.25 sostenido 2 s continuos."""
+        neurons = snap['neurons']
+        z17 = neurons[29] if len(neurons) > 29 else 0.0
+
+        if z17 > X17_THRESHOLD:
+            if self._success_hold_start is None:
+                self._success_hold_start = current_sim_s
+            elif (current_sim_s - self._success_hold_start) >= SUCCESS_HOLD_S:
+                log.info(f'[SUCCESS-E] Inspección completada. z[17]={z17:.3f}')
+                return Verdict.SUCCESS
+        elif z17 < 0.1:
+            self._success_hold_start = None
         return None
 
     def _eval_evasive(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
@@ -356,6 +373,9 @@ def _collect_artifacts(trial_dir: Path, suite_name: str, trial_idx: int, verdict
     
     unified_metrics_src = Path.home() / 'unified_metrics.csv'
     if unified_metrics_src.exists(): shutil.move(str(unified_metrics_src), str(trial_dir / 'unified_metrics.csv'))
+
+    inspection_src = Path.home() / 'inspection_summary.json'
+    if inspection_src.exists(): shutil.move(str(inspection_src), str(trial_dir / 'inspection_summary.json'))
     
     exp_base = Path.home() / 'peter_experiments'
     if exp_base.exists():
@@ -419,7 +439,7 @@ class TestManager:
         self._workspace: Path = Path(os.path.expanduser(gs.get('workspace_path', '~/PETER_SIMULATION/ros2_ws')))
         self._output_base: Path = Path(os.path.expanduser(gs.get('output_base_dir', '~/PETER_SIMULATION/Findings')))
         self._grace_period: float = float(gs.get('grace_period_teardown_s', GRACE_PERIOD_S))
-        self._ros_setup  = f'source /opt/ros/humble/setup.bash && source {self._workspace}/install/setup.bash'
+        self._ros_setup  = f'source /opt/ros/jazzy/setup.bash && source {self._workspace}/install/setup.bash'
         self._rng        = np.random.default_rng()
         self._judge_node: Optional[TestJudgeNode] = None
         self._ros_thread: Optional[threading.Thread] = None
