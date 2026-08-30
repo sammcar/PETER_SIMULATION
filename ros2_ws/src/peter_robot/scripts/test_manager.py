@@ -28,6 +28,9 @@ from rosgraph_msgs.msg import Clock
 from std_msgs.msg import Float32MultiArray, String
 from geometry_msgs.msg import PoseArray
 import yaml
+from collections import deque
+from pynput import keyboard
+from typing import Dict, Any, Optional
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -40,7 +43,7 @@ log = logging.getLogger('test_manager')
 # ── Constantes globales ───────────────────────────────────────────────────────
 CRIT_TR: float = 1.0
 TIPOVER_HOLD_S: float = 3.0          
-X17_THRESHOLD: float = 0.2    # Umbral activación neurona de parada
+X17_THRESHOLD: float = 0.45    # Umbral activación neurona de parada
 SUCCESS_HOLD_S: float = 2.0   
 WARMUP_S: float = 10.5        
 SAFETY_STABLE_S: float = 12.0 
@@ -75,7 +78,7 @@ class TestJudgeNode(Node):
         ])
         self._lock = threading.Lock()
         self._sim_time_ns: int = 0
-        self._neuron_activity: List[float] = [0.0] * 20
+        self._neuron_activity: List[float] = [0.0] * 30
         self._tcall: float = 0.0
         self._tresponse: float = 0.0
         self._tswitch: float = 0.0
@@ -237,6 +240,35 @@ class TrialEvaluator:
         self._mode_switched: bool = False
         self._post_switch_start: Optional[float] = None   
         self._tipover_start_s: Optional[float] = None
+        self.NEURONOFFSET = 12
+
+        self._x17_window = deque(maxlen=20) 
+        self._success_hold_start = None
+
+
+        # Flags para la captura de teclado manual
+        self._manual_success_requested = False
+        self._manual_restart_requested = False
+
+        # Iniciar el escuchador de teclado en segundo plano (non-blocking)
+        self._keyboard_listener = keyboard.Listener(on_press=self._on_key_press)
+        self._keyboard_listener.start()
+
+
+
+    def _on_key_press(self, key):
+        try:
+            # Captura caracteres en minúscula o mayúscula
+            if hasattr(key, 'char') and key.char is not None:
+                char = key.char.lower()
+                if char == 's':
+                    log.info('[KEYBOARD] Tecla "S" presionada -> Solicitando SUCCESS.')
+                    self._manual_success_requested = True
+                elif char == 'r':
+                    log.info('[KEYBOARD] Tecla "R" presionada -> Solicitando RESTART.')
+                    self._manual_restart_requested = True
+        except Exception as e:
+            log.error(f'Error en captura de teclado: {e}')
 
     def evaluate(self, snap: Dict[str, Any], sim_start_s: float, warmup_done: bool) -> Optional[Verdict]:
         if not warmup_done: return None
@@ -266,22 +298,30 @@ class TrialEvaluator:
 
     def _eval_appetitive(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
         neurons = snap['neurons']
-        x17 = neurons[17] if len(neurons) > 17 else 0.0
+        x17_raw = neurons[17 + self.NEURONOFFSET] if len(neurons) > 17+self.NEURONOFFSET else 0.0
         
-        if x17 > X17_THRESHOLD:
+        self._x17_window.append(x17_raw)
+        x17_avg = sum(self._x17_window) / len(self._x17_window)
+        
+        if x17_avg > X17_THRESHOLD:
             if self._success_hold_start is None:
                 self._success_hold_start = current_sim_s
             elif (current_sim_s - self._success_hold_start) >= SUCCESS_HOLD_S:
-                log.info(f'[SUCCESS] Objetivo alcanzado! X17={x17:.3f}')
+                log.info(f'[SUCCESS] Objetivo alcanzado! X17={x17_avg:.3f}')
                 return Verdict.SUCCESS
-        elif x17 < 0.1:
+        elif x17_avg < 0.1:
             self._success_hold_start = None  
         return None
 
     def _eval_evasive(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
         neurons = snap['neurons']
-        x14_active = (neurons[14] > 0.3) if len(neurons) > 14 else False
+        x14_active = (neurons[14 + self.NEURONOFFSET] > 0.3) if len(neurons) > 14 + self.NEURONOFFSET else False
         mode_switched = x14_active or (snap['mode'] in ('H', 'C'))
+
+        l4_active = neurons[34] if len(neurons) > 34 else False
+        if (l4_active*15) > 0.2:
+            log.info("Condicion activada")
+
         
         # ── CAMBIO: Se ajustan las llaves a los nombres correctos del snapshot ──
         stimulus_gone = (snap['bb_red'] < 1.0) and (snap['bb_green'] < 1.0)
@@ -300,24 +340,39 @@ class TrialEvaluator:
             self._success_hold_start = None
         return None
 
+    # def _eval_terrain_c1(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
+    #     neurons = snap['neurons']
+    #     x0 = neurons[0 + self.NEURONOFFSET] if len(neurons) > 0 + self.NEURONOFFSET else 0.0
+    #     x15 = neurons[15 + self.NEURONOFFSET] if len(neurons) > 15 + self.NEURONOFFSET else 0.0
+    #     tswitch_done = snap['tswitch'] > 0.0
+    #     mode_articulated = (snap['mode'] == 'C') # El tópico /peter_mode pasa a 'C' en terreno irregular
+
+    #     # Evaluamos el cumplimiento de la condición de disparo (Activación de red o modo motor)
+    #     if not self._mode_switched and (x0 > 0.1 or x15 > 0.1 or mode_articulated) and tswitch_done:
+    #         self._mode_switched     = True
+    #         self._post_switch_start = current_sim_s
+    #         log.info(f'[C1] Transition to articulated gait detected at {current_sim_s:.2f}s. Evaluating stability window...')
+
+    #     # Verificación de la ventana de estabilidad obligatoria (SAFETY_STABLE_S = 12.0 segundos)
+    #     if self._mode_switched and self._post_switch_start is not None:
+    #         if (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S:
+    #             log.info(f'[SUCCESS] C1 test successful: 12 seconds of stable articulated locomotion completed.')
+    #             return Verdict.SUCCESS
+    #     return None
+
     def _eval_terrain_c1(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
-        neurons = snap['neurons']
-        x0 = neurons[0] if len(neurons) > 0 else 0.0
-        x15 = neurons[15] if len(neurons) > 15 else 0.0
-        tswitch_done = snap['tswitch'] > 0.0
-        mode_articulated = (snap['mode'] == 'C') # El tópico /peter_mode pasa a 'C' en terreno irregular
+        if self._manual_restart_requested:
+            self._manual_restart_requested = False  # Reset del flag
+            log.info(f'[MANUAL RESTART] Solicitud de reinicio manual recibida en {current_sim_s:.2f}s.')
+            # Retorna el veredicto correspondiente a reinicio en tu framework
+            # (Ej: Verdict.REBOOT, Verdict.RESTART, Verdict.FAILURE según tu Enum)
+            return Verdict.FAILURE_TIPOVER
 
-        # Evaluamos el cumplimiento de la condición de disparo (Activación de red o modo motor)
-        if not self._mode_switched and (x0 > 0.1 or x15 > 0.1 or mode_articulated) and tswitch_done:
-            self._mode_switched     = True
-            self._post_switch_start = current_sim_s
-            log.info(f'[C1] Transition to articulated gait detected at {current_sim_s:.2f}s. Evaluating stability window...')
+        if self._manual_success_requested:
+            self._manual_success_requested = False  # Reset del flag
+            log.info(f'[SUCCESS] C1 test marcado exitosamente por entrada manual (Tecla S) en {current_sim_s:.2f}s.')
+            return Verdict.SUCCESS
 
-        # Verificación de la ventana de estabilidad obligatoria (SAFETY_STABLE_S = 12.0 segundos)
-        if self._mode_switched and self._post_switch_start is not None:
-            if (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S:
-                log.info(f'[SUCCESS] C1 test successful: 12 seconds of stable articulated locomotion completed.')
-                return Verdict.SUCCESS
         return None
 
     def _eval_terrain_c2(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
@@ -390,6 +445,14 @@ def _build_launch_args(suite_cfg: Dict[str, Any], trial_idx: int, noise_idx: int
     seed_info: Dict[str, Any] = {'trial_index': trial_idx, 'noise_level_idx': noise_idx, 'perturbations': {}}
     random_perturb: bool = dp.get('random_perturbation', False)
     sigma: float = float(dp.get('variance_sigma', 0.15))
+
+    # ── Lógica para illum_direction (0-7 -> -1, 8-15 -> 1) ──
+    # Si las pruebas empiezan en 1 (por ejemplo 1-8 y 9-16), ajusta (trial_idx - 1)
+    if trial_idx < 8: illum_dir = -1
+    else: illum_dir = 1
+
+    args += [f'illum_direction:={illum_dir}']
+    seed_info['illum_direction'] = illum_dir
 
     def _perturbed(base_key: str) -> tuple[str, float]:
         base_val = float(dp.get(base_key, 0.0))
@@ -470,6 +533,7 @@ class TestManager:
             verdict = evaluator.evaluate(snap, sim_start_s, warmup_done=True)
             time.sleep(0.05)
 
+        time.sleep(1.0)
         _kill_process_group(proc, self._grace_period)
         return verdict, seed_info, proc
 

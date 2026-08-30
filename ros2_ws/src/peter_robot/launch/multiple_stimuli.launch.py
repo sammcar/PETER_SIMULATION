@@ -134,6 +134,8 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_y', default_value='0.0'),
         DeclareLaunchArgument('robot_z', default_value='1.2'),
         DeclareLaunchArgument('record_metrics', default_value='true'),
+        DeclareLaunchArgument('noise_level_idx', default_value='0'),
+        DeclareLaunchArgument('illum_direction', default_value='-1'),
     ]
     resolve_world = OpaqueFunction(function=_resolve_world)
     spawn_stimuli = OpaqueFunction(function=_spawn_stimuli)
@@ -242,8 +244,9 @@ def generate_launch_description():
             name='red_neuronal',
             output='screen',
             parameters=[{
-                'noise_lvl': 4,
-                'illum_direction': -1,
+                'noise_level_idx': LaunchConfiguration('noise_level_idx'),
+                'illum_direction': LaunchConfiguration('illum_direction'),
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
             }]
         )
     ])

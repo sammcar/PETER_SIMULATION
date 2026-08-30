@@ -462,7 +462,8 @@ def main(args=None):
     ani = FuncAnimation(fig, animate, interval=150, cache_frame_data=False)  # noqa: F841
 
     try:
-        plt.show()
+        pass
+        #plt.show()
     except KeyboardInterrupt:
         pass
     finally:

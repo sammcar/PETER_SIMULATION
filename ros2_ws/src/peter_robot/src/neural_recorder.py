@@ -64,6 +64,7 @@ class NeuralRecorder(Node):
         self._latency_history: list = []
         self._red_present: bool = False
         self._blue_present: bool = False
+        self._obstacle_present: bool = False
         self._prev_activity: np.ndarray = None
         self._mode: str = 'C'
 
@@ -135,6 +136,13 @@ class NeuralRecorder(Node):
         now = time.time()
         self._activity_buffer.append(arr)
         self._timestamp_buffer.append(now)
+
+        lidaractivity = arr[30 + 4] if len(arr) > (30 + 4) else 0.0 # Ajusta al índice de tu LiDAR        
+        was_obstacle = self._obstacle_present 
+        self._obstacle_present = (abs(lidaractivity)*15) > 0.2 # Umbral de detección de pared
+        if self._obstacle_present and not was_obstacle:
+            self._on_stimulus_appeared()
+
         self._prev_activity = arr
 
     def _cb_cmd_vel(self, msg: Twist):

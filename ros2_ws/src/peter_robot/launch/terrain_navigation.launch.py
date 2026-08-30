@@ -73,6 +73,8 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_x', default_value='0.0'),
         DeclareLaunchArgument('robot_y', default_value='0.0'),
         DeclareLaunchArgument('robot_z', default_value='1.2'),
+        DeclareLaunchArgument('noise_level_idx', default_value='0'),
+        DeclareLaunchArgument('illum_direction', default_value='-1'),
     ]
 
     resolve_world = OpaqueFunction(function=_resolve_world)
@@ -152,9 +154,27 @@ def generate_launch_description():
         Node(package=PACKAGE_NAME, executable='peter_controller', name='peter_controller', output='screen')
     ])
 
+# ---- Establecer modo H (Híbrido) ----
+    set_hybrid_mode = TimerAction(period=14.5, actions=[
+        ExecuteProcess(
+            cmd=['ros2', 'topic', 'pub', '--once', '/peter_mode', 'std_msgs/msg/String', '{data: "H"}'],
+            output='screen'
+        )
+    ])
+
     # ---- Application nodes ----
-    neural_network = TimerAction(period=12.5, actions=[
-        Node(package=PACKAGE_NAME, executable='red_neuronal', name='red_neuronal', output='screen')
+    neural_network = TimerAction(period=19.5, actions=[
+        Node(
+            package=PACKAGE_NAME, 
+            executable='red_neuronal', 
+            name='red_neuronal', 
+            output='screen',
+            parameters=[{
+                'noise_level_idx': LaunchConfiguration('noise_level_idx'),
+                'illum_direction': LaunchConfiguration('illum_direction'),
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+            }]
+             )
     ])
 
     camera_node = TimerAction(period=13.0, actions=[
@@ -207,6 +227,7 @@ def generate_launch_description():
             load_head,
             load_velocity,
             peter_controller,
+            set_hybrid_mode,
             neural_network,
             camera_node,
             neural_recorder,

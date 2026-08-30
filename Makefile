@@ -85,6 +85,10 @@ clean: ## Limpia build/install/log dentro del contenedor
 shell: ## Abre shell interactiva en el contenedor
 	@make -f $(MK) shell $(PASSTHROUGH)
 
+chown-ws: ## Soluciona problemas de acceso
+	@make -f $(MK) chown-ws $(PASSTHROUGH)
+
+
 # ── Simulaciones ──────────────────────────────────────────────────────────────
 sim-single: ## Simulación familia A — STIM=red|blue|green STIM_X=4.0 STIM_Y=0.0
 	@make -f $(MK) sim-single $(PASSTHROUGH)
@@ -123,8 +127,17 @@ neural: ## Lanza solo la red neuronal
 echo-metrics: ## Muestra /experiment/metrics en tiempo real
 	@make -f $(MK) echo-metrics $(PASSTHROUGH)
 
+echo-metrics2: ## Muestra /experiment/metrics en tiempo real
+	@make -f $(MK) echo-metrics2 $(PASSTHROUGH)
+
 echo-status: ## Muestra /experiment/status en tiempo real
 	@make -f $(MK) echo-status $(PASSTHROUGH)
+
+echo-neurons: ## Muestra /experiment/status en tiempo real
+	@make -f $(MK) echo-neurons $(PASSTHROUGH)
+
+log-network: ## log de la red
+	@make -f $(MK) log-network $(PASSTHROUGH)
 
 list-topics: ## Lista topics ROS 2 activos
 	@make -f $(MK) list-topics $(PASSTHROUGH)

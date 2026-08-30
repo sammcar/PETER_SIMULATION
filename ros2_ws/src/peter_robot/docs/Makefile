@@ -154,8 +154,7 @@ check-install: check-container ## Verifica que el paquete peter_robot exista en 
 	$(DC) "test -f $(WS)/install/peter_robot/share/peter_robot/package.xml && echo '[OK] peter_robot instalado' || (echo '[ERROR] peter_robot no está instalado'; exit 1)"
 
 chown-ws: ## Corrige permisos root-owned en el host
-	@echo "Ejecuta en WSL host:"
-	@echo "  sudo chown -R \$$(id -u):\$$(id -g) ~/PETER_SIMULATION/ros2_ws"
+	sudo chown -R $$USER:$$USER ~/PETER_SIMULATION/ros2_ws
 
 sim-single: check-install ## Lanza simulación de único estímulo
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
@@ -221,6 +220,14 @@ echo-status: check-install ## Muestra status JSON
 echo-neurons: check-install ## Muestra estado de las neuronas
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 topic echo /neuron_activity"
+
+echo-metrics2: check-install ## Muestra /Metrics
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
+	       ros2 topic echo /Metrics"
+
+log-network: check-install
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
+			ros2 topic echo /rosout | grep --line-buffered -A 20 "red_neuronal""
 
 list-topics: check-install ## Lista topics activos
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && ros2 topic list"

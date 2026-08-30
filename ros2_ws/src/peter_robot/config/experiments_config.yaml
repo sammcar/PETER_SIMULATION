@@ -22,7 +22,7 @@ experiment_suites:
       stimulus_type: "blue"
       stimulus_x: 4.0
       stimulus_y: -2.0
-      timeout_s: 45.0
+      timeout_s: 60.0
       random_perturbation: true
       variance_sigma: 0.15
 
@@ -88,7 +88,7 @@ experiment_suites:
     repetitions: 15
     dynamic_parameters:
       world_name: "terrain"
-      timeout_s: 120.0
+      timeout_s: 2000.0
       random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
@@ -100,5 +100,5 @@ experiment_suites:
     repetitions: 15
     dynamic_parameters:
       world_name: "terrain"
-      timeout_s: 120.0
+      timeout_s: 2000.0
       random_perturbation: false

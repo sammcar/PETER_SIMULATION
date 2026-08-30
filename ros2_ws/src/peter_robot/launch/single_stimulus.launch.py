@@ -126,6 +126,8 @@ def generate_launch_description():
                               description='Robot initial Z (spawn height)'),
         DeclareLaunchArgument('record_metrics', default_value='true',
                               description='Launch neural recorder node'),
+        DeclareLaunchArgument('noise_level_idx', default_value='0'),
+        DeclareLaunchArgument('illum_direction', default_value='-1'),
     ]
 
     resolve_world = OpaqueFunction(function=_resolve_world)
@@ -234,6 +236,11 @@ def generate_launch_description():
             executable='red_neuronal',
             name='red_neuronal',
             output='screen',
+            parameters=[{
+                'noise_level_idx': LaunchConfiguration('noise_level_idx'),
+                'illum_direction': LaunchConfiguration('illum_direction'),
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+            }]
         )
     ])
 

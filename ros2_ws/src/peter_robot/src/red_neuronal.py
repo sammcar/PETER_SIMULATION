@@ -70,7 +70,7 @@ class NetworkPublisher(Node):
         self.metrics_pub = self.create_publisher(Float32MultiArray, '/Metrics', 10) #Tiempo de respuesta, delay de cambio, amplitud de oscilación, noise
 
         # Modo Inicial
-        self.current_mode = 'C' #Original en C
+        self.current_mode = 'H' #Original en C
 
         # Intensidad de estimulo
         self.areaBoundingBoxR = 0.0
@@ -126,6 +126,7 @@ class NetworkPublisher(Node):
 
         self.MOVEMENT = True
         self.maxstd = []
+        self.maxaux = []
 
         #--------------IMU --------------
         
@@ -150,7 +151,8 @@ class NetworkPublisher(Node):
         self.epsilem = 0.01 # Tolerancia
         self.dt = 1 # Intervalo de Integracion
         self.cte = 3 # Constante de Avance
-        self.Area = 28 # Area Limite Tuneada segun iluminacion
+        self.Area = 28 # Area Limite Tuneada segun iluminacion 
+        
 
         self.roll = 0.0
         self.pitch = 0.0
@@ -170,10 +172,10 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        #self.Usigma_az = 3.3 #PARA CASO PLANO-RUGOSO-PLANO
-        #self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
-        self.Upitch = 1 #uMbral pitch INCLINADO
-        self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
+        self.Usigma_az = 3.0 #PARA CASO PLANO-RUGOSO-PLANO
+        self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
+        #self.Upitch = 1 #uMbral pitch INCLINADO
+        #self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -214,7 +216,7 @@ class NetworkPublisher(Node):
 
         # TIEMPO DE RESPUESTA
         self.starttime = time.time() 
-        self.tchange = self.starttime + 11.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
+        self.tchange = self.starttime + 16.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
         self.Tresponse = None
         self.response_measured = False
 
@@ -246,15 +248,15 @@ class NetworkPublisher(Node):
 
         # ---- 1) IMU: ruido blanco (el modelo original, ahora opcional) ----
         self.IMUNoiseLevels = [0.0, 0.05, 0.10, 0.20, 0.30]  # fracción del valor medido
-        self.declare_parameter('nl', 0)
-        self.ACTIVE_NOISE_IDX = self.get_parameter('nl').get_parameter_value().integer_value
+        self.declare_parameter('noise_level_idx', 0)
+        self.ACTIVE_NOISE_IDX = self.get_parameter('noise_level_idx').get_parameter_value().integer_value
         self._sigma_imu_noise = self.IMUNoiseLevels[0] #Ahora es opcional entonces se pone en 0 para conveniencia
  
         # ---- 2) IMU: DERIVA (drift) -- random-walk acumulativo, NO ruido de media cero ----
         # sigma_rw = paso de la caminata aleatoria por ciclo de control (0.15 s)
         # Niveles pensados en unidades de aceleración (m/s^2) y de ángulo (deg)
-        self.IMUDriftLevels_accel = [0.0, 0.01, 0.03, 0.06, 0.08]   # m/s^2 por paso
-        self.IMUDriftLevels_angle = [0.0, 0.02, 0.05, 0.10, 0.12]   # deg por paso (roll/pitch)
+        self.IMUDriftLevels_accel = [0.0, 0.01, 0.03, 0.06, 0.09]   # m/s^2 por paso
+        self.IMUDriftLevels_angle = [0.0, 0.01, 0.04, 0.08, 0.12]   # deg por paso (roll/pitch)
         #self.declare_parameter('imu_drift_lvl', 0) #Descomentar si se desea parametros independientes
         #self.ACTIVE_IMU_DRIFT_IDX = self.get_parameter('imu_drift_lvl').get_parameter_value().integer_value
         self._sigma_drift_accel = self.IMUDriftLevels_accel[self.ACTIVE_NOISE_IDX]
@@ -266,14 +268,17 @@ class NetworkPublisher(Node):
         self.imu_drift_pitch_bias = 0.0
  
         # ---- 3) LiDAR: ruido gaussiano proporcional al rango (SIN CAMBIOS DE MODELO) ----
-        self.LidarNoiseLevels = [0.0, 0.05, 0.10, 0.20, 0.30]
+        self.LidarNoiseLevels = [0.0, 0.05, 0.10, 0.15, 0.20]
         #self.declare_parameter('lidar_noise_lvl', 0)#Descomentar si se desea parametros independientes
         #self.ACTIVE_LIDAR_NOISE_IDX = self.get_parameter('lidar_noise_lvl').get_parameter_value().integer_value
         self._sigma_lidar_noise = self.LidarNoiseLevels[self.ACTIVE_NOISE_IDX]
  
         # ---- 4) Cámara: DISTORSIÓN DE ILUMINACIÓN (sesgo + dropout + jitter) ----
         # severidad en [0, 1]; no es ruido de media cero
-        self.IllumLevels = [0.0, 0.15, 0.30, 0.50, 0.80]
+        self.IllumLevels = [0.0, 0.10, 0.20, 0.30, 0.30]
+
+        self.AreaIllumLevels = [28, 24, 20, 18, 14]
+        self.Area = self.AreaIllumLevels[self.ACTIVE_NOISE_IDX]
         #self.declare_parameter('illum_lvl', 0) #Descomentar si se desea parametros independientes
         #self.ACTIVE_ILLUM_IDX = self.get_parameter('illum_lvl').get_parameter_value().integer_value
         self._illum_severity = self.IllumLevels[self.ACTIVE_NOISE_IDX]
@@ -452,7 +457,7 @@ class NetworkPublisher(Node):
         #R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
-        G = 0
+        G = 0  #Descomentar para probar inclinacion y terreno
         B = self.areaBoundingBoxB/500
 
 
@@ -524,30 +529,31 @@ class NetworkPublisher(Node):
 
         # ------------------- PRINTS -------------------------
         
-        print("R: ", str(R))
-        print("G: ", str(G))
-        print("B: ", str(B)) 
+        print(f"R: {str(R)}")
+        print(f"G: {str(G)}")
+        print(f"B: {str(B)}") 
+
+        self.maxaux.append(self.Gpe[2,1])
 
         # ── LOG CON CORRECCIÓN CRÍTICA DE CONDICIÓN DE CARRERA (maxstd) ──
-        print(
-                        f"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCc\n"
-                        f"GpeR: {self.Gpe[0,1]}\n"
-                        f"GpeG: {self.Gpe[1,1]}\n"
-                        f"GpeB: {self.Gpe[2,1]}\n"
-                        f"ang_p: {self.ang_p}\n"
-                        f"ang_s: {self.ang_s}\n"
-                        f"roll: {self.roll}\n"
-                        f"pitch: {self.pitch}\n"
-                        f"STD total: {self.accel_std:.3f}\n"
-                        f"IGNOREIMU: {self.ignore_imu}\n"
-                        f"Tresponse: {self.Tresponse} s \n"
-                        f"Tswitch: {self.Tswitch} s \n"
-                        f"maxstd {np.max(self.maxstd) if self.maxstd else 0.0}\n"
-                        f"time {time.time() - self.starttime}\n"
-                        f"(accel={self._sigma_drift_accel} m/s^2/paso, ang={self._sigma_drift_angle} deg/paso), "
-                        f"LiDAR (σ={self._sigma_lidar_noise*100:.0f}%), "
-                        f"(severidad={self._illum_severity}, dirección={self._illum_direction})"
-                        )
+        # self.get_logger().info(
+        #                 # f"GpeR: {self.Gpe[0,1]}\n"
+        #                 # f"GpeG: {self.Gpe[1,1]}\n"
+        #                 # f"GpeB: {self.Gpe[2,1]}\n"
+        #                 # f"ang_p: {self.ang_p}\n"
+        #                 # f"ang_s: {self.ang_s}\n"
+        #                 # f"roll: {self.roll}\n"
+        #                 # f"pitch: {self.pitch}\n"
+        #                 f"TERRENO ROCOSO = {self.terrainchanger}\n"
+        #                 f"STD total: {self.accel_std:.3f}\n"
+        #                 f"IGNOREIMU: {self.ignore_imu}\n"
+        #                 f"Tresponse: {self.Tresponse} s \n"
+        #                 f"Tswitch: {self.Tswitch} s \n"
+        #                 f"maxstd {np.max(self.maxstd) if self.maxstd else 0.0}\n"
+        #                 f"time {time.time() - self.starttime}\n"
+        #                 )
+
+        
         
         if(self.tcmd != None): print(f"timecmd: {time.time() - self.tcmd:.1f}")
 
@@ -566,7 +572,7 @@ class NetworkPublisher(Node):
         # Si está activo, verificar si pasaron 8 segundos
         if self.terrainchanger:
             elapsed = time.time() - self.terrain_timer
-            if elapsed < 40:
+            if elapsed < 100:
                 print("Terreno rocoso detectado 🚧")
                 self.std_dev_accel_z = 9
             else:
@@ -621,12 +627,12 @@ class NetworkPublisher(Node):
             # ------------------------------------------------------------------------------
 
             # modos
-            # if self.z[15,1] > 0.5:
-            #     self.publish_mode('C'); #print("Cuadrupedo")
-            # elif self.z[16,1] > 0.5:
-            #     self.publish_mode('H'); #print("Móvil H")
-            # elif self.z[14,1] > 0.5:
-            #     self.publish_mode('X'); #print("Móvil X")
+            if self.z[15,1] > 0.5:
+                self.publish_mode('C'); #print("Cuadrupedo")
+            elif self.z[16,1] > 0.5:
+                self.publish_mode('H'); #print("Móvil H")
+            elif self.z[14,1] > 0.5:
+                self.publish_mode('X'); #print("Móvil X")
 
 
             # Obtener valores actuales
@@ -634,34 +640,37 @@ class NetworkPublisher(Node):
             z16 = self.z[16,1] # Activación H
             z14 = self.z[14,1] # Activación X
             
-            current_time = time.time()
-            time_since_last_change = current_time - self.last_mode_change_time
+            # current_time = time.time()
+            # time_since_last_change = current_time - self.last_mode_change_time
             
-            # Lógica de decisión con Histéresis
-            new_mode = self.current_mode 
+            # # Lógica de decisión con Histéresis
+            # new_mode = self.current_mode 
             
-            # Condición de activación para H (más sensible)
-            if z16 > 0.4: 
-                new_mode = 'H'
-            # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
-            elif z15 > 0.6 and time_since_last_change > self.min_dwell_time:
-                new_mode = 'C'
-            elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
-                new_mode = 'X'
+            # # Condición de activación para H (más sensible)
+            # if z16 > 0.5: 
+            #     new_mode = 'H'
+            #     print("Movil H")
+            # # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
+            # elif z15 > 0.5 and time_since_last_change > self.min_dwell_time:
+            #     new_mode = 'C'
+            #     print("Cuadrupedo")
+            # elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
+            #     new_mode = 'X'
+            #     print("Movil H")
 
-            # Ejecutar cambio solo si el modo es realmente diferente
-            if new_mode != self.current_mode:
-                self.publish_mode(new_mode)
-                self.current_mode = new_mode
-                self.last_mode_change_time = current_time
-                self.get_logger().info(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
+            # # Ejecutar cambio solo si el modo es realmente diferente
+            # if new_mode != self.current_mode:
+            #     self.publish_mode(new_mode)
+            #     self.current_mode = new_mode
+            #     self.last_mode_change_time = current_time
+            #     print(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
 
             self.publish_data()
             self.publish_imu()
 
 
             #------------------------- M E T R I C A S--------------------------------------#
-            stable_condition = (self.accel_std < 2 and self.pitch < 1.5 and self.roll > 178) #Estabilización cond
+            stable_condition = (self.accel_std < 3.3 and self.pitch_rms < 1.6 and self.roll_rms < 2.6) #Estabilización cond
             print(f"stable condition: {stable_condition}")
 
             #Tiempo de respuesta
@@ -679,9 +688,21 @@ class NetworkPublisher(Node):
             print(f"Roll RMS: {self.roll_rms:.3f} deg")
             print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
 
+
+            self.get_logger().info(
+                f"noise = {self.ACTIVE_NOISE_IDX}"
+            )
+
+
+            self.get_logger().info(
+                # f"GpeR: {self.Gpe[0,1]}\n"
+                # f"GpeG: {self.Gpe[1,1]}\n"
+                # f"GpeB: {self.Gpe[2,1]}\n"
+                # f"ang_p: {self.ang_p}\n"
+                # f"ang_s: {self.ang_s}\n"
+                f"r: {self.roll_rms or 0.0:.2f} | p: {self.pitch_rms or 0.0:.2f} | TERR = {self.terrainchanger} | STD total: {self.accel_std or 0.0:.2f} | IMU: {self.ignore_imu} | Tresponse: {self.Tresponse or 0.0:.1f} s| Tswitch: {self.Tswitch or 0.0:.1f} s | maxstd {np.max(self.maxstd) if getattr(self, 'maxstd', None) is not None and len(self.maxstd) > 0 else 0.0:.1f} || time {(time.time() - self.starttime) if getattr(self, 'starttime', None) is not None else 0.0:.1f}"
+            )
             self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_IDX]
-            #CAMBIAR A ESTE DE ABAJO MODIFICAR !!!!!!
-            #self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms,self.ACTIVE_IMU_NOISE_IDX, self.ACTIVE_IMU_DRIFT_IDX,self.ACTIVE_LIDAR_NOISE_IDX, self.ACTIVE_ILLUM_IDX,]
             self.publicarMatericas()
 
 
@@ -851,7 +872,7 @@ class NetworkPublisher(Node):
         mode_msg = String()
         mode_msg.data = mode
         self.mode_pub.publish(mode_msg)
-        if self.current_mode != mode and (self.current_mode == "C" or self.current_mode == "H"): 
+        if self.current_mode != mode:# and (self.current_mode == "C" or self.current_mode == "H"): 
             self.ignore_timer = time.time()  
             self.ignore_imu = True
             self.tcmd = time.time() #delay cambio metrica
