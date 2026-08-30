@@ -11,20 +11,20 @@ global_settings:
 experiment_suites:
 
   # ──────────────────────────────────────────────────────────────────────────
-  # FAMILIA A1 FSM — Estímulo Apetitivo (Target Azul)
+  # FAMILIA A1 FSM — Estímulo Apetitivo (Target Azul)  [COMPLETADA: 15/15 ✓]
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_a_apetitivo_fsm"
-    launch_file: "single_stimulus.launch.py"
-    repetitions: 15
-    dynamic_parameters:
-      controller: "fsm"
-      world_name: "single_stimulus"
-      stimulus_type: "blue"
-      stimulus_x: 4.0
-      stimulus_y: -2.0
-      timeout_s: 45.0
-      random_perturbation: true
-      variance_sigma: 0.15
+  # - suite_name: "familia_a_apetitivo_fsm"
+  #   launch_file: "single_stimulus.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     controller: "fsm"
+  #     world_name: "single_stimulus"
+  #     stimulus_type: "blue"
+  #     stimulus_x: 4.0
+  #     stimulus_y: -2.0
+  #     timeout_s: 45.0
+  #     random_perturbation: true
+  #     variance_sigma: 0.15
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA A2 FSM — Estímulo Obstáculo (Target Verde)
@@ -45,18 +45,18 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA A3 FSM — Estímulo Aversivo (Target Rojo)
   # ──────────────────────────────────────────────────────────────────────────
-  # - suite_name: "familia_a_aversivo_fsm"
-  #   launch_file: "single_stimulus.launch.py"
-  #   repetitions: 15
-  #   dynamic_parameters:
-  #     controller: "fsm"
-  #     world_name: "single_stimulus"
-  #     stimulus_type: "red"
-  #     stimulus_x: 2.0
-  #     stimulus_y: -0.5
-  #     timeout_s: 40.0
-  #     random_perturbation: true
-  #     variance_sigma: 0.15
+  - suite_name: "familia_a_aversivo_fsm"
+    launch_file: "single_stimulus.launch.py"
+    repetitions: 15
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "single_stimulus"
+      stimulus_type: "red"
+      stimulus_x: 2.0
+      stimulus_y: -0.5
+      timeout_s: 40.0
+      random_perturbation: true
+      variance_sigma: 0.15
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA B FSM — Navegación Compleja (Estímulos Múltiples)
