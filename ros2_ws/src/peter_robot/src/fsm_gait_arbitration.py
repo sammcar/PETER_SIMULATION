@@ -374,9 +374,11 @@ class FSMGaitArbitration(Node):
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
-        self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
-        self.z[1, 1] = self.z[1, 0] + (self.dt / self.tau) * (-self.z[1, 0] + (self.A * max(0, (self.pitch - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch - self.Upitch )**2))
-        self.z[2, 1] = self.z[2, 0] + (self.dt / self.tau) * (-self.z[2, 0] + (self.A * max(0, (self.roll - self.Uroll ))**2) / (self.SigmaIMU**2 + (-self.z[2,0] + self.roll - self.Uroll )**2))
+        # FSM: z[0]/z[1]/z[2] son relays IMU → z[15]/z[16], neuronas ya reemplazadas.
+        # La lógica IMU se maneja directamente en el bloque FSM de selección de modo.
+        self.z[0, 1] = 0.0
+        self.z[1, 1] = 0.0
+        self.z[2, 1] = 0.0
         self.z[3, 1] = self.z[3, 0] + (self.dt / self.tau) * (-self.z[3, 0] + max(0, (self.Gpe[2,0] )))
         self.z[4, 1] = self.z[4, 0] + (self.dt / self.tau) * (-self.z[4, 0] + max(0, (self.Gpe[1, 0] + self.j * self.Gpe[0, 0])))
 
@@ -512,8 +514,15 @@ class FSMGaitArbitration(Node):
             #     self.publish_mode('X'); #print("Móvil X")
 
 
-            # ── FSM: arbitraje de modo por señal RGB ─────────────────────────────
-            # Prioridad: G→X > R→C (persist 6s tras R=0) > B→H > default H
+            # ── FSM: arbitraje de modo (IMU + RGB) ───────────────────────────────
+            # IMU (solo activo cuando IGNORE_IMU_TERRAIN=False):
+            #   pitch > Upitch → H   (reemplaza z[1]→z[16], prioridad 1)
+            #   terrainchanger      → C   (reemplaza z[0]→z[15], 40s, prioridad 2)
+            # RGB (siempre):
+            #   G > 0  → X   (prioridad 3)
+            #   R > 0.5 → C  (persist 6s, prioridad 4)
+            #   B > 0.5 → H  (prioridad 5)
+            #   default → H
             current_time = time.time()
             new_mode = self.current_mode
 
@@ -525,7 +534,11 @@ class FSMGaitArbitration(Node):
                 (current_time - self.last_c_trigger_time) < self.c_persist_time
             )
 
-            if G > 0:
+            if not self.IGNORE_IMU_TERRAIN and self.pitch > self.Upitch:
+                new_mode = 'H'
+            elif not self.IGNORE_IMU_TERRAIN and self.terrainchanger:
+                new_mode = 'C'
+            elif G > 0:
                 new_mode = 'X'
             elif R > 0.5 or c_persist_active:
                 new_mode = 'C'
