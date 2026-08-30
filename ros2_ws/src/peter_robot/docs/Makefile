@@ -109,6 +109,8 @@ docker-create: ## Crea el contenedor (sin iniciarlo si ya existe); requiere imag
 	  -e XDG_RUNTIME_DIR=$${XDG_RUNTIME_DIR:-/tmp} \
 	  -e QT_X11_NO_MITSHM=1 \
 	  -e ROS_DOMAIN_ID=$(DOMAIN_ID) \
+	  -e GZ_IP=127.0.0.1 \
+	  -e IGN_IP=127.0.0.1 \
 	  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
 	  -v $(WS_HOST):$(WS):rw \
 	  --restart unless-stopped \
