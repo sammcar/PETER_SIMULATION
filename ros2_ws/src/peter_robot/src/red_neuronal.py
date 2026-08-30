@@ -338,10 +338,10 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
-        R = 3.652 #Descomentar para probar inclinacion
+        #R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
-        G = 0
+        #G = 0
         B = self.areaBoundingBoxB/500
 
 
@@ -370,7 +370,7 @@ class NetworkPublisher(Node):
         else:
             self.ang_s = 90*(self.lidar[4,1]<0.3)
 
-        self.ang_s = 90 #Descomentar para probar terreno inclinado
+        #self.ang_s = 90 #Descomentar para probar terreno inclinado
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
