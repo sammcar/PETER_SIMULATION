@@ -39,8 +39,22 @@ log = logging.getLogger('test_manager')
 
 # ── Constantes globales ───────────────────────────────────────────────────────
 CRIT_TR: float = 1.0
-TIPOVER_HOLD_S: float = 3.0          
+TIPOVER_HOLD_S: float = 3.0
 X17_THRESHOLD: float = 0.2    # Umbral activación neurona de parada
+
+# /neuron_activity (red_neuronal.py::publish_data()) concatena, en este orden fijo:
+#   Gpi(3) + Gpe(3) + StN(3) + StR(3) + z(20) + lidar(5) + activaciones_totales(16)
+#   + Response(16) + Aux(16)
+# El bloque z[] (donde viven X0, X14, X15, X17 del paper) empieza en el índice 12,
+# no en 0. BUG histórico: los evaluadores de abajo leían neurons[k] asumiendo que
+# z[] arrancaba en 0 (ej. neurons[17] para X17 en vez de neurons[29]). Usar siempre
+# neurons[Z_OFFSET + k] para acceder a z[k].
+Z_OFFSET: int = 12
+# Longitud total del vector publicado (Gpi 3 + Gpe 3 + StN 3 + StR 3 + z 20 + lidar 5
+# + activaciones_totales 16 + Response 16 + Aux 16). El padding en _cb_neurons debe
+# alcanzar esta longitud, no solo 20 — si no, un mensaje corto/malformado dejaría
+# Z_OFFSET+17=29 fuera de rango y los evaluadores caerían silenciosamente al default 0.0.
+NEURON_VECTOR_LEN: int = 85
 SUCCESS_HOLD_S: float = 2.0   
 WARMUP_S: float = 10.5        
 SAFETY_STABLE_S: float = 12.0 
@@ -108,7 +122,7 @@ class TestJudgeNode(Node):
     def _cb_neurons(self, msg: Float32MultiArray) -> None:
         with self._lock:
             data = list(msg.data)
-            while len(data) < 20: data.append(0.0)
+            while len(data) < NEURON_VECTOR_LEN: data.append(0.0)
             self._neuron_activity = data
 
     def _cb_exp_metrics(self, msg: Float32MultiArray) -> None:
@@ -266,8 +280,8 @@ class TrialEvaluator:
 
     def _eval_appetitive(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
         neurons = snap['neurons']
-        x17 = neurons[17] if len(neurons) > 17 else 0.0
-        
+        x17 = neurons[Z_OFFSET + 17] if len(neurons) > Z_OFFSET + 17 else 0.0
+
         if x17 > X17_THRESHOLD:
             if self._success_hold_start is None:
                 self._success_hold_start = current_sim_s
@@ -280,7 +294,7 @@ class TrialEvaluator:
 
     def _eval_evasive(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
         neurons = snap['neurons']
-        x14_active = (neurons[14] > 0.3) if len(neurons) > 14 else False
+        x14_active = (neurons[Z_OFFSET + 14] > 0.3) if len(neurons) > Z_OFFSET + 14 else False
         mode_switched = x14_active or (snap['mode'] in ('H', 'C'))
         
         # ── CAMBIO: Se ajustan las llaves a los nombres correctos del snapshot ──
@@ -302,8 +316,8 @@ class TrialEvaluator:
 
     def _eval_terrain_c1(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
         neurons = snap['neurons']
-        x0 = neurons[0] if len(neurons) > 0 else 0.0
-        x15 = neurons[15] if len(neurons) > 15 else 0.0
+        x0 = neurons[Z_OFFSET + 0] if len(neurons) > Z_OFFSET + 0 else 0.0
+        x15 = neurons[Z_OFFSET + 15] if len(neurons) > Z_OFFSET + 15 else 0.0
         tswitch_done = snap['tswitch'] > 0.0
         mode_articulated = (snap['mode'] == 'C') # El tópico /peter_mode pasa a 'C' en terreno irregular
 
