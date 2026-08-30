@@ -46,7 +46,7 @@ EXPORT_SCRIPT ?= $(REPO_ROOT)/ros2_ws/src/peter_robot/scripts/export_results.sh
         list-topics check-install check-container \
         docker-build docker-create docker-start docker-stop docker-rm docker-status docker-logs \
         export-results export-last-result list-results clean-container-results \
-        run-experiments
+        run-experiments run-experiments-fsm
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
@@ -245,6 +245,9 @@ clean-container-results: ## Elimina TODOS los resultados del contenedor (pide co
 
 run-experiments: check-install ## Ejecuta el orquestador automático de experimentos dentro del contenedor
 	$(DC) "$(WS_SOURCE) && ROS_DOMAIN_ID=$(DOMAIN_ID) python3 $(WS)/src/peter_robot/scripts/test_manager.py $(WS)/src/peter_robot/config/experiments_config.yaml"
+
+run-experiments-fsm: check-install ## Ejecuta el orquestador con lógica FSM (baseline de comparación)
+	$(DC) "$(WS_SOURCE) && ROS_DOMAIN_ID=$(DOMAIN_ID) python3 $(WS)/src/peter_robot/scripts/test_manager.py $(WS)/src/peter_robot/config/experiments_config_fsm.yaml"
 
 sim-terrain: check-install ## Lanza simulación base de Gazebo en el entorno de terreno irregular (Familia C1)
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \

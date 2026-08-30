@@ -44,7 +44,7 @@ PASSTHROUGH := IMAGE=$(IMAGE) CONTAINER=$(CONTAINER) WS=$(WS) \
         teleop-host teleop-container record neural \
         echo-metrics echo-status list-topics \
         export-results export-last-result list-results clean-container-results \
-        run-experiments
+        run-experiments run-experiments-fsm
 
 help: ## Muestra todos los comandos disponibles
 	@make -f $(MK) help IMAGE=$(IMAGE) CONTAINER=$(CONTAINER) 2>/dev/null || \
@@ -144,6 +144,9 @@ clean-container-results: ## Elimina todos los resultados del contenedor
 
 run-experiments: ## Lanza el orquestador automático de experimentos dentro del contenedor
 	@make -f $(MK) run-experiments $(PASSTHROUGH)
+
+run-experiments-fsm: ## Lanza el orquestador con lógica FSM (baseline de comparación)
+	@make -f $(MK) run-experiments-fsm $(PASSTHROUGH)
 
 sim-terrain: ## Lanza la simulación base de Gazebo en el entorno de terreno irregular (Familia C1)
 	@make -f $(MK) sim-terrain $(PASSTHROUGH)

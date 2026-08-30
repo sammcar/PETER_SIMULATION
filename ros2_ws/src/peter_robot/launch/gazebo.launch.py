@@ -8,6 +8,21 @@ from launch_ros.substitutions import FindPackageShare
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 import xacro
 
+def _select_controller(context, *args, **kwargs):
+    controller = context.launch_configurations.get('controller', 'neural')
+    executable = 'red_neuronal' if controller == 'neural' else 'fsm_arbitration'
+    return [
+        TimerAction(period=11.0, actions=[
+            Node(
+                package='peter_robot',
+                executable=executable,
+                name=executable,
+                output='screen',
+            )
+        ])
+    ]
+
+
 def set_world_path(context, *args, **kwargs):
     """ Busca el mundo correcto y guarda la ruta en 'world_path' dentro del launch """
     package_name = 'peter_robot'
@@ -58,6 +73,12 @@ def generate_launch_description():
         description='Use simulation (Gazebo) clock if true'
     )
 
+    declare_controller_cmd = DeclareLaunchArgument(
+        'controller',
+        default_value='neural',
+        description='Gait arbitration controller: neural | fsm'
+    )
+
     pkg_path = os.path.join(get_package_share_directory('peter_robot'))
     xacro_file = os.path.join(pkg_path, 'urdf', 'peter.urdf.xacro')
     doc = xacro.process_file(xacro_file)
@@ -104,17 +125,7 @@ def generate_launch_description():
         ]
     )
 
-    red_neuronal = TimerAction(
-        period=11.0,
-        actions=[
-            Node(
-                package='peter_robot',
-                executable='red_neuronal',
-                name='red_neuronal',
-                output='screen'
-            )
-        ]
-    )
+    select_controller = OpaqueFunction(function=_select_controller)
 
     metric_nodes = TimerAction(
         period=12.0,
@@ -278,6 +289,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         declare_use_sim_time_cmd,
+        declare_controller_cmd,
         declare_world_cmd,
         set_model_path_env,
         set_world_path_action,
@@ -296,7 +308,7 @@ def generate_launch_description():
         spawn_blue_sphere,
         #spawn_obstacle,
         camera_node,
-        red_neuronal,
+        select_controller,
         metric_nodes,
         inspection_recorder,
     ])

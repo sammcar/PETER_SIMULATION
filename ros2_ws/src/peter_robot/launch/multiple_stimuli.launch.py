@@ -40,6 +40,21 @@ from launch_ros.substitutions import FindPackageShare
 PACKAGE_NAME = 'peter_robot'
 
 
+def _select_controller(context, *args, **kwargs):
+    controller = context.launch_configurations.get('controller', 'neural')
+    executable = 'red_neuronal' if controller == 'neural' else 'fsm_arbitration'
+    return [
+        TimerAction(period=9.5, actions=[
+            Node(
+                package=PACKAGE_NAME,
+                executable=executable,
+                name=executable,
+                output='screen',
+            )
+        ])
+    ]
+
+
 def _resolve_world(context, *args, **kwargs):
     pkg_share = FindPackageShare(package=PACKAGE_NAME).find(PACKAGE_NAME)
     worlds_dir = os.path.join(pkg_share, 'worlds')
@@ -134,6 +149,8 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_y', default_value='0.0'),
         DeclareLaunchArgument('robot_z', default_value='1.2'),
         DeclareLaunchArgument('record_metrics', default_value='true'),
+        DeclareLaunchArgument('controller', default_value='neural',
+                              description='Gait arbitration controller: neural | fsm'),
     ]
 
     resolve_world = OpaqueFunction(function=_resolve_world)
@@ -236,14 +253,7 @@ def generate_launch_description():
 
 
     # ---- Application nodes ----
-    neural_network = TimerAction(period=9.5, actions=[
-        Node(
-            package=PACKAGE_NAME,
-            executable='red_neuronal',
-            name='red_neuronal',
-            output='screen',
-        )
-    ])
+    select_controller = OpaqueFunction(function=_select_controller)
 
     camera_node = TimerAction(period=10.0, actions=[
         Node(
@@ -297,7 +307,7 @@ def generate_launch_description():
             load_head,
             load_velocity,
             peter_controller,
-            neural_network,
+            select_controller,
             camera_node,
             neural_recorder,
             metrics_recorder,  # <── INYECTADO AQUÍ

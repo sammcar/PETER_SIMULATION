@@ -420,6 +420,7 @@ def _build_launch_args(suite_cfg: Dict[str, Any], trial_idx: int, noise_idx: int
         return str(base_val), base_val
 
     if 'world_name' in dp: args += [f'world_name:={dp["world_name"]}']
+    if 'controller' in dp: args += [f'controller:={dp["controller"]}']
     if 'stimulus_type' in dp: args += [f'stimulus_type:={dp["stimulus_type"]}']
     if 'stimulus_x' in dp: args += [f'stimulus_x:={_perturbed("stimulus_x")[0]}']
     if 'stimulus_y' in dp: args += [f'stimulus_y:={_perturbed("stimulus_y")[0]}']
