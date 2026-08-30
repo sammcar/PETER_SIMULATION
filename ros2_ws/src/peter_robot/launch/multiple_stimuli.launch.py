@@ -32,7 +32,7 @@ from launch.actions import (
     TimerAction,
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -139,6 +139,9 @@ def generate_launch_description():
                               description='Noise level index (0-4), forwarded to red_neuronal as ROS param "nl"'),
         DeclareLaunchArgument('ablation_mode', default_value='full',
                               description='Ablation mode forwarded to red_neuronal: full | no_lateral_inhibition | threshold_only'),
+        DeclareLaunchArgument('headless', default_value='true',
+                              description='Gazebo server-only (-s), sin GUI Qt. Evita depender de X11/Wayland; '
+                                          'necesario para tandas automatizadas (test_manager.py). true|false'),
     ]
 
     resolve_world = OpaqueFunction(function=_resolve_world)
@@ -155,6 +158,13 @@ def generate_launch_description():
         }],
     )
 
+    # -s = servidor sin GUI (evita el crash de Qt/xcb cuando no hay display X11
+    # utilizable, ej. contenedores sin X forwarding funcional o hosts Wayland
+    # sin XWayland en ':0'). -r = arranca la simulacion corriendo de una vez.
+    gz_flags = PythonExpression([
+        "'-s -r ' if '", LaunchConfiguration('headless'), "'.lower() == 'true' else '-r '"
+    ])
+
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             os.path.join(
@@ -162,7 +172,7 @@ def generate_launch_description():
             )
         ]),
         launch_arguments={
-            'gz_args': ['-r '] + [LaunchConfiguration('world_path')],
+            'gz_args': [gz_flags] + [LaunchConfiguration('world_path')],
             'use_sim_time': 'true',
             'on_exit_shutdown': 'true',
         }.items(),
