@@ -223,7 +223,29 @@ class NetworkPublisher(Node):
             f"(índice {self.ACTIVE_NOISE_LEVEL_IDX} de {self.NoiseLevel})"
         )
 
-       
+        # --------------- Ablation study (R3-01/R3-02) --------------------
+        # Modos:
+        #   full                  -> circuito STN/GPi/GPe/STR intacto (control)
+        #   no_lateral_inhibition -> se anulan los terminos de inhibicion cruzada
+        #                            entre los 3 canales (Gpe->STN, STN->Gpi)
+        #   threshold_only        -> se bypasea toda la dinamica STN/GPi/GPe/STR;
+        #                            el canal ganador se decide con umbrales de
+        #                            prioridad fija sobre el estimulo crudo (misma
+        #                            familia de logica que ya usa el Modulo de
+        #                            Locomocion: 20 grados en X5/X6, Ar=28.0 en X17)
+        self.declare_parameter('ablation_mode', 'full')
+        ablation_mode = self.get_parameter('ablation_mode').get_parameter_value().string_value
+        valid_ablation_modes = ('full', 'no_lateral_inhibition', 'threshold_only')
+        if ablation_mode not in valid_ablation_modes:
+            self.get_logger().warn(
+                f"[ABLATION] Modo desconocido '{ablation_mode}', usando 'full'. "
+                f"Válidos: {valid_ablation_modes}"
+            )
+            ablation_mode = 'full'
+        self.ablation_mode = ablation_mode
+        self.get_logger().info(f"[ABLATION] Modo activo: {self.ablation_mode}")
+
+
     # =========================================================================
     # INYECCIÓN DE RUIDO — funciones auxiliares
     # =========================================================================
@@ -345,21 +367,51 @@ class NetworkPublisher(Node):
         B = self.areaBoundingBoxB/500
 
 
-        self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoSTN)*(-self.StN[0, 0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
-        self.StN[1, 1] = np.clip((self.StN[1, 0] + (1/self.TaoSTN)*(-self.StN[1, 0] + G - self.Gpi[1,0] - self.Gpe[0,0] - self.Gpe[2,0] -1.0)),0, None)
-        self.StN[2, 1] = np.clip((self.StN[2, 0] + (1/self.TaoSTN)*(-self.StN[2, 0] + B*0.7 - self.Gpi[2,0] - self.Gpe[0,0] - self.Gpe[1,0] -1.0)),0, None)
-        
-        self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + self.StN[1,0] + self.StN[2,0] - self.Gpe[0,0] - self.StR[0,0])),0, None)
-        self.Gpi[1, 1] = np.clip((self.Gpi[1, 0] + (1/self.TaoGpi)*(-self.Gpi[1, 0] + self.StN[0,0] + self.StN[2,0] - self.Gpe[1,0] - self.StR[1,0])),0, None)
-        self.Gpi[2, 1] = np.clip((self.Gpi[2, 0] + (1/self.TaoGpi)*(-self.Gpi[2, 0] + self.StN[0,0] + self.StN[1,0] - self.Gpe[2,0] - self.StR[2,0])),0, None)
-        
-        self.Gpe[0, 1] = np.clip((self.Gpe[0, 0] + (1/self.TaoGpe)*(-self.Gpe[0, 0] + self.StN[0,0])),0, None)
-        self.Gpe[1, 1] = np.clip((self.Gpe[1, 0] + (1/self.TaoGpe)*(-self.Gpe[1, 0] + self.StN[1,0]*5)),0, None)
-        self.Gpe[2, 1] = np.clip((self.Gpe[2, 0] + (1/self.TaoGpe)*(-self.Gpe[2, 0] + self.StN[2,0]*0.5)),0, None)
-        
-        self.StR[0, 1] = np.clip((self.StR[0, 0] + (1/self.TaoSTR)*(-self.StR[0, 0] + self.StN[0,0])),0, None)
-        self.StR[1, 1] = np.clip((self.StR[1, 0] + (1/self.TaoSTR)*(-self.StR[1, 0] + self.StN[1,0])),0, None)
-        self.StR[2, 1] = np.clip((self.StR[2, 0] + (1/self.TaoSTR)*(-self.StR[2, 0] + self.StN[2,0])),0, None)
+        if self.ablation_mode == 'threshold_only':
+            # R3-02: bypasea por completo la dinamica STN/GPi/GPe/STR. El canal
+            # "ganador" se decide con umbrales de prioridad fija sobre el estimulo
+            # crudo (R=hostil camara, G=obstaculo lidar, B=apetente camara), en vez
+            # de la competencia recurrente por inhibicion cruzada. Prioridad
+            # hostil > obstaculo > apetente, igual asimetria que w_GpeR=2.0 >
+            # w_GpeG=1.0 ya usada en el Modulo de Locomocion del paper. El canal
+            # ganador pasa su intensidad cruda a Gpe (unico valor que consumen los
+            # modulos aguas abajo); los perdedores quedan en 0 — sin gradiente de
+            # competencia ni posibilidad de coactivacion transitoria. Se aplican
+            # las mismas ganancias por canal que usa 'full' en sus ecuaciones de
+            # Gpe (obstaculo x5, apetente x0.7x0.5) para que la unica diferencia
+            # real sea el mecanismo de arbitraje, no la escala de salida.
+            TH_R, TH_G, TH_B = 0.5, 0.0, 0.5
+            self.StN[:, 1] = 0.0
+            self.Gpi[:, 1] = 0.0
+            self.Gpe[:, 1] = 0.0
+            self.StR[:, 1] = 0.0
+            if R > TH_R:
+                self.Gpe[0, 1] = R
+            elif G > TH_G:
+                self.Gpe[1, 1] = G * 5
+            elif B > TH_B:
+                self.Gpe[2, 1] = B * 0.7 * 0.5
+        else:
+            # no_lateral_inhibition: xg=0 anula los terminos de inhibicion cruzada
+            # entre canales (Gpe->STN y STN->Gpi); los terminos del mismo canal
+            # (auto-inhibicion, Gpe/StR propios) se mantienen intactos en ambos modos.
+            xg = 0.0 if self.ablation_mode == 'no_lateral_inhibition' else 1.0
+
+            self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoSTN)*(-self.StN[0, 0] + R - self.Gpi[0,0] - xg*(self.Gpe[1,0] + self.Gpe[2,0]) -1.0)),0, None)
+            self.StN[1, 1] = np.clip((self.StN[1, 0] + (1/self.TaoSTN)*(-self.StN[1, 0] + G - self.Gpi[1,0] - xg*(self.Gpe[0,0] + self.Gpe[2,0]) -1.0)),0, None)
+            self.StN[2, 1] = np.clip((self.StN[2, 0] + (1/self.TaoSTN)*(-self.StN[2, 0] + B*0.7 - self.Gpi[2,0] - xg*(self.Gpe[0,0] + self.Gpe[1,0]) -1.0)),0, None)
+
+            self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + xg*(self.StN[1,0] + self.StN[2,0]) - self.Gpe[0,0] - self.StR[0,0])),0, None)
+            self.Gpi[1, 1] = np.clip((self.Gpi[1, 0] + (1/self.TaoGpi)*(-self.Gpi[1, 0] + xg*(self.StN[0,0] + self.StN[2,0]) - self.Gpe[1,0] - self.StR[1,0])),0, None)
+            self.Gpi[2, 1] = np.clip((self.Gpi[2, 0] + (1/self.TaoGpi)*(-self.Gpi[2, 0] + xg*(self.StN[0,0] + self.StN[1,0]) - self.Gpe[2,0] - self.StR[2,0])),0, None)
+
+            self.Gpe[0, 1] = np.clip((self.Gpe[0, 0] + (1/self.TaoGpe)*(-self.Gpe[0, 0] + self.StN[0,0])),0, None)
+            self.Gpe[1, 1] = np.clip((self.Gpe[1, 0] + (1/self.TaoGpe)*(-self.Gpe[1, 0] + self.StN[1,0]*5)),0, None)
+            self.Gpe[2, 1] = np.clip((self.Gpe[2, 0] + (1/self.TaoGpe)*(-self.Gpe[2, 0] + self.StN[2,0]*0.5)),0, None)
+
+            self.StR[0, 1] = np.clip((self.StR[0, 0] + (1/self.TaoSTR)*(-self.StR[0, 0] + self.StN[0,0])),0, None)
+            self.StR[1, 1] = np.clip((self.StR[1, 0] + (1/self.TaoSTR)*(-self.StR[1, 0] + self.StN[1,0])),0, None)
+            self.StR[2, 1] = np.clip((self.StR[2, 0] + (1/self.TaoSTR)*(-self.StR[2, 0] + self.StN[2,0])),0, None)
 
         if self.Gpe[0,1] > 1.5 and R > 0.5:
             self.ang_s = self.posR
