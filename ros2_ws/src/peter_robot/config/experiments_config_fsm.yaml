@@ -1,7 +1,7 @@
 # experiments_config_fsm.yaml
 # Configuración de experimentos FSM para comparación con lógica neuronal.
-# Espejo de experiments_config.yaml con controller: fsm y repetitions: 10.
 # Usar con: peter-run-fsm  (o ros2 run peter_robot test_manager <esta-ruta>)
+# Activar/desactivar suites comentando/descomentando los bloques.
 
 global_settings:
   workspace_path: "/home/ros/docker_simulation_ws/PETER_SIMULATION/ros2_ws"
@@ -15,7 +15,7 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   - suite_name: "familia_a_apetitivo_fsm"
     launch_file: "single_stimulus.launch.py"
-    repetitions: 10
+    repetitions: 15
     dynamic_parameters:
       controller: "fsm"
       world_name: "single_stimulus"
@@ -29,90 +29,90 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA A2 FSM — Estímulo Obstáculo (Target Verde)
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_a_obstaculo_fsm"
-    launch_file: "single_stimulus.launch.py"
-    repetitions: 10
-    dynamic_parameters:
-      controller: "fsm"
-      world_name: "single_stimulus"
-      stimulus_type: "green"
-      stimulus_x: 0.5
-      stimulus_y: -0.75
-      timeout_s: 60.0
-      random_perturbation: true
-      variance_sigma: 0.05
+  # - suite_name: "familia_a_obstaculo_fsm"
+  #   launch_file: "single_stimulus.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     controller: "fsm"
+  #     world_name: "single_stimulus"
+  #     stimulus_type: "green"
+  #     stimulus_x: 0.5
+  #     stimulus_y: -0.75
+  #     timeout_s: 60.0
+  #     random_perturbation: true
+  #     variance_sigma: 0.05
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA A3 FSM — Estímulo Aversivo (Target Rojo)
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_a_aversivo_fsm"
-    launch_file: "single_stimulus.launch.py"
-    repetitions: 10
-    dynamic_parameters:
-      controller: "fsm"
-      world_name: "single_stimulus"
-      stimulus_type: "red"
-      stimulus_x: 2.0
-      stimulus_y: -0.5
-      timeout_s: 40.0
-      random_perturbation: true
-      variance_sigma: 0.15
+  # - suite_name: "familia_a_aversivo_fsm"
+  #   launch_file: "single_stimulus.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     controller: "fsm"
+  #     world_name: "single_stimulus"
+  #     stimulus_type: "red"
+  #     stimulus_x: 2.0
+  #     stimulus_y: -0.5
+  #     timeout_s: 40.0
+  #     random_perturbation: true
+  #     variance_sigma: 0.15
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA B FSM — Navegación Compleja (Estímulos Múltiples)
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_b_compleja_fsm"
-    launch_file: "multiple_stimuli.launch.py"
-    repetitions: 10
-    dynamic_parameters:
-      controller: "fsm"
-      world_name: "multiple_stimuli"
-      spawn_green: true
-      green_x: 0.0
-      green_y: -0.8
-      spawn_red: true
-      red_x: 2.5
-      red_y: 1.625
-      spawn_blue: true
-      blue_x: 3.0
-      blue_y: -1.5
-      timeout_s: 150.0
-      random_perturbation: false
+  # - suite_name: "familia_b_compleja_fsm"
+  #   launch_file: "multiple_stimuli.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     controller: "fsm"
+  #     world_name: "multiple_stimuli"
+  #     spawn_green: true
+  #     green_x: 0.0
+  #     green_y: -0.8
+  #     spawn_red: true
+  #     red_x: 2.5
+  #     red_y: 1.625
+  #     spawn_blue: true
+  #     blue_x: 3.0
+  #     blue_y: -1.5
+  #     timeout_s: 150.0
+  #     random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C1 FSM — Transición a Terreno Irregular
   # IGNORE_IMU_TERRAIN=false y Usigma_az=3.3 se pasan desde terrain_navigation.launch.py
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_c1_terreno_rugoso_fsm"
-    launch_file: "terrain_navigation.launch.py"
-    repetitions: 10
-    dynamic_parameters:
-      controller: "fsm"
-      world_name: "terrain"
-      timeout_s: 120.0
-      random_perturbation: false
+  # - suite_name: "familia_c1_terreno_rugoso_fsm"
+  #   launch_file: "terrain_navigation.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     controller: "fsm"
+  #     world_name: "terrain"
+  #     timeout_s: 120.0
+  #     random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C2 FSM — Prueba de Pendiente Inclinada
   # IGNORE_IMU_TERRAIN=false y Usigma_az=100 (solo pitch activo) desde slope_navigation.launch.py
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_c2_pendiente_fsm"
-    launch_file: "slope_navigation.launch.py"
-    repetitions: 10
-    dynamic_parameters:
-      controller: "fsm"
-      world_name: "terrain"
-      timeout_s: 120.0
-      random_perturbation: false
+  # - suite_name: "familia_c2_pendiente_fsm"
+  #   launch_file: "slope_navigation.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     controller: "fsm"
+  #     world_name: "terrain"
+  #     timeout_s: 120.0
+  #     random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA E FSM — Tarea de Inspección Reactiva
   # ──────────────────────────────────────────────────────────────────────────
-  - suite_name: "familia_e_inspeccion_fsm"
-    launch_file: "gazebo.launch.py"
-    repetitions: 10
-    dynamic_parameters:
-      controller: "fsm"
-      world_name: "obstaculos"
-      timeout_s: 90.0
-      random_perturbation: false
+  # - suite_name: "familia_e_inspeccion_fsm"
+  #   launch_file: "gazebo.launch.py"
+  #   repetitions: 15
+  #   dynamic_parameters:
+  #     controller: "fsm"
+  #     world_name: "obstaculos"
+  #     timeout_s: 90.0
+  #     random_perturbation: false
