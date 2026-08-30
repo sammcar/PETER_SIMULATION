@@ -207,9 +207,16 @@ De `src/red_neuronal.py` (tópico `/Metrics`) y `scripts/test_manager.py`:
 - [x] Revertir overrides de debug de inclinación en `red_neuronal.py` (commit `4b52536`)
 - [x] Implementar `ablation_mode` en `red_neuronal.py` (`full`, `no_lateral_inhibition`,
       `threshold_only`; commit `e47ca4f`) — `no_stn_str` pendiente, solo si sobra tiempo
+- [x] Descubrir y arreglar bug de cableado: `red_neuronal` se lanzaba sin NINGÚN parámetro
+      en los 4 launch files (ni `nl` ni nada) — `noise_level_idx` estaba declarado pero
+      nunca conectado. Corregido en `single_stimulus.launch.py`/`multiple_stimuli.launch.py`
+      (`ablation_mode` y `nl` ahora sí llegan al nodo); commit `cc00f47`
+- [x] Agregar 6 suites de ablation a `experiments_config.yaml` (2 escenarios × 3 modos,
+      `repetitions: 12`, `fixed_noise_level_idx: 0`); commit `cc00f47`
+- [x] Filtro `SUITE_FILTER`/segundo argumento CLI en `test_manager.py` para correr solo
+      `ablation_*` sin disparar `familia_c1/c2` en la misma tanda; commit `cc00f47`
 - [ ] Smoke-test en Gazebo de los 3 modos (requiere contenedor `peter_simulation`, no
       disponible en este entorno de desarrollo — correr antes del barrido completo)
-- [ ] Descomentar/duplicar suites en `experiments_config.yaml` (2 escenarios × 3 modos)
 - [ ] Propagar `ablation_mode` por `test_manager.py` + launch files
 - [ ] Compilar (`colcon build --symlink-install`) y smoke-test manual de cada modo (1 corrida corta cada uno)
 - [ ] Ejecutar barrido (72 runs, ~2.4 h) vía `test_manager.py`/Makefile
