@@ -81,6 +81,115 @@ experiment_suites:
   #     random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
+  # ABLATION — Ganglios Basales STN/GPi/GPe/STR (R3-01/R3-02)
+  # 3 modos (full / no_lateral_inhibition / threshold_only) x 2 escenarios
+  # (Appetitive Targeting sin conflicto, Complex Navigation con conflicto real
+  # de 3 estimulos). nl fijo en 0 (fixed_noise_level_idx) para no confundir el
+  # efecto estructural de la ablacion con la robustez a ruido — ya cubierta
+  # aparte para 'full' en tab:consolidated_simulation_metrics. N=12 replicas
+  # por variante (ver justificacion de potencia de Mann-Whitney en el plan,
+  # docs/ablation_study_plan.md).
+  # ──────────────────────────────────────────────────────────────────────────
+
+  # --- Appetitive Targeting (control, sin conflicto) ---
+  - suite_name: "ablation_appetitive_full"
+    launch_file: "single_stimulus.launch.py"
+    repetitions: 12
+    dynamic_parameters:
+      world_name: "single_stimulus"
+      stimulus_type: "blue"
+      stimulus_x: 4.0
+      stimulus_y: -2.0
+      timeout_s: 45.0
+      random_perturbation: false
+      ablation_mode: "full"
+      fixed_noise_level_idx: 0
+
+  - suite_name: "ablation_appetitive_no_lateral_inhibition"
+    launch_file: "single_stimulus.launch.py"
+    repetitions: 12
+    dynamic_parameters:
+      world_name: "single_stimulus"
+      stimulus_type: "blue"
+      stimulus_x: 4.0
+      stimulus_y: -2.0
+      timeout_s: 45.0
+      random_perturbation: false
+      ablation_mode: "no_lateral_inhibition"
+      fixed_noise_level_idx: 0
+
+  - suite_name: "ablation_appetitive_threshold_only"
+    launch_file: "single_stimulus.launch.py"
+    repetitions: 12
+    dynamic_parameters:
+      world_name: "single_stimulus"
+      stimulus_type: "blue"
+      stimulus_x: 4.0
+      stimulus_y: -2.0
+      timeout_s: 45.0
+      random_perturbation: false
+      ablation_mode: "threshold_only"
+      fixed_noise_level_idx: 0
+
+  # --- Complex Navigation (conflicto real: rojo + verde + azul) ---
+  - suite_name: "ablation_complex_full"
+    launch_file: "multiple_stimuli.launch.py"
+    repetitions: 12
+    dynamic_parameters:
+      world_name: "multiple_stimuli"
+      spawn_green: true
+      green_x: 0.0
+      green_y: -0.8
+      spawn_red: true
+      red_x: 2.5
+      red_y: 1.625
+      spawn_blue: true
+      blue_x: 3.0
+      blue_y: -1.5
+      timeout_s: 150.0
+      random_perturbation: false
+      ablation_mode: "full"
+      fixed_noise_level_idx: 0
+
+  - suite_name: "ablation_complex_no_lateral_inhibition"
+    launch_file: "multiple_stimuli.launch.py"
+    repetitions: 12
+    dynamic_parameters:
+      world_name: "multiple_stimuli"
+      spawn_green: true
+      green_x: 0.0
+      green_y: -0.8
+      spawn_red: true
+      red_x: 2.5
+      red_y: 1.625
+      spawn_blue: true
+      blue_x: 3.0
+      blue_y: -1.5
+      timeout_s: 150.0
+      random_perturbation: false
+      ablation_mode: "no_lateral_inhibition"
+      fixed_noise_level_idx: 0
+
+  - suite_name: "ablation_complex_threshold_only"
+    launch_file: "multiple_stimuli.launch.py"
+    repetitions: 12
+    dynamic_parameters:
+      world_name: "multiple_stimuli"
+      spawn_green: true
+      green_x: 0.0
+      green_y: -0.8
+      spawn_red: true
+      red_x: 2.5
+      red_y: 1.625
+      spawn_blue: true
+      blue_x: 3.0
+      blue_y: -1.5
+      timeout_s: 150.0
+      random_perturbation: false
+      ablation_mode: "threshold_only"
+      fixed_noise_level_idx: 0
+
+  # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C1 — Transición a Terreno Irregular
   # ──────────────────────────────────────────────────────────────────────────
   - suite_name: "familia_c1_terreno_rugoso"

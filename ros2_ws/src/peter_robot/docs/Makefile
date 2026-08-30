@@ -29,6 +29,13 @@ BLUE_X      ?= 4.0
 BLUE_Y      ?= -2.0
 GREEN_X     ?= 3.0
 GREEN_Y     ?= 0.0
+# Prefijo opcional de suite_name para run-experiments (ej. SUITE_FILTER=ablation_
+# corre solo las suites de R3-01/R3-02, dejando fuera familia_c1/c2). Vacio = todas.
+SUITE_FILTER ?=
+# Para 'neural' (smoke-test manual, sin Gazebo/orquestador): modo de ablation y
+# nivel de ruido a pasar como --ros-args -p al nodo red_neuronal.
+ABLATION_MODE ?= full
+NL            ?= 0
 
 DC = docker exec -it $(CONTAINER) bash -c
 
@@ -197,9 +204,9 @@ record: check-install ## Lanza solo el nodo de métricas
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
 	       ros2 run peter_robot neural_recorder --ros-args -p experiment_type:=manual"
 
-neural: check-install ## Lanza solo la red neuronal
+neural: check-install ## Lanza solo la red neuronal (ABLATION_MODE=full|no_lateral_inhibition|threshold_only, NL=0-4)
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
-	       ros2 run peter_robot red_neuronal"
+	       ros2 run peter_robot red_neuronal --ros-args -p ablation_mode:=$(ABLATION_MODE) -p nl:=$(NL)"
 
 shell: check-container ## Abre shell en el contenedor
 	docker exec -it $(CONTAINER) bash
@@ -237,8 +244,8 @@ clean-container-results: ## Elimina TODOS los resultados del contenedor (pide co
 	@chmod +x $(EXPORT_SCRIPT)
 	CONTAINER=$(CONTAINER) bash $(EXPORT_SCRIPT) --clean
 
-run-experiments: check-install ## Ejecuta el orquestador automático de experimentos dentro del contenedor
-	$(DC) "$(WS_SOURCE) && ROS_DOMAIN_ID=$(DOMAIN_ID) python3 $(WS)/src/peter_robot/scripts/test_manager.py $(WS)/src/peter_robot/config/experiments_config.yaml"
+run-experiments: check-install ## Ejecuta el orquestador de experimentos (SUITE_FILTER=ablation_ para correr solo R3-01/R3-02)
+	$(DC) "$(WS_SOURCE) && ROS_DOMAIN_ID=$(DOMAIN_ID) python3 $(WS)/src/peter_robot/scripts/test_manager.py $(WS)/src/peter_robot/config/experiments_config.yaml $(SUITE_FILTER)"
 
 # Ejecuta el evaluador de estabilidad de transformaciones y resguarda la telemetría final
 # Ejecuta el evaluador de estabilidad de transformaciones dentro del contenedor Docker

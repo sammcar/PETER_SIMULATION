@@ -34,6 +34,7 @@ from launch.actions import (
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -126,6 +127,10 @@ def generate_launch_description():
                               description='Robot initial Z (spawn height)'),
         DeclareLaunchArgument('record_metrics', default_value='true',
                               description='Launch neural recorder node'),
+        DeclareLaunchArgument('noise_level_idx', default_value='0',
+                              description='Noise level index (0-4), forwarded to red_neuronal as ROS param "nl"'),
+        DeclareLaunchArgument('ablation_mode', default_value='full',
+                              description='Ablation mode forwarded to red_neuronal: full | no_lateral_inhibition | threshold_only'),
     ]
 
     resolve_world = OpaqueFunction(function=_resolve_world)
@@ -234,6 +239,10 @@ def generate_launch_description():
             executable='red_neuronal',
             name='red_neuronal',
             output='screen',
+            parameters=[{
+                'nl': ParameterValue(LaunchConfiguration('noise_level_idx'), value_type=int),
+                'ablation_mode': LaunchConfiguration('ablation_mode'),
+            }],
         )
     ])
 

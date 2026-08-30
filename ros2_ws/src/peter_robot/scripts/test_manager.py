@@ -64,7 +64,14 @@ GRACE_PERIOD_S: float = 5.0
 STABILITY_LOG_SRC: Path = Path.home() / 'stability_log.csv'
 
 # ── Suites con lógica de éxito específica ────────────────────────────────────
-SUITE_APPETITIVE = {'familia_a_apetitivo', 'familia_b_compleja'}
+# ablation_appetitive_*/ablation_complex_* (R3-01/R3-02) reusan el mismo criterio de
+# exito que sus escenarios base (familia_a_apetitivo/familia_b_compleja) — la unica
+# diferencia entre variantes es el ablation_mode pasado al nodo, no el criterio de exito.
+SUITE_APPETITIVE = {
+    'familia_a_apetitivo', 'familia_b_compleja',
+    'ablation_appetitive_full', 'ablation_appetitive_no_lateral_inhibition', 'ablation_appetitive_threshold_only',
+    'ablation_complex_full', 'ablation_complex_no_lateral_inhibition', 'ablation_complex_threshold_only',
+}
 SUITE_EVASIVE    = {'familia_a_obstaculo', 'familia_a_aversivo'}
 SUITE_TERRAIN_C1 = {'familia_c1_terreno_rugoso'}
 SUITE_TERRAIN_C2 = {'familia_c2_pendiente'}
@@ -421,13 +428,16 @@ def _build_launch_args(suite_cfg: Dict[str, Any], trial_idx: int, noise_idx: int
         if flag in dp: args += [f'{flag}:={str(dp[flag]).lower()}']
     for coord in ('green_x', 'green_y', 'red_x', 'red_y', 'blue_x', 'blue_y'):
         if coord in dp: args += [f'{coord}:={_perturbed(coord)[0] if random_perturb else str(dp[coord])}']
-    
+    if 'ablation_mode' in dp:
+        args += [f'ablation_mode:={dp["ablation_mode"]}']
+        seed_info['ablation_mode'] = dp['ablation_mode']
+
     args += [f'noise_level_idx:={noise_idx}']
     return args, seed_info
 
 
 class TestManager:
-    def __init__(self, config_path: str) -> None:
+    def __init__(self, config_path: str, suite_filter: Optional[str] = None) -> None:
         with open(config_path) as f: self._cfg: Dict[str, Any] = yaml.safe_load(f)
         gs = self._cfg.get('global_settings', {})
         self._workspace: Path = Path(os.path.expanduser(gs.get('workspace_path', '~/PETER_SIMULATION/ros2_ws')))
@@ -437,6 +447,9 @@ class TestManager:
         self._rng        = np.random.default_rng()
         self._judge_node: Optional[TestJudgeNode] = None
         self._ros_thread: Optional[threading.Thread] = None
+        # Filtro opcional por prefijo de suite_name (ej. 'ablation_') para no correr
+        # las demas suites del config al hacer una tanda dirigida (R3-01/R3-02).
+        self._suite_filter: Optional[str] = suite_filter
 
     def _start_ros_thread(self) -> None:
         if not rclpy.ok(): rclpy.init()
@@ -501,6 +514,8 @@ class TestManager:
         try:
             for suite_cfg in self._cfg.get('experiment_suites', []):
                 suite_name  = suite_cfg['suite_name']
+                if self._suite_filter and not suite_name.startswith(self._suite_filter):
+                    continue
                 repetitions = int(suite_cfg.get('repetitions', 1))
                 (self._output_base / suite_name).mkdir(parents=True, exist_ok=True)
 
@@ -515,9 +530,16 @@ class TestManager:
                                     successful_trials.add(entry.get('trial_index'))
                     except Exception: pass
 
+                # Suites de ablation (R3-01/R3-02) necesitan nl fijo (normalmente 0)
+                # en las N réplicas para no confundir el efecto estructural de la
+                # ablación con la robustez a ruido — ya cubierta por separado con
+                # el modelo 'full'. 'fixed_noise_level_idx' en dynamic_parameters
+                # desactiva el barrido automático [0,1,2,3,4] solo para esa suite.
+                fixed_noise_idx = suite_cfg.get('dynamic_parameters', {}).get('fixed_noise_level_idx')
+
                 trial_global_idx = 0
                 for rep in range(repetitions):
-                    noise_idx = noise_levels[rep % len(noise_levels)]
+                    noise_idx = fixed_noise_idx if fixed_noise_idx is not None else noise_levels[rep % len(noise_levels)]
                     trial_global_idx += 1
 
                     if trial_global_idx in successful_trials:
@@ -542,7 +564,10 @@ class TestManager:
 
 def main() -> None:
     config_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.expanduser('/ros2_ws'), 'src', 'peter_robot', 'config', 'experiments_config.yaml')
-    TestManager(config_path).run()
+    # Segundo argumento opcional: prefijo de suite_name para correr solo un subconjunto
+    # (ej. 'python3 test_manager.py config.yaml ablation_' corre solo las suites de R3-01/R3-02).
+    suite_filter = sys.argv[2] if len(sys.argv) > 2 else None
+    TestManager(config_path, suite_filter=suite_filter).run()
 
 if __name__ == '__main__':
     main()

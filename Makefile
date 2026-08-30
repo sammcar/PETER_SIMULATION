@@ -27,6 +27,11 @@ STIM_Y      ?= -2.0
 SPAWN_RED   ?= true
 SPAWN_BLUE  ?= true
 SPAWN_GREEN ?= false
+# Prefijo opcional de suite_name para run-experiments (ej. SUITE_FILTER=ablation_
+# corre solo las suites de R3-01/R3-02). Vacio = todas las suites del config.
+SUITE_FILTER ?=
+ABLATION_MODE ?= full
+NL            ?= 0
 
 # Ruta al Makefile con todos los targets
 MK := ros2_ws/src/peter_robot/docs/Makefile
@@ -35,7 +40,8 @@ MK := ros2_ws/src/peter_robot/docs/Makefile
 PASSTHROUGH := IMAGE=$(IMAGE) CONTAINER=$(CONTAINER) WS=$(WS) \
                REPO_ROOT=$(REPO_ROOT) WS_HOST=$(WS_HOST) DOMAIN_ID=$(DOMAIN_ID) \
                STIM=$(STIM) STIM_X=$(STIM_X) STIM_Y=$(STIM_Y) \
-               SPAWN_RED=$(SPAWN_RED) SPAWN_BLUE=$(SPAWN_BLUE) SPAWN_GREEN=$(SPAWN_GREEN)
+               SPAWN_RED=$(SPAWN_RED) SPAWN_BLUE=$(SPAWN_BLUE) SPAWN_GREEN=$(SPAWN_GREEN) \
+               SUITE_FILTER=$(SUITE_FILTER) ABLATION_MODE=$(ABLATION_MODE) NL=$(NL)
 
 .PHONY: help docker-build docker-create docker-start docker-stop docker-rm \
         docker-status docker-logs build rebuild clean shell \
