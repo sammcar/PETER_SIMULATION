@@ -67,10 +67,8 @@ class FSMGaitArbitration(Node):
         #self.timer = self.create_timer(0.2, self.run_network) #original
         self.timer = self.create_timer(0.15, self.run_network)
 
-        ## HISTÉRESIS PARA CAMBIO DE MODO
-        self.min_dwell_time = 3.0          # Tiempo mínimo (segundos) que debe permanecer en un modo
-        self.last_mode_change_time = 0.0   # Timestamp del último cambio
-        self.hysteresis_threshold = 0.35   # Umbral más bajo para mantenerse en H (evita el "flickering")
+        self.c_persist_time = 6.0      # segundos que C persiste tras perder señal roja
+        self.last_c_trigger_time = 0.0
 
 
     def initctes(self):
@@ -514,36 +512,31 @@ class FSMGaitArbitration(Node):
             #     self.publish_mode('X'); #print("Móvil X")
 
 
-            # ── FSM: jerarquía de prioridades estática sobre señales Gpe[] ──────
-            # Misma histéresis temporal (min_dwell_time = 3 s) que el neural.
-            # Umbrales calibrados sobre los mismos valores Gpe[] que usa el neural
-            # para ang_s y las condiciones de activación interna.
-            #
-            # Prioridad 1 — Predador (rojo): respuesta urgente, sin dwell.
-            # Prioridad 2 — Terreno (IMU: pitch/roll): respuesta urgente, sin dwell.
-            # Prioridad 3 — Obstáculo (verde/LiDAR): requiere dwell.
-            # Prioridad 4 — Presa (azul): requiere dwell.
-            # Por defecto — H: igual que el neural, donde cte=3 mantiene z[16] alto.
+            # ── FSM: arbitraje de modo por señal RGB ─────────────────────────────
+            # Prioridad: G→X > R→C (persist 6s tras R=0) > B→H > default H
             current_time = time.time()
-            time_since_last_change = current_time - self.last_mode_change_time
-
             new_mode = self.current_mode
 
-            if self.Gpe[0, 1] > 1.5:
-                new_mode = 'H'
-            elif self.z[1, 1] > 0.3 or self.z[2, 1] > 0.3:
-                new_mode = 'H'
-            elif self.Gpe[1, 1] > 0.5 and time_since_last_change > self.min_dwell_time:
+            if R > 0.5:
+                self.last_c_trigger_time = current_time
+
+            c_persist_active = (
+                self.current_mode == 'C' and
+                (current_time - self.last_c_trigger_time) < self.c_persist_time
+            )
+
+            if G > 0:
                 new_mode = 'X'
-            elif self.Gpe[2, 1] > 1.5 and time_since_last_change > self.min_dwell_time:
+            elif R > 0.5 or c_persist_active:
                 new_mode = 'C'
-            elif time_since_last_change > self.min_dwell_time:
+            elif B > 0.5:
+                new_mode = 'H'
+            else:
                 new_mode = 'H'
 
             if new_mode != self.current_mode:
                 self.publish_mode(new_mode)
                 self.current_mode = new_mode
-                self.last_mode_change_time = current_time
                 self.get_logger().info(f"[FSM] Cambio de modo a {new_mode}")
 
             self.publish_data()
