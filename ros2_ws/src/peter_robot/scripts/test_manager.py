@@ -50,11 +50,11 @@ GRACE_PERIOD_S: float = 5.0
 STABILITY_LOG_SRC: Path = Path.home() / 'stability_log.csv'
 
 # ── Suites con lógica de éxito específica ────────────────────────────────────
-SUITE_APPETITIVE  = {'familia_a_apetitivo', 'familia_b_compleja'}
-SUITE_EVASIVE     = {'familia_a_obstaculo', 'familia_a_aversivo'}
-SUITE_TERRAIN_C1  = {'familia_c1_terreno_rugoso'}
-SUITE_TERRAIN_C2  = {'familia_c2_pendiente'}
-SUITE_INSPECTION  = {'familia_e_inspeccion'}
+SUITE_APPETITIVE  = {'familia_a_apetitivo', 'familia_b_compleja', 'familia_a_apetitivo_fsm', 'familia_b_compleja_fsm'}
+SUITE_EVASIVE     = {'familia_a_obstaculo', 'familia_a_aversivo', 'familia_a_obstaculo_fsm', 'familia_a_aversivo_fsm'}
+SUITE_TERRAIN_C1  = {'familia_c1_terreno_rugoso', 'familia_c1_terreno_rugoso_fsm'}
+SUITE_TERRAIN_C2  = {'familia_c2_pendiente', 'familia_c2_pendiente_fsm'}
+SUITE_INSPECTION  = {'familia_e_inspeccion', 'familia_e_inspeccion_fsm'}
 
 class State(Enum):
     INIT        = auto()

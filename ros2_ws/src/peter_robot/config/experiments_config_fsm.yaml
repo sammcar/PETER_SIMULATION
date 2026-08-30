@@ -5,7 +5,7 @@
 
 global_settings:
   workspace_path: "/home/ros/docker_simulation_ws/PETER_SIMULATION/ros2_ws"
-  output_base_dir: "/home/ros/docker_simulation_ws/PETER_SIMULATION/ros2_ws/src/peter_robot/docs/resultados"
+  output_base_dir: "/home/ros/docker_simulation_ws/PETER_SIMULATION/ros2_ws/src/peter_robot/docs/resultados/simulation"
   grace_period_teardown_s: 5.0
 
 experiment_suites:
@@ -77,6 +77,32 @@ experiment_suites:
       blue_x: 3.0
       blue_y: -1.5
       timeout_s: 150.0
+      random_perturbation: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # FAMILIA C1 FSM — Transición a Terreno Irregular
+  # IGNORE_IMU_TERRAIN=false y Usigma_az=3.3 se pasan desde terrain_navigation.launch.py
+  # ──────────────────────────────────────────────────────────────────────────
+  - suite_name: "familia_c1_terreno_rugoso_fsm"
+    launch_file: "terrain_navigation.launch.py"
+    repetitions: 10
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "terrain"
+      timeout_s: 120.0
+      random_perturbation: false
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # FAMILIA C2 FSM — Prueba de Pendiente Inclinada
+  # IGNORE_IMU_TERRAIN=false y Usigma_az=100 (solo pitch activo) desde slope_navigation.launch.py
+  # ──────────────────────────────────────────────────────────────────────────
+  - suite_name: "familia_c2_pendiente_fsm"
+    launch_file: "slope_navigation.launch.py"
+    repetitions: 10
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "terrain"
+      timeout_s: 120.0
       random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────

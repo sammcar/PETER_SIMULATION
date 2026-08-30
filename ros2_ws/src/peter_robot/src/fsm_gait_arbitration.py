@@ -107,7 +107,7 @@ class FSMGaitArbitration(Node):
         #Logica que será neuronal
         self.terrainchanger = False
         self.terrain_timer = 0.0  # Guarda el tiempo de inicio
-        self.IGNORE_IMU_TERRAIN = True  # Deshabilita detección de terreno rugoso vía IMU
+        self.IGNORE_IMU_TERRAIN = True  # sobreescrito por parámetro ROS2 'ignore_imu_terrain'
 
 
         self.ang_p = 90 # Posicion Frente del Robot
@@ -135,10 +135,8 @@ class FSMGaitArbitration(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        #self.Usigma_az = 3.3 #PARA CASO PLANO-RUGOSO-PLANO
-        #self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
-        self.Upitch = 1 #uMbral pitch INCLINADO
-        self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
+        self.Upitch = 1   # umbral pitch (°) — fijo, sobreescribible si se necesita
+        self.Usigma_az = 100.0  # sobreescrito por parámetro ROS2 'usigma_az'
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -204,9 +202,13 @@ class FSMGaitArbitration(Node):
         # Nivel activo en este experimento (índice en NoiseLevel).
         # Cámbialo antes de cada prueba: 0=limpio, 1=±5%, 2=±10%, etc.
 
-        self.declare_parameter('nl', 0) #Noise level default
+        self.declare_parameter('nl', 0)
+        self.declare_parameter('ignore_imu_terrain', True)
+        self.declare_parameter('usigma_az', 100.0)
 
-        self.ACTIVE_NOISE_LEVEL_IDX = (self.get_parameter('nl').get_parameter_value().integer_value) #Parametro noise level ros2 run peter_robot red_neuronal --ros-args -p nl:=0
+        self.ACTIVE_NOISE_LEVEL_IDX = self.get_parameter('nl').get_parameter_value().integer_value
+        self.IGNORE_IMU_TERRAIN = self.get_parameter('ignore_imu_terrain').get_parameter_value().bool_value
+        self.Usigma_az = self.get_parameter('usigma_az').get_parameter_value().double_value
 
         # Semilla reproducible (None = aleatoria)
         self.NoiseSeed = 42
