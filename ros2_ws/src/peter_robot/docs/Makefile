@@ -7,7 +7,12 @@
 
 # ── Variables Docker ──────────────────────────────────────────────────────────
 # Raíz del repositorio en el host (ajustar si el repo está en otra ruta)
-REPO_ROOT   ?= $(HOME)/PETER_SIMULATION
+# Autodetectado a partir de la ubicacion de este Makefile (docs/Makefile vive
+# 4 niveles bajo la raiz del repo: docs/ -> peter_robot/ -> src/ -> ros2_ws/ ->
+# raiz), asi que funciona sin importar donde este clonado PETER_SIMULATION
+# (antes asumia $(HOME)/PETER_SIMULATION a secas). Cuando se invoca via el
+# Makefile raiz, ese valor llega explicito en PASSTHROUGH y pisa este default.
+REPO_ROOT   ?= $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../../../)
 # Nombre de la imagen Docker del proyecto
 IMAGE       ?= peter_sim:local
 # Nombre canónico del contenedor — NO cambiar salvo sobreescritura explícita
@@ -155,14 +160,14 @@ clean: ## Limpia build/, install/ y log/ del workspace dentro del contenedor
 	$(DC) "rm -rf $(WS)/build $(WS)/install $(WS)/log"
 
 clean-all: ## Limpia build/install/log también en el host montado
-	rm -rf ~/PETER_SIMULATION/ros2_ws/build ~/PETER_SIMULATION/ros2_ws/install ~/PETER_SIMULATION/ros2_ws/log
+	rm -rf $(WS_HOST)/build $(WS_HOST)/install $(WS_HOST)/log
 
 check-install: check-container ## Verifica que el paquete peter_robot exista en el install space
 	$(DC) "test -f $(WS)/install/peter_robot/share/peter_robot/package.xml && echo '[OK] peter_robot instalado' || (echo '[ERROR] peter_robot no está instalado'; exit 1)"
 
 chown-ws: ## Corrige permisos root-owned en el host
-	@echo "Ejecuta en WSL host:"
-	@echo "  sudo chown -R \$$(id -u):\$$(id -g) ~/PETER_SIMULATION/ros2_ws"
+	@echo "Ejecuta en el host:"
+	@echo "  sudo chown -R \$$(id -u):\$$(id -g) $(WS_HOST)"
 
 sim-single: check-install ## Lanza simulación de único estímulo
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \

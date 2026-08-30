@@ -18,7 +18,12 @@
 IMAGE       ?= peter_sim:local
 CONTAINER   ?= peter_simulation
 WS          ?= /ros2_ws
-REPO_ROOT   ?= $(HOME)/PETER_SIMULATION
+# Autodetectado: este Makefile vive en la raiz del repo, asi que CURDIR ya es
+# la ruta correcta sin importar donde cada quien haya clonado PETER_SIMULATION
+# (antes asumia $(HOME)/PETER_SIMULATION a secas, lo cual rompia con clones en
+# rutas distintas, ej. ~/Documents/Paper/PETER_SIMULATION). Sobreescribible con
+# 'make <target> REPO_ROOT=/otra/ruta' si hiciera falta.
+REPO_ROOT   ?= $(CURDIR)
 WS_HOST     ?= $(REPO_ROOT)/ros2_ws
 DOMAIN_ID   ?= 0
 STIM        ?= blue
