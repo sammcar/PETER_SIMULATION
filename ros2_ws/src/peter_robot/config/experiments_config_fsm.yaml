@@ -11,36 +11,36 @@ global_settings:
 experiment_suites:
 
   # ──────────────────────────────────────────────────────────────────────────
-  # FAMILIA A1 FSM — Estímulo Apetitivo (Target Azul)  [COMPLETADA: 15/15 ✓]
+  # FAMILIA A1 FSM — Estímulo Apetitivo (Target Azul)
   # ──────────────────────────────────────────────────────────────────────────
-  # - suite_name: "familia_a_apetitivo_fsm"
-  #   launch_file: "single_stimulus.launch.py"
-  #   repetitions: 15
-  #   dynamic_parameters:
-  #     controller: "fsm"
-  #     world_name: "single_stimulus"
-  #     stimulus_type: "blue"
-  #     stimulus_x: 4.0
-  #     stimulus_y: -2.0
-  #     timeout_s: 45.0
-  #     random_perturbation: true
-  #     variance_sigma: 0.15
+  - suite_name: "familia_a_apetitivo_fsm"
+    launch_file: "single_stimulus.launch.py"
+    repetitions: 15
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "single_stimulus"
+      stimulus_type: "blue"
+      stimulus_x: 4.0
+      stimulus_y: -2.0
+      timeout_s: 45.0
+      random_perturbation: true
+      variance_sigma: 0.15
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA A2 FSM — Estímulo Obstáculo (Target Verde)
   # ──────────────────────────────────────────────────────────────────────────
-  # - suite_name: "familia_a_obstaculo_fsm"
-  #   launch_file: "single_stimulus.launch.py"
-  #   repetitions: 15
-  #   dynamic_parameters:
-  #     controller: "fsm"
-  #     world_name: "single_stimulus"
-  #     stimulus_type: "green"
-  #     stimulus_x: 0.5
-  #     stimulus_y: -0.75
-  #     timeout_s: 60.0
-  #     random_perturbation: true
-  #     variance_sigma: 0.05
+  - suite_name: "familia_a_obstaculo_fsm"
+    launch_file: "single_stimulus.launch.py"
+    repetitions: 15
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "single_stimulus"
+      stimulus_type: "green"
+      stimulus_x: 0.5
+      stimulus_y: -0.75
+      timeout_s: 60.0
+      random_perturbation: true
+      variance_sigma: 0.05
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA A3 FSM — Estímulo Aversivo (Target Rojo)
@@ -61,27 +61,26 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA B FSM — Navegación Compleja (Estímulos Múltiples)
   # ──────────────────────────────────────────────────────────────────────────
-  # - suite_name: "familia_b_compleja_fsm"
-  #   launch_file: "multiple_stimuli.launch.py"
-  #   repetitions: 15
-  #   dynamic_parameters:
-  #     controller: "fsm"
-  #     world_name: "multiple_stimuli"
-  #     spawn_green: true
-  #     green_x: 0.0
-  #     green_y: -0.8
-  #     spawn_red: true
-  #     red_x: 2.5
-  #     red_y: 1.625
-  #     spawn_blue: true
-  #     blue_x: 3.0
-  #     blue_y: -1.5
-  #     timeout_s: 150.0
-  #     random_perturbation: false
+  - suite_name: "familia_b_compleja_fsm"
+    launch_file: "multiple_stimuli.launch.py"
+    repetitions: 15
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "multiple_stimuli"
+      spawn_green: true
+      green_x: 0.0
+      green_y: -0.8
+      spawn_red: true
+      red_x: 2.5
+      red_y: 1.625
+      spawn_blue: true
+      blue_x: 3.0
+      blue_y: -1.5
+      timeout_s: 150.0
+      random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
-  # FAMILIA C1 FSM — Transición a Terreno Irregular
-  # IGNORE_IMU_TERRAIN=false y Usigma_az=3.3 se pasan desde terrain_navigation.launch.py
+  # FAMILIA C1 FSM — Transición a Terreno Irregular  [NO CORRER AHORA]
   # ──────────────────────────────────────────────────────────────────────────
   # - suite_name: "familia_c1_terreno_rugoso_fsm"
   #   launch_file: "terrain_navigation.launch.py"
@@ -93,8 +92,7 @@ experiment_suites:
   #     random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
-  # FAMILIA C2 FSM — Prueba de Pendiente Inclinada
-  # IGNORE_IMU_TERRAIN=false y Usigma_az=100 (solo pitch activo) desde slope_navigation.launch.py
+  # FAMILIA C2 FSM — Prueba de Pendiente Inclinada  [NO CORRER AHORA]
   # ──────────────────────────────────────────────────────────────────────────
   # - suite_name: "familia_c2_pendiente_fsm"
   #   launch_file: "slope_navigation.launch.py"
@@ -108,11 +106,11 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA E FSM — Tarea de Inspección Reactiva
   # ──────────────────────────────────────────────────────────────────────────
-  # - suite_name: "familia_e_inspeccion_fsm"
-  #   launch_file: "gazebo.launch.py"
-  #   repetitions: 15
-  #   dynamic_parameters:
-  #     controller: "fsm"
-  #     world_name: "obstaculos"
-  #     timeout_s: 90.0
-  #     random_perturbation: false
+  - suite_name: "familia_e_inspeccion_fsm"
+    launch_file: "gazebo.launch.py"
+    repetitions: 20
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "obstaculos"
+      timeout_s: 90.0
+      random_perturbation: false

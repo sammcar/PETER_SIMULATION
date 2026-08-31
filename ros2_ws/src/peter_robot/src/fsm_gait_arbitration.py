@@ -69,6 +69,10 @@ class FSMGaitArbitration(Node):
 
         self.c_persist_time = 6.0      # segundos que C persiste tras perder señal roja
         self.last_c_trigger_time = 0.0
+        self.x_persist_time = 6.0      # segundos que X persiste tras perder señal verde
+        self.last_x_trigger_time = 0.0
+        self.h_persist_time = 4.0      # segundos que H persiste tras perder señal azul
+        self.last_h_trigger_time = 0.0
 
 
     def initctes(self):
@@ -516,35 +520,47 @@ class FSMGaitArbitration(Node):
             #     self.publish_mode('X'); #print("Móvil X")
 
 
-            # ── FSM: arbitraje de modo (IMU + RGB) ───────────────────────────────
+            # ── FSM: arbitraje de modo (IMU + RGB) con histéresis ────────────────
             # IMU (solo activo cuando IGNORE_IMU_TERRAIN=False):
-            #   pitch > Upitch → H   (reemplaza z[1]→z[16], prioridad 1)
-            #   terrainchanger      → C   (reemplaza z[0]→z[15], 40s, prioridad 2)
-            # RGB (siempre):
-            #   G > 0  → X   (prioridad 3)
+            #   pitch > Upitch → H   (prioridad 1)
+            #   terrainchanger → C   (prioridad 2)
+            # RGB (siempre, con persist simétrico):
+            #   G > 0  → X   (persist 6s, prioridad 3)
             #   R > 0.5 → C  (persist 6s, prioridad 4)
-            #   B > 0.5 → H  (prioridad 5)
+            #   B > 0.5 → H  (persist 4s, prioridad 5)
             #   default → H
             current_time = time.time()
             new_mode = self.current_mode
 
+            if G > 0:
+                self.last_x_trigger_time = current_time
             if R > 0.5:
                 self.last_c_trigger_time = current_time
+            if B > 0.5:
+                self.last_h_trigger_time = current_time
 
+            x_persist_active = (
+                self.current_mode == 'X' and
+                (current_time - self.last_x_trigger_time) < self.x_persist_time
+            )
             c_persist_active = (
                 self.current_mode == 'C' and
                 (current_time - self.last_c_trigger_time) < self.c_persist_time
+            )
+            h_persist_active = (
+                self.current_mode == 'H' and
+                (current_time - self.last_h_trigger_time) < self.h_persist_time
             )
 
             if not self.IGNORE_IMU_TERRAIN and self.pitch > self.Upitch:
                 new_mode = 'H'
             elif not self.IGNORE_IMU_TERRAIN and self.terrainchanger:
                 new_mode = 'C'
-            elif G > 0:
+            elif G > 0 or x_persist_active:
                 new_mode = 'X'
             elif R > 0.5 or c_persist_active:
                 new_mode = 'C'
-            elif B > 0.5:
+            elif B > 0.5 or h_persist_active:
                 new_mode = 'H'
             else:
                 new_mode = 'H'

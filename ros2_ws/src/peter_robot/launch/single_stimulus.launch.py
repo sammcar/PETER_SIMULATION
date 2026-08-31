@@ -42,9 +42,14 @@ PACKAGE_NAME = 'peter_robot'
 
 def _select_controller(context, *args, **kwargs):
     controller = context.launch_configurations.get('controller', 'neural')
-    executable = 'red_neuronal' if controller == 'neural' else 'fsm_arbitration'
+    if controller == 'neural':
+        executable = 'red_neuronal'
+        period = 9.5
+    else:
+        executable = 'fsm_arbitration'
+        period = 15.0  # después de neural_recorder (10.5s) para capturar el primer modo
     return [
-        TimerAction(period=9.5, actions=[
+        TimerAction(period=period, actions=[
             Node(
                 package=PACKAGE_NAME,
                 executable=executable,
@@ -253,6 +258,7 @@ def generate_launch_description():
             executable='camera_node',
             name='camera_node',
             output='screen',
+            parameters=[{'headless': True}],
         )
     ])
 
@@ -283,6 +289,21 @@ def generate_launch_description():
         )
     ])
 
+    def _maybe_stability_monitor(context, *args, **kwargs):
+        if context.launch_configurations.get('stimulus_type', '') == 'red':
+            return [TimerAction(period=10.5, actions=[
+                Node(
+                    package=PACKAGE_NAME,
+                    executable='peter_stability_monitor',
+                    name='stability_monitor',
+                    output='screen',
+                    parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time'), 'headless': True}],
+                )
+            ])]
+        return []
+
+    stability_monitor = OpaqueFunction(function=_maybe_stability_monitor)
+
     return LaunchDescription(
         args
         + [
@@ -302,6 +323,7 @@ def generate_launch_description():
             select_controller,
             camera_node,
             neural_recorder,
-            metrics_recorder,  # <── INYECTADO AQUÍ
+            metrics_recorder,
+            stability_monitor,
         ]
     )

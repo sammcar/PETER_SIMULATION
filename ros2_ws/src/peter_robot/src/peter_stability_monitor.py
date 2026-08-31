@@ -421,8 +421,21 @@ def main(args=None):
     rclpy.init(args=args)
     node = StabilityMonitor()
 
+    node.declare_parameter('headless', False)
+    headless = node.get_parameter('headless').get_parameter_value().bool_value
+
     executor = MultiThreadedExecutor()
     executor.add_node(node)
+
+    if headless:
+        try:
+            executor.spin()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            node.print_stats()
+        return
+
     ros_thread = threading.Thread(target=executor.spin, daemon=True)
     ros_thread.start()
 

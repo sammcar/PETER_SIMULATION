@@ -38,14 +38,18 @@ class CamaraNodo(Node):
                                #'green': False
                                }  # Estado previo de cada color
 
+        self.declare_parameter('headless', False)
+        self._headless = self.get_parameter('headless').get_parameter_value().bool_value
+
         # Variables para la visualización en otro hilo
         self.latest_frame = None
         self.frame_lock = threading.Lock()
-        self.display_thread = threading.Thread(target=self.display_loop)
-        self.display_thread.daemon = True  # Se cerrará cuando termine el programa
-        self.display_thread.start()
+        if not self._headless:
+            self.display_thread = threading.Thread(target=self.display_loop)
+            self.display_thread.daemon = True
+            self.display_thread.start()
 
-        self.get_logger().info("Nodo de visualización de cámara iniciado.")
+        self.get_logger().info(f"Nodo de cámara iniciado ({'headless' if self._headless else 'con visualización'}).")
 
     def publish_bounding(self, publisher, x, w, h, detected):
         """

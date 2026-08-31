@@ -10,9 +10,14 @@ import xacro
 
 def _select_controller(context, *args, **kwargs):
     controller = context.launch_configurations.get('controller', 'neural')
-    executable = 'red_neuronal' if controller == 'neural' else 'fsm_arbitration'
+    if controller == 'neural':
+        executable = 'red_neuronal'
+        period = 11.0
+    else:
+        executable = 'fsm_arbitration'
+        period = 15.0  # después de neural_recorder (12.0s) para capturar el primer modo
     return [
-        TimerAction(period=11.0, actions=[
+        TimerAction(period=period, actions=[
             Node(
                 package='peter_robot',
                 executable=executable,
@@ -120,7 +125,8 @@ def generate_launch_description():
                 package='peter_robot',
                 executable='camera_node',
                 name='camera_node',
-                output='screen'
+                output='screen',
+                parameters=[{'headless': True}],
             )
         ]
     )
@@ -134,7 +140,8 @@ def generate_launch_description():
                 package='peter_robot',
                 executable='peter_stability_monitor',
                 name='peter_stability_monitor',
-                output='screen'
+                output='screen',
+                parameters=[{'headless': True}],
             ),
             Node(
                 package='peter_robot',

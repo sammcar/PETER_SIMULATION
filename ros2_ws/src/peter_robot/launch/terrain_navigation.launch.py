@@ -181,7 +181,8 @@ def generate_launch_description():
     select_controller = OpaqueFunction(function=_select_controller)
 
     camera_node = TimerAction(period=13.0, actions=[
-        Node(package=PACKAGE_NAME, executable='camera_node', name='camera_node', output='screen')
+        Node(package=PACKAGE_NAME, executable='camera_node', name='camera_node', output='screen',
+             parameters=[{'headless': True}])
     ])
 
     # ---- Metrics & Stability Monitor ----
@@ -211,7 +212,7 @@ def generate_launch_description():
             executable='peter_stability_monitor',
             name='stability_monitor',
             output='screen',
-            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time'), 'headless': True}],
         )
     ])
 
