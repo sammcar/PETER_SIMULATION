@@ -71,6 +71,7 @@ SUITE_APPETITIVE = {
     'familia_a_apetitivo', 'familia_b_compleja',
     'ablation_appetitive_full', 'ablation_appetitive_no_lateral_inhibition', 'ablation_appetitive_threshold_only',
     'ablation_complex_full', 'ablation_complex_no_lateral_inhibition', 'ablation_complex_threshold_only',
+    'ablation_appetitive_no_stn_str', 'ablation_complex_no_stn_str',
 }
 SUITE_EVASIVE    = {'familia_a_obstaculo', 'familia_a_aversivo'}
 SUITE_TERRAIN_C1 = {'familia_c1_terreno_rugoso'}
@@ -447,9 +448,13 @@ class TestManager:
         self._rng        = np.random.default_rng()
         self._judge_node: Optional[TestJudgeNode] = None
         self._ros_thread: Optional[threading.Thread] = None
-        # Filtro opcional por prefijo de suite_name (ej. 'ablation_') para no correr
-        # las demas suites del config al hacer una tanda dirigida (R3-01/R3-02).
-        self._suite_filter: Optional[str] = suite_filter
+        # Filtro opcional por prefijo(s) de suite_name (ej. 'ablation_', o una lista
+        # separada por comas de prefijos exactos como los propios suite_name completos,
+        # ej. 'ablation_appetitive_no_stn_str,ablation_complex_no_stn_str') para no
+        # correr las demas suites del config al hacer una tanda dirigida (R3-01/R3-02).
+        self._suite_filters: Optional[List[str]] = (
+            [p.strip() for p in suite_filter.split(',') if p.strip()] if suite_filter else None
+        )
 
     def _start_ros_thread(self) -> None:
         if not rclpy.ok(): rclpy.init()
@@ -514,7 +519,7 @@ class TestManager:
         try:
             for suite_cfg in self._cfg.get('experiment_suites', []):
                 suite_name  = suite_cfg['suite_name']
-                if self._suite_filter and not suite_name.startswith(self._suite_filter):
+                if self._suite_filters and not any(suite_name.startswith(p) for p in self._suite_filters):
                     continue
                 repetitions = int(suite_cfg.get('repetitions', 1))
                 (self._output_base / suite_name).mkdir(parents=True, exist_ok=True)

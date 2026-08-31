@@ -233,9 +233,13 @@ class NetworkPublisher(Node):
         #                            prioridad fija sobre el estimulo crudo (misma
         #                            familia de logica que ya usa el Modulo de
         #                            Locomocion: 20 grados en X5/X6, Ar=28.0 en X17)
+        #   no_stn_str            -> remocion de capa neuronal completa (no de
+        #                            conexion puntual): STN y STR dejan de
+        #                            computar (quedan en 0); GPi/GPe reciben el
+        #                            estimulo crudo directamente en vez de via STN
         self.declare_parameter('ablation_mode', 'full')
         ablation_mode = self.get_parameter('ablation_mode').get_parameter_value().string_value
-        valid_ablation_modes = ('full', 'no_lateral_inhibition', 'threshold_only')
+        valid_ablation_modes = ('full', 'no_lateral_inhibition', 'threshold_only', 'no_stn_str')
         if ablation_mode not in valid_ablation_modes:
             self.get_logger().warn(
                 f"[ABLATION] Modo desconocido '{ablation_mode}', usando 'full'. "
@@ -391,6 +395,32 @@ class NetworkPublisher(Node):
                 self.Gpe[1, 1] = G * 5
             elif B > TH_B:
                 self.Gpe[2, 1] = B * 0.7 * 0.5
+        elif self.ablation_mode == 'no_stn_str':
+            # R3-01: remocion de una capa neuronal completa (no de una conexion
+            # puntual, a diferencia de no_lateral_inhibition). El nucleo
+            # subtalamico (STN) deja de computar su propia dinamica recurrente
+            # (auto-inhibicion + relevo del estimulo); GPi/GPe reciben el
+            # estimulo crudo directamente en su lugar, con las mismas
+            # ganancias por canal que STN habria aplicado (raw2 ya incluye el
+            # *0.7 que usa StN[2] en 'full', para que la escala de entrada sea
+            # comparable). El estriado (STR) se anula por completo -- su unico
+            # rol en el circuito es retroalimentar Gpi, termino que aqui se cae.
+            # A diferencia de no_lateral_inhibition (que solo apaga las
+            # conexiones cruzadas y deja STN/STR funcionando), aqui las dos
+            # capas dejan de computar del todo -- es la ablacion de "capa
+            # neuronal" que pide R3-01, distinta de la de "conexion inhibitoria".
+            raw0, raw1, raw2 = R, G, B * 0.7
+
+            self.StN[:, 1] = 0.0
+            self.StR[:, 1] = 0.0
+
+            self.Gpi[0, 1] = np.clip((self.Gpi[0, 0] + (1/self.TaoGpi)*(-self.Gpi[0, 0] + (raw1 + raw2) - self.Gpe[0,0])),0, None)
+            self.Gpi[1, 1] = np.clip((self.Gpi[1, 0] + (1/self.TaoGpi)*(-self.Gpi[1, 0] + (raw0 + raw2) - self.Gpe[1,0])),0, None)
+            self.Gpi[2, 1] = np.clip((self.Gpi[2, 0] + (1/self.TaoGpi)*(-self.Gpi[2, 0] + (raw0 + raw1) - self.Gpe[2,0])),0, None)
+
+            self.Gpe[0, 1] = np.clip((self.Gpe[0, 0] + (1/self.TaoGpe)*(-self.Gpe[0, 0] + raw0)),0, None)
+            self.Gpe[1, 1] = np.clip((self.Gpe[1, 0] + (1/self.TaoGpe)*(-self.Gpe[1, 0] + raw1*5)),0, None)
+            self.Gpe[2, 1] = np.clip((self.Gpe[2, 0] + (1/self.TaoGpe)*(-self.Gpe[2, 0] + raw2*0.5)),0, None)
         else:
             # no_lateral_inhibition: xg=0 anula los terminos de inhibicion cruzada
             # entre canales (Gpe->STN y STN->Gpi); los terminos del mismo canal

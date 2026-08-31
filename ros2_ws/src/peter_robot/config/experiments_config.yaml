@@ -189,6 +189,39 @@ experiment_suites:
       ablation_mode: "threshold_only"
       fixed_noise_level_idx: 0
 
+  # --- no_stn_str (4a variante, remocion de capa neuronal STN/STR) ---
+  - suite_name: "ablation_appetitive_no_stn_str"
+    launch_file: "single_stimulus.launch.py"
+    repetitions: 12
+    dynamic_parameters:
+      world_name: "single_stimulus"
+      stimulus_type: "blue"
+      stimulus_x: 4.0
+      stimulus_y: -2.0
+      timeout_s: 45.0
+      random_perturbation: false
+      ablation_mode: "no_stn_str"
+      fixed_noise_level_idx: 0
+
+  - suite_name: "ablation_complex_no_stn_str"
+    launch_file: "multiple_stimuli.launch.py"
+    repetitions: 12
+    dynamic_parameters:
+      world_name: "multiple_stimuli"
+      spawn_green: true
+      green_x: 0.0
+      green_y: -0.8
+      spawn_red: true
+      red_x: 2.5
+      red_y: 1.625
+      spawn_blue: true
+      blue_x: 3.0
+      blue_y: -1.5
+      timeout_s: 150.0
+      random_perturbation: false
+      ablation_mode: "no_stn_str"
+      fixed_noise_level_idx: 0
+
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C1 — Transición a Terreno Irregular
   # ──────────────────────────────────────────────────────────────────────────
