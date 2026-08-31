@@ -124,6 +124,11 @@ class NetworkPublisher(Node):
 
         #DEBUGGING
 
+
+        self.pruebaDeTerreno = True #Estas variables hacen que los comentarios malucos que dejé no
+        self.pruebaInclinado = True #Haya que manipularlos
+
+
         self.MOVEMENT = True
         self.maxstd = []
         self.maxaux = []
@@ -172,10 +177,10 @@ class NetworkPublisher(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Usigma_az = 3.0 #PARA CASO PLANO-RUGOSO-PLANO
-        self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
-        #self.Upitch = 1 #uMbral pitch INCLINADO
-        #self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
+        if (self.pruebaDeTerreno and not self.pruebaInclinado): self.Usigma_az = 3.0 #PARA CASO PLANO-RUGOSO-PLANO
+        else: self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
+        if (self.pruebaDeTerreno and not self.pruebaInclinado): self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
+        else: self.Upitch = 0.9 #uMbral pitch INCLINADO
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -216,9 +221,11 @@ class NetworkPublisher(Node):
 
         # TIEMPO DE RESPUESTA
         self.starttime = time.time() 
-        self.tchange = self.starttime + 16.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
+        if (self.pruebaDeTerreno and not self.pruebaInclinado): self.tchange = self.starttime + 16.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
+        else: self.tchange = self.starttime + 98.0
         self.Tresponse = None
         self.response_measured = False
+        self.condition_start_time = None
 
         # --- DELAY CAMBIO DE MODO---
         self.tcmd = None
@@ -250,7 +257,7 @@ class NetworkPublisher(Node):
         self.IMUNoiseLevels = [0.0, 0.05, 0.10, 0.20, 0.30]  # fracción del valor medido
         self.declare_parameter('noise_level_idx', 0)
         self.ACTIVE_NOISE_IDX = self.get_parameter('noise_level_idx').get_parameter_value().integer_value
-        self._sigma_imu_noise = self.IMUNoiseLevels[0] #Ahora es opcional entonces se pone en 0 para conveniencia
+        self._sigma_imu_noise = 0.0 #Ahora es opcional entonces se pone en 0 para conveniencia
  
         # ---- 2) IMU: DERIVA (drift) -- random-walk acumulativo, NO ruido de media cero ----
         # sigma_rw = paso de la caminata aleatoria por ciclo de control (0.15 s)
@@ -282,6 +289,7 @@ class NetworkPublisher(Node):
         #self.declare_parameter('illum_lvl', 0) #Descomentar si se desea parametros independientes
         #self.ACTIVE_ILLUM_IDX = self.get_parameter('illum_lvl').get_parameter_value().integer_value
         self._illum_severity = self.IllumLevels[self.ACTIVE_NOISE_IDX]
+        if self.pruebaDeTerreno: self._illum_severity = 0.0
  
         # Dirección de la distorsión: -1 = escena oscurecida (el blob se encoge
         # y se pierde), +1 = sobreexposición (el blob "florece"/satura). Se fija
@@ -454,11 +462,16 @@ class NetworkPublisher(Node):
 
 
         R = self.areaBoundingBoxR/500
-        #R = 3.652 #Descomentar para probar inclinacion
+        if self.pruebaInclinado: R = 3.652 #para probar inclinacion
+            # if   self.ACTIVE_NOISE_IDX == 0: R = 3.552 #para probar inclinacion
+            # elif self.ACTIVE_NOISE_IDX == 1: R = 3.652 #para probar inclinacion
+            # elif self.ACTIVE_NOISE_IDX == 2: R = 3.752 #para probar inclinacion
+            # elif self.ACTIVE_NOISE_IDX == 3: R = 3.852 #para probar inclinacion
+            # elif self.ACTIVE_NOISE_IDX == 4: R = 3.952 #para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
-        G = 0  #Descomentar para probar inclinacion y terreno
         B = self.areaBoundingBoxB/500
+        if self.pruebaDeTerreno: G = 0  #Descomentar para probar inclinacion y terreno
 
 
         self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoSTN)*(-self.StN[0, 0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
@@ -486,12 +499,12 @@ class NetworkPublisher(Node):
         else:
             self.ang_s = 90*(self.lidar[4,1]<0.3)
 
-        #self.ang_s = 90 #Descomentar para probar terreno inclinado
+        if self.pruebaInclinado: self.ang_s = 90 # terreno inclinado
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
         self.z[0, 1] = self.z[0, 0] + (self.dt / self.tau) * (-self.z[0, 0] + (self.A * max(0, (self.std_dev_accel_z - self.Usigma_az ))**2) / (self.SigmaIMU**2 + (-self.z[0,0] + self.std_dev_accel_z - self.Usigma_az )**2))
-        self.z[1, 1] = self.z[1, 0] + (self.dt / self.tau) * (-self.z[1, 0] + (self.A * max(0, (self.pitch - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch - self.Upitch )**2))
+        self.z[1, 1] = self.z[1, 0] + (self.dt / self.tau) * (-self.z[1, 0] + (self.A * max(0, (self.pitch_rms - self.Upitch ))**2) / (self.SigmaIMU**2 + (-self.z[1,0] + self.pitch_rms - self.Upitch )**2))
         self.z[2, 1] = self.z[2, 0] + (self.dt / self.tau) * (-self.z[2, 0] + (self.A * max(0, (self.roll - self.Uroll ))**2) / (self.SigmaIMU**2 + (-self.z[2,0] + self.roll - self.Uroll )**2))
         self.z[3, 1] = self.z[3, 0] + (self.dt / self.tau) * (-self.z[3, 0] + max(0, (self.Gpe[2,0] )))
         self.z[4, 1] = self.z[4, 0] + (self.dt / self.tau) * (-self.z[4, 0] + max(0, (self.Gpe[1, 0] + self.j * self.Gpe[0, 0])))
@@ -510,7 +523,7 @@ class NetworkPublisher(Node):
 
         self.z[14, 1] = self.z[14, 0] + (self.dt / self.tau) * (-self.z[14, 0] + (self.A * max(0, (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (100*self.Gpe[1,0] - self.w*self.Gpi[0, 0] - self.w*self.Gpi[2, 0] - self.w*self.z[15, 0] - self.w*self.z[16, 0] )**2))
         self.z[15, 1] = self.z[15, 0] + (self.dt / self.tau) * (-self.z[15, 0] + (self.A * max(0, (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 2*self.z[0,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] ))**2) / (self.Sigma**2 + (-self.Gpe[1,0]*100 -self.cte + self.z[4, 0]*self.w + 2*self.z[0,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[16, 0] )**2))
-        self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + 5*self.z[1,0] + 5*self.z[2,0] + self.cte ))**2) / (self.Sigma**2 + (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + 5*self.z[1,0] + 5*self.z[2,0] + self.cte )**2))
+        self.z[16, 1] = self.z[16, 0] + (self.dt / self.tau) * (-self.z[16, 0] + (self.A * max(0, (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + 50*self.z[1,0] + 5*self.z[2,0] + self.cte ))**2) / (self.Sigma**2 + (self.z[3, 0] - 100*self.Gpe[1,0] - self.w*self.z[14, 0]*1.5 - self.w*self.z[15, 0]*1.5 + 50*self.z[1,0] + 5*self.z[2,0] + self.cte )**2))
         
         self.z[17, 1] = self.z[17, 0] + (self.dt / self.tau) * (-self.z[17, 0] + max(0, (self.Gpe[2,0] - self.Area)))
 
@@ -529,9 +542,9 @@ class NetworkPublisher(Node):
 
         # ------------------- PRINTS -------------------------
         
-        print(f"R: {str(R)}")
-        print(f"G: {str(G)}")
-        print(f"B: {str(B)}") 
+        # print(f"R: {str(R)}")
+        # print(f"G: {str(G)}")
+        # print(f"B: {str(B)}") 
 
         self.maxaux.append(self.Gpe[2,1])
 
@@ -585,8 +598,8 @@ class NetworkPublisher(Node):
             self.std_dev_accel_z = 0
             print("Terreno liso 🛣️")
 
-        if self.pitch > self.Upitch: print("Terreno inclinado")
-        else: print("Terreno NO inclinado")
+        if self.pitch_rms > self.Upitch: self.get_logger().info("Terreno inclinado")
+        else: self.get_logger().info("Terreno NO inclinado")
 
         #------------------------- P U B L I C A C I O N --------------------------------------#
         
@@ -627,81 +640,103 @@ class NetworkPublisher(Node):
             # ------------------------------------------------------------------------------
 
             # modos
-            if self.z[15,1] > 0.5:
-                self.publish_mode('C'); #print("Cuadrupedo")
-            elif self.z[16,1] > 0.5:
-                self.publish_mode('H'); #print("Móvil H")
-            elif self.z[14,1] > 0.5:
-                self.publish_mode('X'); #print("Móvil X")
+            if self.pruebaDeTerreno:
+                if self.z[15,1] > 0.5:
+                    self.publish_mode('C'); #print("Cuadrupedo")
+                    self.tcmd = time.time() #delay cambio metrica
+                elif self.z[16,1] > 0.5:
+                    self.publish_mode('H'); #print("Móvil H")
+                elif self.z[14,1] > 0.5:
+                    self.publish_mode('X'); #print("Móvil X")
 
+            else:
+                # Obtener valores actuales
+                z15 = self.z[15,1] # Activación C
+                z16 = self.z[16,1] # Activación H
+                z14 = self.z[14,1] # Activación X
+                
+                current_time = time.time()
+                time_since_last_change = current_time - self.last_mode_change_time
+                
+                # # Lógica de decisión con Histéresis
+                new_mode = self.current_mode 
+                
+                # Condición de activación para H (más sensible)
+                if z16 > 0.5: 
+                    new_mode = 'H'
+                    print("Movil H")
+                # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
+                elif z15 > 0.5 and time_since_last_change > self.min_dwell_time:
+                    new_mode = 'C'
+                    print("Cuadrupedo")
+                elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
+                    new_mode = 'X'
+                    print("Movil H")
 
-            # Obtener valores actuales
-            z15 = self.z[15,1] # Activación C
-            z16 = self.z[16,1] # Activación H
-            z14 = self.z[14,1] # Activación X
-            
-            # current_time = time.time()
-            # time_since_last_change = current_time - self.last_mode_change_time
-            
-            # # Lógica de decisión con Histéresis
-            # new_mode = self.current_mode 
-            
-            # # Condición de activación para H (más sensible)
-            # if z16 > 0.5: 
-            #     new_mode = 'H'
-            #     print("Movil H")
-            # # Condición de activación para C (solo cambia si supera el umbral original y pasó el tiempo mínimo)
-            # elif z15 > 0.5 and time_since_last_change > self.min_dwell_time:
-            #     new_mode = 'C'
-            #     print("Cuadrupedo")
-            # elif z14 > 0.5 and time_since_last_change > self.min_dwell_time:
-            #     new_mode = 'X'
-            #     print("Movil H")
-
-            # # Ejecutar cambio solo si el modo es realmente diferente
-            # if new_mode != self.current_mode:
-            #     self.publish_mode(new_mode)
-            #     self.current_mode = new_mode
-            #     self.last_mode_change_time = current_time
-            #     print(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
+                # Ejecutar cambio solo si el modo es realmente diferente
+                if new_mode != self.current_mode:
+                    self.publish_mode(new_mode)
+                    self.current_mode = new_mode
+                    self.last_mode_change_time = current_time
+                    print(f"Cambio de modo a {new_mode} aplicado (Histeresis activa)")
 
             self.publish_data()
             self.publish_imu()
 
 
             #------------------------- M E T R I C A S--------------------------------------#
-            stable_condition = (self.accel_std < 3.3 and self.pitch_rms < 1.6 and self.roll_rms < 2.6) #Estabilización cond
-            print(f"stable condition: {stable_condition}")
+            stable_condition = (self.accel_std < 3.6 and self.pitch_rms < 1.7 and self.roll_rms < 2.6) #Estabilización cond
+    
+            #print(f"stable condition: {stable_condition}")
 
-            #Tiempo de respuesta
-            if (self.terrainchanger and not self.response_measured and stable_condition): 
-                self.Tresponse = time.time() - self.tchange
-                self.response_measured = True
+            #Tiempo de respuesta------------------------------------------
+            if self.pruebaDeTerreno and not self.pruebaInclinado:
+                if (self.terrainchanger and not self.response_measured and stable_condition): 
+                    self.Tresponse = time.time() - self.tchange
+                    self.response_measured = True
+            else:
+                if (self.z[16, 1] > 0.5 and not self.response_measured and self.pitch_rms > self.Upitch):
+                    # Si la condición acaba de empezar a cumplirse, guardamos el tiempo actual
+                    if self.condition_start_time is None:
+                        self.condition_start_time = time.time()
+                    
+                    # Comprobamos si ha permanecido activa por más de 5 segundos
+                    elif time.time() - self.condition_start_time >= 5.0:
+                        self.Tresponse = time.time() - self.tchange
+                        self.response_measured = True
+                        self.condition_start_time = None  # Reiniciamos el temporizador
+                else:
+                    # Si la condición se interrumpe antes de los 5s, reiniciamos el contador
+                    self.condition_start_time = None
 
-            #Delay de cambio
+            #Delay de cambio ------------------------------------------
             if (self.mode_transition_active and not self.switch_measured and stable_condition):
-                self.Tswitch = time.time() - self.tcmd
+                self.Tswitch = (time.time() - self.tcmd) + 1 #se añade un seg por si la condicion de estabilidad de cumple mientras cambia
                 self.switch_measured = True
                 self.mode_transition_active = False
 
-            #Amplitud de oscilacion
-            print(f"Roll RMS: {self.roll_rms:.3f} deg")
-            print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
+
+            if self.pruebaInclinado:
+                self.get_logger().info(
+                    # f"GpeR: {self.Gpe[0,1]}\n"
+                    # f"GpeG: {self.Gpe[1,1]}\n"
+                    # f"GpeB: {self.Gpe[2,1]}\n"
+                    # f"ang_p: {self.ang_p}\n"
+                    # f"ang_s: {self.ang_s}\n"
+                    f"GpeR: {self.Gpe[0,1]:.2f} Z1: {self.z[1,1]:.2f} | r: {self.roll_rms or 0.0:.2f} | p: {self.pitch_rms or 0.0:.2f} | SC = {stable_condition} | STD: {self.accel_std or 0.0:.2f} | Tresponse: {self.Tresponse or 0.0:.1f} s| Tswitch: {self.Tswitch or 0.0:.1f} s | time {(time.time() - self.starttime) if getattr(self, 'starttime', None) is not None else 0.0:.1f}"
+                )
+            else:
+
+                self.get_logger().info(
+                    # f"GpeR: {self.Gpe[0,1]}\n"
+                    # f"GpeG: {self.Gpe[1,1]}\n"
+                    # f"GpeB: {self.Gpe[2,1]}\n"
+                    # f"ang_p: {self.ang_p}\n"
+                    # f"ang_s: {self.ang_s}\n"
+                    f"r: {self.roll_rms or 0.0:.2f} | p: {self.pitch_rms or 0.0:.2f} | TERR = {self.terrainchanger} SC = {stable_condition} | STD: {self.accel_std or 0.0:.2f} | IMU: {self.ignore_imu} | Tresponse: {self.Tresponse or 0.0:.1f} s| Tswitch: {self.Tswitch or 0.0:.1f} s | maxstd {np.max(self.maxstd) if getattr(self, 'maxstd', None) is not None and len(self.maxstd) > 0 else 0.0:.1f} || time {(time.time() - self.starttime) if getattr(self, 'starttime', None) is not None else 0.0:.1f}"
+                )
 
 
-            self.get_logger().info(
-                f"noise = {self.ACTIVE_NOISE_IDX}"
-            )
-
-
-            self.get_logger().info(
-                # f"GpeR: {self.Gpe[0,1]}\n"
-                # f"GpeG: {self.Gpe[1,1]}\n"
-                # f"GpeB: {self.Gpe[2,1]}\n"
-                # f"ang_p: {self.ang_p}\n"
-                # f"ang_s: {self.ang_s}\n"
-                f"r: {self.roll_rms or 0.0:.2f} | p: {self.pitch_rms or 0.0:.2f} | TERR = {self.terrainchanger} | STD total: {self.accel_std or 0.0:.2f} | IMU: {self.ignore_imu} | Tresponse: {self.Tresponse or 0.0:.1f} s| Tswitch: {self.Tswitch or 0.0:.1f} s | maxstd {np.max(self.maxstd) if getattr(self, 'maxstd', None) is not None and len(self.maxstd) > 0 else 0.0:.1f} || time {(time.time() - self.starttime) if getattr(self, 'starttime', None) is not None else 0.0:.1f}"
-            )
             self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_IDX]
             self.publicarMatericas()
 
@@ -875,7 +910,6 @@ class NetworkPublisher(Node):
         if self.current_mode != mode:# and (self.current_mode == "C" or self.current_mode == "H"): 
             self.ignore_timer = time.time()  
             self.ignore_imu = True
-            self.tcmd = time.time() #delay cambio metrica
             self.mode_transition_active = True #delay cambio (metrica)
         self.current_mode = mode
 

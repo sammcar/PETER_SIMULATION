@@ -192,6 +192,16 @@ def generate_launch_description():
         )
     ])
 
+    RMSE_node = TimerAction(period=13.5, actions=[
+        Node(
+            package=PACKAGE_NAME,
+            executable='RMSE_node',
+            name='RMSE_node',
+            output='screen',
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+        )
+    ])
+
     metrics_recorder = TimerAction(period=13.5, actions=[
         Node(
             package=PACKAGE_NAME,
@@ -232,6 +242,7 @@ def generate_launch_description():
             camera_node,
             neural_recorder,
             metrics_recorder,
+            RMSE_node,
             stability_monitor
         ]
     )
