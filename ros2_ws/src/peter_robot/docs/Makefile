@@ -33,10 +33,10 @@ GREEN_Y     ?= 0.0
 DC = docker exec -it $(CONTAINER) bash -c
 
 # Solo ROS base para compilar
-ROS_SOURCE = source /opt/ros/jazzy/setup.bash
+ROS_SOURCE = source /opt/ros/humble/setup.bash
 
 # ROS + overlay del workspace ya compilado
-WS_SOURCE = source /opt/ros/jazzy/setup.bash && source $(WS)/install/setup.bash
+WS_SOURCE = source /opt/ros/humble/setup.bash && source $(WS)/install/setup.bash
 
 # Ruta al script de exportación (relativa al Makefile, que vive en docs/)
 EXPORT_SCRIPT ?= $(REPO_ROOT)/ros2_ws/src/peter_robot/scripts/export_results.sh
@@ -137,6 +137,10 @@ docker-logs: ## Muestra las últimas 50 líneas de log del contenedor
 	@docker logs --tail=50 $(CONTAINER) 2>/dev/null \
 	  || echo "[ERROR] No se pueden obtener logs: contenedor '$(CONTAINER)' no existe."
 
+chown-ws: ## Corrige permisos root-owned en el host
+	sudo chown -R $$USER:$$USER ~/PETER_SIMULATION/ros2_ws
+
+
 
 build: check-container ## Compila el workspace dentro del contenedor
 	$(DC) "cd $(WS) && $(ROS_SOURCE) && colcon build"
@@ -224,6 +228,10 @@ echo-neurons: check-install ## Muestra estado de las neuronas
 
 list-topics: check-install ## Lista topics activos
 	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && ros2 topic list"
+
+log-network: check-install
+	$(DC) "cd $(WS) && ROS_DOMAIN_ID=$(DOMAIN_ID) $(WS_SOURCE) && \
+			ros2 topic echo /rosout | grep --line-buffered -A 20 "fsm_gait_arbitration""
 
 # ── Exportación de resultados ─────────────────────────────────────────────────
 

@@ -4,8 +4,8 @@
 # Activar/desactivar suites comentando/descomentando los bloques.
 
 global_settings:
-  workspace_path: "/home/ros/docker_simulation_ws/PETER_SIMULATION/ros2_ws"
-  output_base_dir: "/home/ros/docker_simulation_ws/PETER_SIMULATION/ros2_ws/src/peter_robot/docs/resultados/simulation"
+  workspace_path: "/ros2_ws"
+  output_base_dir: "/ros2_ws/src/peter_robot/docs/resultados/simulation"
   grace_period_teardown_s: 5.0
 
 experiment_suites:
@@ -82,26 +82,26 @@ experiment_suites:
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C1 FSM — Transición a Terreno Irregular  [NO CORRER AHORA]
   # ──────────────────────────────────────────────────────────────────────────
-  # - suite_name: "familia_c1_terreno_rugoso_fsm"
-  #   launch_file: "terrain_navigation.launch.py"
-  #   repetitions: 15
-  #   dynamic_parameters:
-  #     controller: "fsm"
-  #     world_name: "terrain"
-  #     timeout_s: 120.0
-  #     random_perturbation: false
+  - suite_name: "familia_c1_terreno_rugoso_fsm"
+    launch_file: "terrain_navigation.launch.py"
+    repetitions: 15
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "terrain"
+      timeout_s: 160.0
+      random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA C2 FSM — Prueba de Pendiente Inclinada  [NO CORRER AHORA]
   # ──────────────────────────────────────────────────────────────────────────
-  # - suite_name: "familia_c2_pendiente_fsm"
-  #   launch_file: "slope_navigation.launch.py"
-  #   repetitions: 15
-  #   dynamic_parameters:
-  #     controller: "fsm"
-  #     world_name: "terrain"
-  #     timeout_s: 120.0
-  #     random_perturbation: false
+  - suite_name: "familia_c2_pendiente_fsm"
+    launch_file: "slope_navigation.launch.py"
+    repetitions: 15
+    dynamic_parameters:
+      controller: "fsm"
+      world_name: "terrain"
+      timeout_s: 160.0
+      random_perturbation: false
 
   # ──────────────────────────────────────────────────────────────────────────
   # FAMILIA E FSM — Tarea de Inspección Reactiva

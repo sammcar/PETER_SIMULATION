@@ -91,6 +91,8 @@ class FSMGaitArbitration(Node):
         #------------------------- C O N S T A N T E S --------------------------------------#
 
         #DEBUGGING
+        self.pruebaDeTerreno = True #Estas variables hacen que los comentarios malucos que dejé no
+        self.pruebaInclinado = True #Haya que manipularlos
 
         self.MOVEMENT = True
         self.maxstd = []
@@ -111,7 +113,7 @@ class FSMGaitArbitration(Node):
         #Logica que será neuronal
         self.terrainchanger = False
         self.terrain_timer = 0.0  # Guarda el tiempo de inicio
-        self.IGNORE_IMU_TERRAIN = True  # sobreescrito por parámetro ROS2 'ignore_imu_terrain'
+        self.IGNORE_IMU_TERRAIN = False  # sobreescrito por parámetro ROS2 'ignore_imu_terrain'
 
 
         self.ang_p = 90 # Posicion Frente del Robot
@@ -139,8 +141,10 @@ class FSMGaitArbitration(Node):
         self.TaoSTN = 2 # Tao Ganglios
         self.TaoSTR = 1 # Tao Ganglios
 
-        self.Upitch = 1   # umbral pitch (°) — fijo, sobreescribible si se necesita
-        self.Usigma_az = 100.0  # sobreescrito por parámetro ROS2 'usigma_az'
+        if (self.pruebaDeTerreno and not self.pruebaInclinado): self.Usigma_az = 3.0 #PARA CASO PLANO-RUGOSO-PLANO
+        else: self.Usigma_az = 100 #PARA CASO PLANO-INLINADO
+        if (self.pruebaDeTerreno and not self.pruebaInclinado): self.Upitch = 20 #Umbral pitch PLANO-RUGOSO-PLANO
+        else: self.Upitch = 1.30 #uMbral pitch INCLINADO
         self.Uroll = 270 #Umbral roll
 
         # 1) Pesos para Input -> Response (inverso)
@@ -181,9 +185,11 @@ class FSMGaitArbitration(Node):
 
         # TIEMPO DE RESPUESTA
         self.starttime = time.time() 
-        self.tchange = self.starttime + 11.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
+        if (self.pruebaDeTerreno and not self.pruebaInclinado): self.tchange = self.starttime + 16.0 #Tiempo que tarda el robot a llegar al terreno rocoso (VARIA SEGUN EL MAPA)
+        else: self.tchange = self.starttime + 80.0
         self.Tresponse = None
         self.response_measured = False
+        self.condition_start_time = None
 
         # --- DELAY CAMBIO DE MODO---
         self.tcmd = None
@@ -206,13 +212,9 @@ class FSMGaitArbitration(Node):
         # Nivel activo en este experimento (índice en NoiseLevel).
         # Cámbialo antes de cada prueba: 0=limpio, 1=±5%, 2=±10%, etc.
 
-        self.declare_parameter('nl', 0)
-        self.declare_parameter('ignore_imu_terrain', True)
-        self.declare_parameter('usigma_az', 100.0)
 
-        self.ACTIVE_NOISE_LEVEL_IDX = self.get_parameter('nl').get_parameter_value().integer_value
-        self.IGNORE_IMU_TERRAIN = self.get_parameter('ignore_imu_terrain').get_parameter_value().bool_value
-        self.Usigma_az = self.get_parameter('usigma_az').get_parameter_value().double_value
+
+        self.ACTIVE_NOISE_LEVEL_IDX = 0
 
         # Semilla reproducible (None = aleatoria)
         self.NoiseSeed = 42
@@ -344,11 +346,14 @@ class FSMGaitArbitration(Node):
 
 
         R = self.areaBoundingBoxR/500
+        if self.pruebaInclinado: R = 3.652 #para probar inclinacio
         #R = 3.652 #Descomentar para probar inclinacion
         if self.lidar[4,0]*15 > 0.2: G = self.lidar[4,0]*15
         else: G = 0
         #G = 0
         B = self.areaBoundingBoxB/500
+        if self.pruebaDeTerreno: G = 0  #Descomentar para probar inclinacion y terreno
+
 
 
         self.StN[0, 1] = np.clip((self.StN[0, 0] + (1/self.TaoSTN)*(-self.StN[0, 0] + R - self.Gpi[0,0] - self.Gpe[1,0] - self.Gpe[2,0] -1.0)),0, None)
@@ -376,7 +381,7 @@ class FSMGaitArbitration(Node):
         else:
             self.ang_s = 90*(self.lidar[4,1]<0.3)
 
-        #self.ang_s = 90 #Descomentar para probar terreno inclinado
+        if self.pruebaInclinado: self.ang_s = 90 # terreno inclinado
 
         # ------IMPLEMENTACIÒN MÒDULO IMU ----------
 
@@ -462,7 +467,7 @@ class FSMGaitArbitration(Node):
 
             if self.terrainchanger:
                 elapsed = time.time() - self.terrain_timer
-                if elapsed < 40:
+                if elapsed < 80:
                     self.std_dev_accel_z = 9
                 else:
                     self.terrainchanger = False
@@ -552,7 +557,7 @@ class FSMGaitArbitration(Node):
                 (current_time - self.last_h_trigger_time) < self.h_persist_time
             )
 
-            if not self.IGNORE_IMU_TERRAIN and self.pitch > self.Upitch:
+            if not self.IGNORE_IMU_TERRAIN and self.pitch_rms > self.Upitch:
                 new_mode = 'H'
             elif not self.IGNORE_IMU_TERRAIN and self.terrainchanger:
                 new_mode = 'C'
@@ -575,13 +580,31 @@ class FSMGaitArbitration(Node):
 
 
             #------------------------- M E T R I C A S--------------------------------------#
-            stable_condition = (self.accel_std < 2 and self.pitch < 1.5 and self.roll > 178) #Estabilización cond
+            stable_condition = (self.accel_std < 3.6 and self.pitch_rms < 1.7 and self.roll_rms < 2.6) #Estabilización cond
             # print(f"stable condition: {stable_condition}")
 
             #Tiempo de respuesta
-            if (self.terrainchanger and not self.response_measured and stable_condition): 
-                self.Tresponse = time.time() - self.tchange
-                self.response_measured = True
+            if self.pruebaInclinado:
+                if (self.current_mode == 'H' and not self.response_measured and self.pitch_rms > self.Upitch):
+                    # Si la condición acaba de empezar a cumplirse, guardamos el tiempo actual
+                    if self.pitch_rms > 5.0:
+                        self.Tresponse = -1.0 #Forzar cierre si vuelca
+
+                    if self.condition_start_time is None:
+                        self.condition_start_time = time.time()
+                    
+                    # Comprobamos si ha permanecido activa por más de 5 segundos
+                    elif time.time() - self.condition_start_time >= 5.0:
+                        self.Tresponse = time.time() - self.tchange
+                        self.response_measured = True
+                        self.condition_start_time = None  # Reiniciamos el temporizador
+                else:
+                    # Si la condición se interrumpe antes de los 5s, reiniciamos el contador
+                    self.condition_start_time = None
+            else:
+                if (self.terrainchanger and not self.response_measured and stable_condition): 
+                    self.Tresponse = time.time() - self.tchange
+                    self.response_measured = True
 
             #Delay de cambio
             if (self.mode_transition_active and not self.switch_measured and stable_condition):
@@ -589,9 +612,25 @@ class FSMGaitArbitration(Node):
                 self.switch_measured = True
                 self.mode_transition_active = False
 
-            #Amplitud de oscilacion
-            # print(f"Roll RMS: {self.roll_rms:.3f} deg")
-            # print(f"Pitch RMS: {self.pitch_rms:.3f} deg")
+            if self.pruebaInclinado:
+                self.get_logger().info(
+                    # f"GpeR: {self.Gpe[0,1]}\n"
+                    # f"GpeG: {self.Gpe[1,1]}\n"
+                    # f"GpeB: {self.Gpe[2,1]}\n"
+                    # f"ang_p: {self.ang_p}\n"
+                    # f"ang_s: {self.ang_s}\n"
+                    f"GpeR: {self.Gpe[0,1]:.2f} Z1: {self.z[1,1]:.2f} | r: {self.roll_rms or 0.0:.2f} | p: {self.pitch_rms or 0.0:.2f} | SC = {stable_condition} | STD: {self.accel_std or 0.0:.2f} | Tresponse: {self.Tresponse or 0.0:.1f} s| Tswitch: {self.Tswitch or 0.0:.1f} s | time {(time.time() - self.starttime) if getattr(self, 'starttime', None) is not None else 0.0:.1f}"
+                )
+            else:
+
+                self.get_logger().info(
+                    # f"GpeR: {self.Gpe[0,1]}\n"
+                    # f"GpeG: {self.Gpe[1,1]}\n"
+                    # f"GpeB: {self.Gpe[2,1]}\n"
+                    # f"ang_p: {self.ang_p}\n"
+                    # f"ang_s: {self.ang_s}\n"
+                    f"r: {self.roll_rms or 0.0:.2f} | p: {self.pitch_rms or 0.0:.2f} | TERR = {self.terrainchanger} SC = {stable_condition} | STD: {self.accel_std or 0.0:.2f} | IMU: {self.ignore_imu} | Tresponse: {self.Tresponse or 0.0:.1f} s| Tswitch: {self.Tswitch or 0.0:.1f} s | maxstd {np.max(self.maxstd) if getattr(self, 'maxstd', None) is not None and len(self.maxstd) > 0 else 0.0:.1f} || time {(time.time() - self.starttime) if getattr(self, 'starttime', None) is not None else 0.0:.1f}"
+                )
 
             self.metricsArr = [self.Tresponse, self.Tswitch, self.roll_rms, self.pitch_rms, self.ACTIVE_NOISE_LEVEL_IDX]
             self.publicarMatericas()

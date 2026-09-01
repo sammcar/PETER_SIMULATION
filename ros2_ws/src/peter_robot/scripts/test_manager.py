@@ -29,6 +29,9 @@ from std_msgs.msg import Float32MultiArray, String
 from geometry_msgs.msg import PoseArray
 import yaml
 
+from pynput import keyboard
+from typing import Dict, Any, Optional
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -239,6 +242,31 @@ class TrialEvaluator:
         self._post_switch_start: Optional[float] = None   
         self._tipover_start_s: Optional[float] = None
 
+
+                # Flags para la captura de teclado manual
+        self._manual_success_requested = False
+        self._manual_restart_requested = False
+
+        # Iniciar el escuchador de teclado en segundo plano (non-blocking)
+        self._keyboard_listener = keyboard.Listener(on_press=self._on_key_press)
+        self._keyboard_listener.start()
+
+
+
+    def _on_key_press(self, key):
+        try:
+            # Captura caracteres en minúscula o mayúscula
+            if hasattr(key, 'char') and key.char is not None:
+                char = key.char.lower()
+                if char == 's':
+                    log.info('[KEYBOARD] Tecla "S" presionada -> Solicitando SUCCESS.')
+                    self._manual_success_requested = True
+                elif char == 'r':
+                    log.info('[KEYBOARD] Tecla "R" presionada -> Solicitando RESTART.')
+                    self._manual_restart_requested = True
+        except Exception as e:
+            log.error(f'Error en captura de teclado: {e}')
+
     def evaluate(self, snap: Dict[str, Any], sim_start_s: float, warmup_done: bool) -> Optional[Verdict]:
         if not warmup_done: return None
         current_sim_s: float = snap['sim_time_s']
@@ -318,55 +346,60 @@ class TrialEvaluator:
         return None
 
     def _eval_terrain_c1(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
-        neurons = snap['neurons']
-        x0 = neurons[0] if len(neurons) > 0 else 0.0
-        x15 = neurons[15] if len(neurons) > 15 else 0.0
-        tswitch_done = snap['tswitch'] > 0.0
-        mode_articulated = (snap['mode'] == 'C') # El tópico /peter_mode pasa a 'C' en terreno irregular
+            # --- 0. Control de Fallo por tresponse negativo ---
 
-        # Evaluamos el cumplimiento de la condición de disparo (Activación de red o modo motor)
-        if not self._mode_switched and (x0 > 0.1 or x15 > 0.1 or mode_articulated) and tswitch_done:
-            self._mode_switched     = True
-            self._post_switch_start = current_sim_s
-            log.info(f'[C1] Transition to articulated gait detected at {current_sim_s:.2f}s. Evaluating stability window...')
+            tres = snap['tresponse'] 
+            if tres < 0.0:
+                log.warning(f'[FAILURE_TIPOVER] C1 cancelado: tresponse ({tres}) es menor a 0.0')
+                return Verdict.FAILURE_TIPOVER
 
-        # Verificación de la ventana de estabilidad obligatoria (SAFETY_STABLE_S = 12.0 segundos)
-        if self._mode_switched and self._post_switch_start is not None:
-            if (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S:
-                log.info(f'[SUCCESS] C1 test successful: 12 seconds of stable articulated locomotion completed.')
+            if tres > 0.0:
+                if current_sim_s > 50.0:
+                    log.info(f'[SUCCESS] C1 completado exitosamente: sim_time={current_sim_s:.2f}s')
+                    self._tresponse_gt_zero_start = None  # Reset al finalizar el trial
+                    return Verdict.SUCCESS
+
+            # --- 1. Controles Manuales ---
+            if self._manual_restart_requested:
+                self._manual_restart_requested = False  # Reset del flag
+                log.info(f'[MANUAL RESTART] Solicitud de reinicio manual recibida en {current_sim_s:.2f}s.')
+                return Verdict.FAILURE_TIPOVER
+
+            if self._manual_success_requested:
+                self._manual_success_requested = False  # Reset del flag
+                log.info(f'[SUCCESS] C1 test marcado exitosamente por entrada manual (Tecla S) en {current_sim_s:.2f}s.')
                 return Verdict.SUCCESS
-        return None
+
+            return None
 
     def _eval_terrain_c2(self, snap: Dict[str, Any], current_sim_s: float) -> Optional[Verdict]:
-        mode = snap['mode']
-        
-        # 1. Detectar el paso por modo Cuadrúpedo (reacción inicial al estímulo aversivo)
-        if not hasattr(self, '_c2_saw_quadruped'):
-            self._c2_saw_quadruped = False
-            
-        if not self._c2_saw_quadruped and mode == 'C':
-            self._c2_saw_quadruped = True
-            log.info(f'[C2] Modo cuadrúpedo (evasión) detectado a los {current_sim_s:.2f}s.')
-            
-        # 2. Detectar la transición de vuelta a Híbrido (subiendo la pendiente hacia atrás)
-        if self._c2_saw_quadruped and not self._mode_switched and mode == 'H':
-            self._mode_switched = True
-            self._post_switch_start = current_sim_s
-            log.info(f'[C2] Pendiente detectada. Cambio a modo Híbrido a los {current_sim_s:.2f}s. Evaluando ascenso...')
-            
-        # 3. Validar que mantenga el ascenso en modo Híbrido estable
-        if self._mode_switched and self._post_switch_start is not None:
-            if mode != 'H':
-                # Si el robot resbala y pierde la postura, reiniciamos la ventana de evaluación
-                self._mode_switched = False
-                self._post_switch_start = None
-                log.info(f'[C2] Se perdió el modo Híbrido de ascenso. Reiniciando ventana de estabilidad.')
-            elif (current_sim_s - self._post_switch_start) >= SAFETY_STABLE_S//3:  # Requiere la mitad del tiempo de estabilidad que la Familia C1, dado lo desafiante de la tarea
-                log.info(f'[SUCCESS] Prueba C2 exitosa: Ascenso en modo Híbrido mantenido por {SAFETY_STABLE_S//3}s.')
+        # --- 0. Control de Fallo por tresponse negativo ---
+        tres = snap['tresponse'] 
+        if tres < 0.0:
+            log.warning(f'[FAILURE_TIPOVER] C1 cancelado: tresponse ({tres}) es menor a 0.0')
+            return Verdict.FAILURE_TIPOVER
+        if tres > 0.0:
+            log.info(f'time {current_sim_s}')
+            if current_sim_s > 65.0:
+                log.info(f'[SUCCESS] C1 completado exitosamente: sim_time={current_sim_s:.2f}s')
+                self._tresponse_gt_zero_start = None  # Reset al finalizar el trial
                 return Verdict.SUCCESS
-                
+
+
+        # --- 1. Controles Manuales ---
+        if self._manual_restart_requested:
+            self._manual_restart_requested = False  # Reset del flag
+            log.info(f'[MANUAL RESTART] Solicitud de reinicio manual recibida en {current_sim_s:.2f}s.')
+            return Verdict.FAILURE_TIPOVER
+
+        if self._manual_success_requested:
+            self._manual_success_requested = False  # Reset del flag
+            log.info(f'[SUCCESS] C2 test marcado exitosamente por entrada manual (Tecla S) en {current_sim_s:.2f}s.')
+            return Verdict.SUCCESS
+
         return None
 
+        return None
 def _collect_artifacts(trial_dir: Path, suite_name: str, trial_idx: int, verdict: Verdict, seed_info: Dict[str, Any], snap_final: Dict[str, Any]) -> None:
     trial_dir.mkdir(parents=True, exist_ok=True)
     if STABILITY_LOG_SRC.exists(): shutil.move(str(STABILITY_LOG_SRC), str(trial_dir / 'stability_log.csv'))
@@ -440,7 +473,7 @@ class TestManager:
         self._workspace: Path = Path(os.path.expanduser(gs.get('workspace_path', '~/PETER_SIMULATION/ros2_ws')))
         self._output_base: Path = Path(os.path.expanduser(gs.get('output_base_dir', '~/PETER_SIMULATION/Findings')))
         self._grace_period: float = float(gs.get('grace_period_teardown_s', GRACE_PERIOD_S))
-        self._ros_setup  = f'source /opt/ros/jazzy/setup.bash && source {self._workspace}/install/setup.bash'
+        self._ros_setup  = f'source /opt/ros/humble/setup.bash && source {self._workspace}/install/setup.bash'
         self._rng        = np.random.default_rng()
         self._judge_node: Optional[TestJudgeNode] = None
         self._ros_thread: Optional[threading.Thread] = None

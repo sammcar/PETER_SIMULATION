@@ -28,29 +28,6 @@ from launch_ros.substitutions import FindPackageShare
 
 PACKAGE_NAME = 'peter_robot'
 
-
-def _select_controller(context, *args, **kwargs):
-    controller = context.launch_configurations.get('controller', 'neural')
-    if controller == 'neural':
-        executable = 'red_neuronal'
-        params = []
-    else:
-        executable = 'fsm_arbitration'
-        # C1: terreno rugoso — IMU activo, umbral vibración 3.3
-        params = [{'ignore_imu_terrain': False, 'usigma_az': 3.3}]
-    return [
-        TimerAction(period=12.5, actions=[
-            Node(
-                package=PACKAGE_NAME,
-                executable=executable,
-                name=executable,
-                output='screen',
-                parameters=params,
-            )
-        ])
-    ]
-
-
 def _resolve_world(context, *args, **kwargs):
     pkg_share = FindPackageShare(package=PACKAGE_NAME).find(PACKAGE_NAME)
     worlds_dir = os.path.join(pkg_share, 'worlds')
@@ -96,8 +73,8 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_x', default_value='0.0'),
         DeclareLaunchArgument('robot_y', default_value='0.0'),
         DeclareLaunchArgument('robot_z', default_value='1.2'),
-        DeclareLaunchArgument('controller', default_value='neural',
-                              description='Gait arbitration controller: neural | fsm'),
+        DeclareLaunchArgument('noise_level_idx', default_value='0'),
+        DeclareLaunchArgument('illum_direction', default_value='-1'),
     ]
 
     resolve_world = OpaqueFunction(function=_resolve_world)
@@ -177,12 +154,29 @@ def generate_launch_description():
         Node(package=PACKAGE_NAME, executable='peter_controller', name='peter_controller', output='screen')
     ])
 
+# ---- Establecer modo H (Híbrido) ----
+    set_hybrid_mode = TimerAction(period=14.5, actions=[
+        ExecuteProcess(
+            cmd=['ros2', 'topic', 'pub', '--once', '/peter_mode', 'std_msgs/msg/String', '{data: "H"}'],
+            output='screen'
+        )
+    ])
+
     # ---- Application nodes ----
-    select_controller = OpaqueFunction(function=_select_controller)
+    neural_network = TimerAction(period=19.5, actions=[
+        Node(
+            package=PACKAGE_NAME, 
+            executable='fsm_arbitration', 
+            name='fsm_arbitration', 
+            output='screen',
+            parameters=[{
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+            }]
+             )
+    ])
 
     camera_node = TimerAction(period=13.0, actions=[
-        Node(package=PACKAGE_NAME, executable='camera_node', name='camera_node', output='screen',
-             parameters=[{'headless': True}])
+        Node(package=PACKAGE_NAME, executable='camera_node', name='camera_node', output='screen')
     ])
 
     # ---- Metrics & Stability Monitor ----
@@ -193,6 +187,16 @@ def generate_launch_description():
             name='neural_recorder',
             output='screen',
             parameters=[{'experiment_type': 'terrain_navigation', 'use_sim_time': LaunchConfiguration('use_sim_time')}],
+        )
+    ])
+
+    RMSE_node = TimerAction(period=13.5, actions=[
+        Node(
+            package=PACKAGE_NAME,
+            executable='RMSE_node',
+            name='RMSE_node',
+            output='screen',
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
         )
     ])
 
@@ -212,7 +216,7 @@ def generate_launch_description():
             executable='peter_stability_monitor',
             name='stability_monitor',
             output='screen',
-            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time'), 'headless': True}],
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
         )
     ])
 
@@ -231,10 +235,12 @@ def generate_launch_description():
             load_head,
             load_velocity,
             peter_controller,
-            select_controller,
+            set_hybrid_mode,
+            neural_network,
             camera_node,
             neural_recorder,
             metrics_recorder,
+            RMSE_node,
             stability_monitor
         ]
     )

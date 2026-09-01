@@ -129,6 +129,14 @@ echo-status: ## Muestra /experiment/status en tiempo real
 list-topics: ## Lista topics ROS 2 activos
 	@make -f $(MK) list-topics $(PASSTHROUGH)
 
+chown-ws: ## Soluciona problemas de acceso
+	@make -f $(MK) chown-ws $(PASSTHROUGH)
+
+log-network: ## log de la red
+	@make -f $(MK) log-network $(PASSTHROUGH)
+
+
+
 # ── Resultados ────────────────────────────────────────────────────────────────
 export-results: ## Exporta resultados del contenedor al host (menú interactivo)
 	@make -f $(MK) export-results $(PASSTHROUGH)

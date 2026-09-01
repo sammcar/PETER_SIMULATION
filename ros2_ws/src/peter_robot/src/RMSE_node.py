@@ -34,7 +34,7 @@ class RMSEPublisher(Node):
 
         # control de tiempo
         self.start_time = time.time()
-        self.duration = 20.0  # duración de la prueba (segundos)
+        self.duration = 70.0  # duración de la prueba (segundos)
         self.published = False
 
         # timer
@@ -47,14 +47,14 @@ class RMSEPublisher(Node):
     # -----------------------------
     def get_peter_pose(self):
         cmd = [
-            "gz", "topic",
+            "ign", "topic",
             "-e",
             "-t", "/world/default/pose/info",
             "-n", "1"
         ]
 
         try:
-            output = subprocess.check_output(cmd, timeout=0.2).decode("utf-8")
+            output = subprocess.check_output(cmd, timeout=0.5).decode("utf-8")
         except subprocess.TimeoutExpired:
             return None
 
@@ -90,6 +90,7 @@ class RMSEPublisher(Node):
         pose = self.get_peter_pose()
 
         if pose is None:
+            #self.get_logger().info("No se encontró pose")
             return
 
         ct = self.cross_track_error(pose)
@@ -98,10 +99,10 @@ class RMSEPublisher(Node):
         elapsed = time.time() - self.start_time
 
         # debug opcional
-        self.get_logger().info(f"t={elapsed:.1f}s | CT={ct:.3f}")
-        self.get_logger().info(f"X {pose[0]:.4f}")
-        self.get_logger().info(f"Y {pose[1]:.4f}")
-        self.get_logger().info(f"Z {pose[2]:.4f}")
+        # self.get_logger().info(f"t={elapsed:.1f}s | CT={ct:.3f}")
+        # self.get_logger().info(f"X {pose[0]:.4f}")
+        # self.get_logger().info(f"Y {pose[1]:.4f}")
+        # self.get_logger().info(f"Z {pose[2]:.4f}")
 
         # -----------------------------
         # FINAL DE PRUEBA
